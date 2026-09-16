@@ -99,11 +99,41 @@ jobs:
           make unit-gcc
 
       - name: Build representative cases
+        shell: bash
         run: |
-          # Keep the runner-only cleanup-target compatibility rename. It is
-          # harmless on PETSc 3.22.2 and avoids make-rule collisions across
-          # PETSc packaging variants; no numerical source is modified.
+          set -euo pipefail
+
+          # PETSc make-rule packaging can collide with this repository's clean::
+          # rule. Rename only that runner-copy housekeeping target.
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
+
+          # The traditional case computes `unified` only for an optional
+          # compile-time binary-H2O initialization mode. Under the default mode
+          # GCC correctly diagnoses it as unused and -Werror stops the build.
+          # Keep the same semantics by putting the computation under the same
+          # preprocessor guard in the runner copy.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('case/h2o_co2_nc10_2d_traditional/h2o_co2_nc10_2d_traditional.cpp')
+          text = path.read_text()
+          old = '''void initializeSolution(
+              Grid &grid, Vec solution, const MPMC::FluidSystem<Indices> &fluid)
+          {
+              const auto unified = unifiedBinaryInitialSaturation(fluid);
+              PetscCallAbort(PETSC_COMM_WORLD, VecSet(solution, 0.0));'''
+          new = '''void initializeSolution(
+              Grid &grid, Vec solution, const MPMC::FluidSystem<Indices> &fluid)
+          {
+          #ifdef MPMC_H2O_CO2_BINARY_INITIAL_H2O_MOLE_FRACTION
+              const auto unified = unifiedBinaryInitialSaturation(fluid);
+          #endif
+              PetscCallAbort(PETSC_COMM_WORLD, VecSet(solution, 0.0));'''
+          if old not in text:
+              raise SystemExit('expected traditional-case initialization block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
           make case CASE=h2o_co2_nc10_2d_traditional -j2
           make case CASE=h2o_co2_nc10_2d_benchmark -j2
 
