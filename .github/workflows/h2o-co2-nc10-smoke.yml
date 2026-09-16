@@ -1,0 +1,124 @@
+name: H2O-CO2-nC10 smoke cases
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/h2o-co2-nc10-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential gfortran python3 \
+            openmpi-bin libopenmpi-dev \
+            libpetsc-real-dev libmetis-dev libfmt-dev
+
+      - name: Configure local dependency profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PETSC_VARIABLES="$(find /usr/lib/petscdir /usr/lib -path '*/lib/petsc/conf/variables' -print -quit 2>/dev/null)"
+          if [[ -z "${PETSC_VARIABLES}" ]]; then
+            echo "PETSc variables file not found" >&2
+            exit 1
+          fi
+          PETSC_DIR="${PETSC_VARIABLES%/lib/petsc/conf/variables}"
+
+          METIS_ROOT="${RUNNER_TEMP}/metis-shim"
+          mkdir -p "${METIS_ROOT}/include" "${METIS_ROOT}/install/lib"
+          ln -sf /usr/include/metis.h "${METIS_ROOT}/include/metis.h"
+          METIS_LIB="$(ldconfig -p | awk '/libmetis\.so/{print $NF; exit}')"
+          if [[ -z "${METIS_LIB}" ]]; then
+            echo "libmetis.so not found" >&2
+            exit 1
+          fi
+          ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
+
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_DIR}
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := ${METIS_ROOT}
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+
+          make print-config
+          make doctor-local
+
+      - name: Repository audit and unit tests
+        run: |
+          make audit
+          make unit-gcc
+
+      - name: Build representative cases
+        run: |
+          make case CASE=h2o_co2_nc10_2d_traditional -j2
+          make case CASE=h2o_co2_nc10_2d_benchmark -j2
+
+      - name: Run traditional short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_traditional NP=1 \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/traditional" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Run New-PR short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=pr \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-pr" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Run New-SW short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Run New-CPA short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=cpa \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-cpa" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Summarize generated outputs
+        if: always()
+        run: |
+          echo '=== result files ==='
+          find runner-results -maxdepth 3 -type f -print 2>/dev/null | sort || true
+          echo '=== case logs ==='
+          find case/h2o_co2_nc10_2d_* -path '*/logs/*' -type f -print 2>/dev/null | sort || true
+
+      - name: Upload smoke outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: h2o-co2-nc10-smoke-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            runner-results/
+            case/h2o_co2_nc10_2d_traditional/logs/
+            case/h2o_co2_nc10_2d_benchmark/logs/
