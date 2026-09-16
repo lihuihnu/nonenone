@@ -1,0 +1,139 @@
+{
+  "purpose": "general provisional reservoir field figures; no target-journal compliance claimed",
+  "source_roots": {
+    "fully_compositional": "case/five_component_eos_tuned_compare/results/translated_density_30day_20260826",
+    "traditional": "case/five_component_eos_tuned_legacy_compare/results/translated_density_30day_20260826/pr"
+  },
+  "grid": {
+    "cells": [
+      20,
+      20,
+      5
+    ],
+    "dimensions_m": [
+      1000.0,
+      600.0,
+      50.0
+    ]
+  },
+  "time_day": 30.0,
+  "transformations": [
+    "all displayed fields are unweighted arithmetic means over the five vertical layers",
+    "pressure change is final pressure minus initial pressure, converted from Pa to bar",
+    "water-saturation change is final minus initial and multiplied by 1e4",
+    "aqueous CO2 mole fraction is multiplied by 1e3; Traditional is exactly zero by model definition",
+    "no interpolation, smoothing, filtering, clipping, data normalization, or excluded cells"
+  ],
+  "shared_color_limits": {
+    "pressure_change": [
+      -2.6795171989118276,
+      0.0,
+      1.2129041586335527
+    ],
+    "gas_saturation": [
+      0.046594770569296395,
+      0.4388527023885066
+    ],
+    "aqueous_co2": [
+      0.0,
+      8.16983367968246
+    ],
+    "gas_co2": [
+      0.18750048275906708,
+      0.5084644577941128
+    ],
+    "water_saturation_change": [
+      -4.973428608357682,
+      0.0,
+      2.2108571606782093
+    ]
+  },
+  "figure_size_mm": [
+    150.0,
+    92.0
+  ],
+  "png_dpi": 600,
+  "generated": [
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/field_source_data.csv",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/01_pressure_change_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/02_gas_saturation_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/03_aqueous_co2_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/04_gas_co2_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/en/05_water_saturation_change_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/01_pressure_change_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/02_gas_saturation_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/03_aqueous_co2_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/04_gas_co2_traditional.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_pr.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_pr.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_sw.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_sw.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_cpa.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_our_cpa.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_traditional.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/translated_density_30day_20260826/fields/zh/05_water_saturation_change_traditional.pdf"
+  ]
+}

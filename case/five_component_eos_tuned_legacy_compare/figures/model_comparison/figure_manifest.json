@@ -1,0 +1,54 @@
+{
+  "purpose": "general provisional scientific figures; no target-journal compliance claimed",
+  "source_roots": {
+    "fully_compositional": "case/five_component_eos_tuned_compare/results/recomputed_f405a18",
+    "traditional_independent_water": "case/five_component_eos_tuned_legacy_compare/results/full"
+  },
+  "transformations": [
+    "producer q_total_surface multiplied by -1 to display production magnitude",
+    "injector BHP at t=0 omitted because it is an unconstrained initial guess",
+    "nonlinear solve wall times cumulatively summed in accepted chronological order",
+    "final saturation bars use the unmodified day-5 arithmetic cell means",
+    "runtime bars use the unmodified simulation_loop_wall values",
+    "no filtering, smoothing, interpolation, normalization, or exclusions"
+  ],
+  "missing_data": "none; injector BHP t=0 is intentionally blank in source_data.csv",
+  "figure_size_mm": [
+    150.0,
+    92.0
+  ],
+  "png_dpi": 600,
+  "palette": {
+    "pr": "#0072B2",
+    "sw": "#D55E00",
+    "cpa": "#009E73"
+  },
+  "redundant_encoding": "EOS uses color and marker; phase model uses line style and marker fill",
+  "generated": [
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/source_data.csv",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/01_mean_pressure.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/01_mean_pressure.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/02_producer_rate.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/02_producer_rate.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/03_injector_bhp.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/03_injector_bhp.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/04_water_density.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/04_water_density.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/05_final_saturation.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/05_final_saturation.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/06_runtime.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/en/06_runtime.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/01_mean_pressure.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/01_mean_pressure.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/02_producer_rate.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/02_producer_rate.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/03_injector_bhp.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/03_injector_bhp.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/04_water_density.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/04_water_density.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/05_final_saturation.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/05_final_saturation.pdf",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/06_runtime.png",
+    "case/five_component_eos_tuned_legacy_compare/figures/model_comparison/zh/06_runtime.pdf"
+  ]
+}

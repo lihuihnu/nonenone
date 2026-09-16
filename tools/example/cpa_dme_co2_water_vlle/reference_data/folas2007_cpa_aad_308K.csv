@@ -1,0 +1,10 @@
+phase,component,published_aard_percent
+water-rich,H2O,1.8
+water-rich,DME,41.0
+water-rich,CO2,15.4
+DME-rich,H2O,65.2
+DME-rich,DME,6.6
+DME-rich,CO2,2.1
+vapor,H2O,69.1
+vapor,DME,2.3
+vapor,CO2,1.2

@@ -1,0 +1,65 @@
+{
+  "study": "Sun-2024 400 C SCW/CO2 2x2 factorial with rate-matched controls",
+  "source": {
+    "doi": "10.3390/app14093588",
+    "physical_experiments": [4, 6, 10, 12],
+    "flow_rate_reference_state": "not reported; Figure 1 shows pump/intermediate-vessel delivery",
+    "pressure_control": "outlet back-pressure regulator at Table 2 pressure",
+    "apparatus_maximum_injection_pressure_Pa": 35000000.0,
+    "physical_stop_condition": "source contains temperature-stable, 2 h, and 4 PV descriptions",
+    "analysis_endpoint": "4 PV common reporting endpoint"
+  },
+  "locked_model": {
+    "geometry_m": {"length": 0.48, "diameter": 0.039},
+    "porosity": 0.39,
+    "permeability_mD": 2000.0,
+    "initial_saturation": {"oil": 0.935, "gas": 0.0, "scw": 0.065},
+    "temperature_K": 673.15,
+    "oil_surrogate": "nC16",
+    "hydrocarbon_eos": "PR78",
+    "co2_nc16_kij": 0.09,
+    "water_model": "independent conserved SCW; IAPWS-IF97 density; McBride-Wright viscosity",
+    "omitted_physics": [
+      "energy equation and heat loss",
+      "thermal front",
+      "hydrothermal reactions and upgrading",
+      "capillary pressure",
+      "molecular diffusion and mechanical dispersion",
+      "finite-rate interphase mass transfer"
+    ]
+  },
+  "required_runtime_declaration": {
+    "rate_basis_options": ["in_situ_volume", "reference_density"],
+    "preferred_physical_reproduction_basis": "reference_density",
+    "reference_density_required_inputs": [
+      "water_reference_density_kg_m3",
+      "co2_reference_density_kg_m3"
+    ],
+    "warning": "in_situ_volume is a declared sensitivity boundary because the paper omits the rate-meter reference state"
+  },
+  "default_numerics": {
+    "nx": 48,
+    "target_pv": 4.0,
+    "dt_pv": 0.02,
+    "adaptive_time_step": true,
+    "snes_absolute_tolerance": 1e-12
+  },
+  "convergence": {
+    "grid_nx": [48, 96, 192],
+    "time_step_pv": [0.02, 0.01, 0.005],
+    "medium_fine_nc16_recovery_absolute_tolerance": 0.005,
+    "medium_fine_co2_breakthrough_pv_tolerance": 0.02,
+    "co2_breakthrough_definition": "first output interval with outlet/inlet CO2 component mass-rate ratio >= 0.01",
+    "maximum_component_relative_mass_error": 1e-6,
+    "mass_error_scale": "max(initial inventory, current inventory, cumulative injected, cumulative produced)"
+  },
+  "interpretation": {
+    "primary_factorial": "pressure (23/24 MPa) x added CO2 (0/2 reported mL/min)",
+    "rate_confounding_controls": {
+      "ids": ["C23", "C24"],
+      "rule": "pure-SCW reservoir total rate is resolved to exactly match R10/R12 under the same rate basis"
+    },
+    "heat_utilization_is_not_a_model_target": true,
+    "existing_numerical_results_are_not_inputs": true
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "generated_on": "2026-09-16",
+  "status": "provisional internal figures; current uncalibrated flow models",
+  "python": "3.13.5",
+  "matplotlib": "3.10.0",
+  "source_runs": {
+    "binary_PR": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\pr_np1_lu",
+    "binary_SW": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\sw_np1_lu",
+    "binary_CPA": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\cpa_np1_lu",
+    "lmh_PR": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_lmh_2d\\results\\current_20260916\\pr_np1_lu",
+    "lmh_CPA": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_lmh_2d\\results\\current_20260916\\cpa_np1_lu"
+  },
+  "calibration_source": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\tools\\example\\scw_binary_calibration\\results",
+  "figures": [
+    "fig01_pvt_lle_viscosity_calibration.png",
+    "fig01_pvt_lle_viscosity_calibration.pdf",
+    "fig01_pvt_lle_viscosity_calibration.svg",
+    "fig02_2d_water_saturation_pr_cpa.png",
+    "fig02_2d_water_saturation_pr_cpa.pdf",
+    "fig02_2d_water_saturation_pr_cpa.svg",
+    "fig03_2d_composition_at_1pvi.png",
+    "fig03_2d_composition_at_1pvi.pdf",
+    "fig03_2d_composition_at_1pvi.svg",
+    "fig04_oil_water_viscosity_model_spread.png",
+    "fig04_oil_water_viscosity_model_spread.pdf",
+    "fig04_oil_water_viscosity_model_spread.svg",
+    "fig05_producer_total_and_hc_composition.png",
+    "fig05_producer_total_and_hc_composition.pdf",
+    "fig05_producer_total_and_hc_composition.svg",
+    "fig06_cumulative_recovery_and_mass_balance.png",
+    "fig06_cumulative_recovery_and_mass_balance.pdf",
+    "fig06_cumulative_recovery_and_mass_balance.svg",
+    "fig07_producer_watercut_and_bhp.png",
+    "fig07_producer_watercut_and_bhp.pdf",
+    "fig07_producer_watercut_and_bhp.svg"
+  ],
+  "transformations": [
+    "PVI = time_day * 0.25 PV/day",
+    "2-D input_index reshaped as index = i + 60*j",
+    "all saturation maps use a common linear 0–1 color scale without interpolation",
+    "overall nC4 and nC10 maps use explicitly labelled logarithmic color scales",
+    "producer mass fractions use absolute produced component mass rates",
+    "hydrocarbon-normalized fractions exclude H2O from the denominator",
+    "viscosity bands are reported grid-cell min/max from reservoir_diagnostics.csv; they are not uncertainty intervals",
+    "component recovery = cumulative produced mass / initial component inventory",
+    "strict zero balance errors are retained in CSV and omitted only from logarithmic display"
+  ],
+  "unavailable_requested_output": {
+    "local_2d_viscosity_maps": "cellwise viscosity is not present in solution snapshots; only min/avg/max histories are available",
+    "lmh_sw_full_run": "four-component SW failed during initial phase transition and therefore is not drawn as a completed-flow result"
+  },
+  "uncertainty": "none estimated; EOS curves and min/max spatial bands are model/spatial spread, not confidence intervals"
+}

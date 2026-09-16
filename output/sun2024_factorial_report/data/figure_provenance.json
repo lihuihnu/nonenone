@@ -1,0 +1,39 @@
+{
+  "scope": "newly_generated_runs_only",
+  "formal_run_root": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\tmp\\sun2024_factorial_report_v1\\formal",
+  "formal_runs": [
+    "R04",
+    "R06",
+    "R10",
+    "R12",
+    "C23",
+    "C24"
+  ],
+  "case_manifest": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\sun2024_scw_co2_nc16_factorial_1d\\experiment_manifest.csv",
+  "physical_targets": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\sun2024_scw_co2_nc16_factorial_1d\\physical_validation_targets.csv",
+  "grid_convergence_source": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\tmp\\sun2024_factorial_convergence_v4\\grid\\convergence_summary.csv",
+  "time_convergence_source": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\tmp\\sun2024_factorial_convergence_v4\\time\\convergence_summary.csv",
+  "transformations": {
+    "pvi": "step * dt_pv",
+    "recovery": "cumulative_produced_nC16 / initial_nC16_inventory",
+    "pressure_drop": "injector_bhp - producer_bhp",
+    "breakthrough": "first sampled PVI with abs(producer_CO2_mass_rate)/injector_CO2_mass_rate >= 0.01",
+    "effects": [
+      "C23-R04 / C24-R06",
+      "R10-C23 / R12-C24",
+      "R10-R04 / R12-R06"
+    ]
+  },
+  "rendering": {
+    "software": "Matplotlib 3.10.0",
+    "raster": "PNG 600 dpi",
+    "vector": "PDF",
+    "smoothing": "none",
+    "palette": "Okabe-Ito-derived, with redundant line styles and markers"
+  },
+  "limitations": [
+    "The model is isothermal and does not solve an energy equation or a 50–400 °C thermal front.",
+    "n-C16 is a surrogate oil component; upgrading and reactions are not represented.",
+    "The source did not resolve the injection-rate reference state; these formal runs use in_situ_volume."
+  ]
+}

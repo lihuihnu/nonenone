@@ -1,0 +1,5 @@
+﻿experiment_id,modeled_4PV_percent,physical_experiment_percent,signed_difference_percentage_points,interpretation
+R04,87.23130682969715,73.48,13.751306829697143,external_face_validity_not_calibration
+R06,87.20793514119713,75.03,12.177935141197125,external_face_validity_not_calibration
+R10,87.23253838274795,81.25,5.982538382747947,external_face_validity_not_calibration
+R12,87.20923633269976,82.96,4.249236332699766,external_face_validity_not_calibration

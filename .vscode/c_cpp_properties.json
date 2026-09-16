@@ -1,0 +1,64 @@
+{
+    "env": {
+        "mpmcProjectIncludes": [
+            "${workspaceFolder}/ad/include",
+            "${workspaceFolder}/common/include",
+            "${workspaceFolder}/grid/include",
+            "${workspaceFolder}/indices/include",
+            "${workspaceFolder}/models/include",
+            "${workspaceFolder}/output/include",
+            "${workspaceFolder}/AdaptiveTimeStepper/include",
+            "${workspaceFolder}/case/include",
+            "${workspaceFolder}/case/**",
+            "${workspaceFolder}/test/include",
+            "${workspaceFolder}/tools/include"
+        ],
+        "mpmcHpcEnvironmentIncludes": [
+            "${env:PETSC_DIR}/include",
+            "${env:PETSC_DIR}/${env:PETSC_ARCH}/include",
+            "${env:FMT_DIR}/include",
+            "${env:METIS_DIR}/include",
+            "${env:METIS_DIR}/install/include",
+            "${env:VTK_INSTALL}/include/vtk-9.3"
+        ],
+        "mpmcHpcDefaultIncludes": [
+            "/vol8/home/hnu_yhj/jianglei/MPMC_Test/thirdparpties/petsc-3.22.2/include",
+            "/vol8/home/hnu_yhj/jianglei/MPMC_Test/thirdparpties/petsc-3.22.2/arch-linux-cxx-opt/include",
+            "/vol8/home/hnu_yhj/jianglei/MPMC_Test/thirdparpties/fmt/include",
+            "/vol8/home/hnu_yhj/jianglei/thirdparpties/metis-5.1.0/include",
+            "/vol8/home/hnu_yhj/jianglei/thirdparpties/metis-5.1.0/install/include",
+            "/vol8/home/hnu_yhj/ruili/software/vtk_install/include/vtk-9.3"
+        ]
+    },
+    "configurations": [
+        {
+            "name": "MPMC_SCW-HPC",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "defines": [
+                "FMT_HEADER_ONLY"
+            ],
+            "includePath": [
+                "${mpmcProjectIncludes}",
+                "${mpmcHpcEnvironmentIncludes}",
+                "${mpmcHpcDefaultIncludes}"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/ad",
+                    "${workspaceFolder}/common",
+                    "${workspaceFolder}/grid",
+                    "${workspaceFolder}/indices",
+                    "${workspaceFolder}/models",
+                    "${workspaceFolder}/output",
+                    "${workspaceFolder}/AdaptiveTimeStepper",
+                    "${workspaceFolder}/case",
+                    "${workspaceFolder}/test",
+                    "${workspaceFolder}/tools"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            }
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,42 @@
+{
+  "binary": {
+    "final_pvi": 1.0,
+    "h2o_mass_fraction_50pct_first_pvi": 0.4,
+    "producer_final_mass_fractions": {
+      "H2O": 0.8528215925291994,
+      "Heavy_squalane": 0.14717840747080055
+    },
+    "final_hydrocarbon_viscosity_mPa_s": 0.9361862259170016,
+    "final_water_viscosity_mPa_s": 0.06617321036500792,
+    "final_average_oil_saturation": 0.4790322102858059,
+    "final_average_water_saturation": 0.5209677897141931,
+    "max_abs_component_relative_error_over_run": 6.321442647116982e-08,
+    "farthest_cell_center_with_Sw_at_least_0p5_m": {
+      "0.25": 0.11,
+      "0.50": 0.25,
+      "0.75": 0.38999999999999996,
+      "1.00": 0.5299999999999999
+    }
+  },
+  "lmh": {
+    "final_pvi": 1.0,
+    "h2o_mass_fraction_50pct_first_pvi": 0.55,
+    "producer_final_mass_fractions": {
+      "H2O": 0.860492211660784,
+      "Light_nC4": 0.005702787646584835,
+      "Middle_nC10": 0.016715791098321414,
+      "Heavy_squalane": 0.11708920959430975
+    },
+    "final_hydrocarbon_viscosity_mPa_s": 0.3866402043265254,
+    "final_water_viscosity_mPa_s": 0.06581763868455745,
+    "final_average_oil_saturation": 0.3446081731473253,
+    "final_average_water_saturation": 0.655391826852674,
+    "max_abs_component_relative_error_over_run": 3.753616750756805e-08,
+    "farthest_cell_center_with_Sw_at_least_0p5_m": {
+      "0.25": 0.26999999999999996,
+      "0.50": 0.59,
+      "0.75": 0.91,
+      "1.00": 1.19
+    }
+  }
+}

@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "plan_id": "scw-2d-single-multi-completed-20260916",
+  "status": "completed_run_record_with_source_drift_warning",
+  "date": "2026-09-16",
+  "scope": {
+    "single_component_definition": "one hydrocarbon pseudo-component (squalane) plus H2O; thermodynamic component count is 2",
+    "multicomponent_definition": "H2O plus nC4, nC10, and squalane; thermodynamic component count is 4"
+  },
+  "model": {
+    "formulation": "isothermal fully compositional O/G/W local-equilibrium Darcy flow",
+    "spatial_discretization": "structured finite volume, TPFA",
+    "time_discretization": "fully implicit with adaptive internal substeps",
+    "thermodynamic_models": [
+      "Peng-Robinson",
+      "Soreide-Whitson",
+      "PR-CPA"
+    ],
+    "relative_permeability": {
+      "oil": "So^2",
+      "gas": "Sg^2",
+      "water": "Sw^2"
+    },
+    "capillary_pressure": "not configured",
+    "included": [
+      "component mass conservation",
+      "Darcy phase flow",
+      "local PTz flash",
+      "composition-dependent density and viscosity",
+      "rate-controlled injector and producer"
+    ],
+    "excluded": [
+      "energy equation",
+      "chemical reaction",
+      "coke generation",
+      "molecular diffusion",
+      "mechanical dispersion",
+      "adsorption",
+      "Land trapping",
+      "porosity/permeability alteration"
+    ]
+  },
+  "geometry": {
+    "grid_cells": [60, 20, 1],
+    "active_cells": 1200,
+    "dimensions_m": [1.2, 0.1, 0.1],
+    "cell_dimensions_m": [0.02, 0.005, 0.1],
+    "bulk_volume_m3": 0.012,
+    "pore_volume_m3": 0.0042,
+    "external_boundary": "closed_no_flow",
+    "gravity_note": "single vertical layer; no resolved vertical segregation"
+  },
+  "rock": {
+    "homogeneous": true,
+    "porosity": 0.35,
+    "permeability_mD": {
+      "x": 1500.0,
+      "y": 1500.0,
+      "z": 150.0
+    }
+  },
+  "state": {
+    "temperature_K": 653.2,
+    "initial_pressure_MPa": 27.74,
+    "water_critical_temperature_K": 647.096,
+    "water_critical_pressure_MPa": 22.064
+  },
+  "wells": {
+    "injector": {
+      "name": "SCW_INJ",
+      "cell_ijk": [0, 9, 0],
+      "control": "reservoir_total_rate",
+      "target_m3_s": 1.215277777777778e-8,
+      "injected_component": "H2O",
+      "radius_m": 0.001,
+      "skin": 0.0
+    },
+    "producer": {
+      "name": "PROD",
+      "cell_ijk": [59, 9, 0],
+      "control": "reservoir_total_rate",
+      "target_m3_s": 1.215277777777778e-8,
+      "radius_m": 0.001,
+      "skin": 0.0
+    },
+    "injection_rate_PV_per_day": 0.25,
+    "centreline_offset_m": 0.0025
+  },
+  "fluid_systems": {
+    "single_hydrocarbon": {
+      "components": ["H2O", "squalane"],
+      "initial_overall_mole_fraction": [0.75, 0.25],
+      "executed_run_bip_at_653p2_K": {
+        "H2O-squalane": 0.2395
+      }
+    },
+    "multicomponent": {
+      "components": ["H2O", "nC4", "nC10", "squalane"],
+      "initial_overall_mole_fraction": [
+        0.75,
+        0.0260416666666667,
+        0.0651041666666667,
+        0.1588541666666666
+      ],
+      "executed_run_bip_at_653p2_K": {
+        "H2O-nC4": 0.5,
+        "H2O-nC10": 0.5,
+        "H2O-squalane": 0.2395,
+        "hydrocarbon-hydrocarbon": 0.0
+      }
+    }
+  },
+  "numerics": {
+    "mpi_ranks": 1,
+    "linear_solver": "direct_LU",
+    "nonlinear_solver": "PETSc_SNES",
+    "snes_absolute_tolerance": 1e-5,
+    "output_intervals": 400,
+    "output_interval_days": 0.01,
+    "end_time_days": 4.0,
+    "end_time_PVI": 1.0,
+    "minimum_internal_dt_days": 1e-7,
+    "snapshot_every_output_intervals": 50,
+    "cfl": "not_applicable_fully_implicit_Darcy_flow",
+    "spectral_dealiasing": "not_applicable_finite_volume_solver"
+  },
+  "resource_bounds": {
+    "cpu_mpi_ranks": 1,
+    "ram_bound_GiB": 8,
+    "ram_peak_measured": false,
+    "disk_bound_MiB_per_completed_run": 16,
+    "observed_disk_MiB_range": [6.996, 10.703],
+    "wall_time_bound_seconds_per_run": 7200,
+    "observed_max_wall_time_seconds": 3626.386501272
+  },
+  "acceptance_criteria": {
+    "initial_flash_converged": true,
+    "initial_flash_reconstruction_error_max": 1e-9,
+    "component_relative_mass_balance_target": 1e-7,
+    "all_active_phase_viscosities_finite_positive": true,
+    "well_component_rates_close_to_phase_mass_rates": true,
+    "grid_refinement_required_before_convergence_claim": true,
+    "time_step_refinement_required_before_convergence_claim": true
+  },
+  "completed_runs": [
+    {
+      "system": "H2O-squalane",
+      "eos": "PR",
+      "final_time_days": 4.0,
+      "accepted_steps": 400,
+      "rejected_steps": 0,
+      "min_dt_days": 0.01,
+      "wall_seconds": 86.18791108899995,
+      "max_abs_component_relative_balance_error": 1.200657382078068e-6,
+      "final_average_oil_saturation": 0.4754778068548713,
+      "final_average_water_saturation": 0.5245221931451212,
+      "squalane_recovery_fraction": 0.5161383864060434,
+      "result_directory": "case/scw_kerogen_squalane_2d/results/current_20260916/pr_np1_lu"
+    },
+    {
+      "system": "H2O-squalane",
+      "eos": "SW",
+      "final_time_days": 4.0,
+      "accepted_steps": 400,
+      "rejected_steps": 0,
+      "min_dt_days": 0.01,
+      "wall_seconds": 351.714339697,
+      "max_abs_component_relative_balance_error": 2.737635780796011e-6,
+      "final_average_oil_saturation": 0.4664274014127127,
+      "final_average_water_saturation": 0.5335725985872802,
+      "squalane_recovery_fraction": 0.5249104649076096,
+      "warning": "initial flash diagnosed all cells as water-only; early response is not physically comparable",
+      "result_directory": "case/scw_kerogen_squalane_2d/results/current_20260916/sw_np1_lu"
+    },
+    {
+      "system": "H2O-squalane",
+      "eos": "CPA",
+      "final_time_days": 4.0,
+      "accepted_steps": 400,
+      "rejected_steps": 0,
+      "min_dt_days": 0.01,
+      "wall_seconds": 409.7772430919999,
+      "max_abs_component_relative_balance_error": 2.132987381446326e-6,
+      "final_average_oil_saturation": 0.5846658298910867,
+      "final_average_water_saturation": 0.4153341701089061,
+      "squalane_recovery_fraction": 0.367574836661028,
+      "result_directory": "case/scw_kerogen_squalane_2d/results/current_20260916/cpa_np1_lu"
+    },
+    {
+      "system": "H2O-nC4-nC10-squalane",
+      "eos": "PR",
+      "final_time_days": 4.0,
+      "accepted_steps": 400,
+      "rejected_steps": 0,
+      "min_dt_days": 0.01,
+      "wall_seconds": 416.8214575079999,
+      "max_abs_component_relative_balance_error": 1.670431593048249e-8,
+      "final_average_oil_saturation": 0.338540000740584,
+      "final_average_water_saturation": 0.6614599992594085,
+      "component_recovery_fraction": {
+        "nC4": 0.7190666645200788,
+        "nC10": 0.6450072036980848,
+        "squalane": 0.6427064532845147,
+        "total_hydrocarbon": 0.6444628115636005
+      },
+      "result_directory": "case/scw_kerogen_lmh_2d/results/current_20260916/pr_np1_lu"
+    },
+    {
+      "system": "H2O-nC4-nC10-squalane",
+      "eos": "CPA",
+      "final_time_days": 4.0,
+      "accepted_steps": 442,
+      "rejected_steps": 13,
+      "min_dt_days": 0.0001578986540911316,
+      "wall_seconds": 3626.386501272,
+      "max_abs_component_relative_balance_error": 2.829977807650152e-9,
+      "final_average_oil_saturation": 0.446151194402562,
+      "final_average_water_saturation": 0.5538488055974308,
+      "component_recovery_fraction": {
+        "nC4": 0.7164165237991225,
+        "nC10": 0.4720718143644556,
+        "squalane": 0.4277135858022758,
+        "total_hydrocarbon": 0.43859224865864765
+      },
+      "result_directory": "case/scw_kerogen_lmh_2d/results/current_20260916/cpa_np1_lu"
+    }
+  ],
+  "failed_runs": [
+    {
+      "system": "H2O-nC4-nC10-squalane",
+      "eos": "SW",
+      "last_time_days": 0.000694,
+      "reasons": [
+        "DIVERGED_LINE_SEARCH",
+        "DIVERGED_LOCAL_MIN in backtracking comparison"
+      ],
+      "interpretation": "initial-state inconsistency or nonsmooth phase switching is more likely than a nominal output-step-size problem",
+      "result_directory": "case/scw_kerogen_lmh_2d/results/current_20260916/sw_np1_lu"
+    }
+  ],
+  "source_drift_warning": {
+    "run_output_window_local_time": "2026-09-16 17:20-18:33 +08:00",
+    "later_source_edit_local_time": "2026-09-16 21:03 +08:00",
+    "unexecuted_candidate_bip_at_653p2_K": {
+      "H2O-squalane": 0.053233659543451335,
+      "H2O-nC4": 0.5091,
+      "H2O-nC10": 0.2618373654302397
+    },
+    "instruction": "do not combine these candidate parameters with the completed-run results; rebuild and rerun the full matrix first"
+  }
+}

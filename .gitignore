@@ -1,0 +1,112 @@
+# ============================================================================
+# MPMC_SCW Git ignore rules
+# ============================================================================
+# 只跟踪源码、配置、测试、文档和构建脚本；运行时/编译生成物不进入版本历史。
+
+# C/C++ / PETSc build products
+**/.build/
+**/build/
+**/bin/
+*.o
+*.d
+*.a
+*.so
+*.so.*
+*.out
+*.exe
+
+# Case runtime products
+case/*/logs/
+case/*/results/
+case/*/run.sh
+
+# Generated Sun-2024 report products.  Preserve the two small transcribed
+# literature tables as reproducible reference inputs.
+case/sun2024_exp12_scw_co2_nc16_1d/report/*
+!case/sun2024_exp12_scw_co2_nc16_1d/report/data/
+case/sun2024_exp12_scw_co2_nc16_1d/report/data/*
+!case/sun2024_exp12_scw_co2_nc16_1d/report/data/sun2024_table2_experiment_scheme.csv
+!case/sun2024_exp12_scw_co2_nc16_1d/report/data/sun2024_table5_experimental_results.csv
+
+# Test runtime products
+test/logs/
+test/results/
+test/bin/
+test/build/
+
+# Scheduler / crash / profiling artifacts
+slurm-*.out
+*.err
+# Do not use a bare `core` pattern here: this repository has legitimate
+# source directories named `core/`.  Ignore extension-less core dumps only in
+# the repository/runtime working directories where executables are launched.
+/core
+case/*/core
+test/core
+tools/core
+tools/example/*/core
+core.*
+gmon.out
+
+# Generated archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+/dist/
+/*-handoff-*/
+
+# Repository-local scratch and consolidated run products
+/tmp/
+/outputs/
+
+# Editor / OS files
+# 仅跟踪项目级 IntelliSense 配置；个人 settings/tasks/launch/cache 不进入 Git。
+.vscode/*
+!.vscode/c_cpp_properties.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python helper caches, if local post-processing scripts are added later
+__pycache__/
+*.py[cod]
+
+# Tools build/runtime products
+tools/.build/
+tools/bin/
+tools/example/*/results/
+tools/example/*/results_*/
+
+# Heringer benchmark study products. Keep only the executable source,
+# README, compact literature reference tables and documented plot script.
+tools/example/heringer2025_bsb_three_phase/assets/
+tools/example/heringer2025_bsb_three_phase/figures*/
+tools/example/heringer2025_bsb_three_phase/reports*/
+tools/example/heringer2025_bsb_three_phase/*_scan_*/
+tools/example/heringer2025_bsb_three_phase/pt_topology_*/
+tools/example/heringer2025_bsb_three_phase/Heringer2025_standard_PR_SW_CPA_complete_package/
+tools/example/heringer2025_bsb_three_phase/phase_composition_fingerprints_publication/
+tools/example/heringer2025_bsb_three_phase/ppt_concept/
+tools/example/heringer2025_bsb_three_phase/STANDARD_MODEL_COMPLETE_REPORT.md
+tools/example/heringer2025_bsb_three_phase/build_*_report.py
+tools/example/heringer2025_bsb_three_phase/plot_new_state_results.py
+tools/example/heringer2025_bsb_three_phase/plot_phase_composition_fingerprints.py
+tools/example/heringer2025_bsb_three_phase/plot_phase_fraction_clean.py
+tools/example/heringer2025_bsb_three_phase/plot_standard_results_gallery.py
+tools/example/heringer2025_bsb_three_phase/plot_three_phase_composition_fingerprint.py
+
+# Machine-local HPC overrides
+config/hpc.local.mk
+
+# Deterministically regenerated tool reference bundles
+tools/example/*/reference_output/
+
+# Generated scientific figure binaries
+# Keep only explicitly curated/embedded previews already tracked by Git.
+# Plotting scripts, source CSV/JSON and manifests remain trackable/reproducible.
+case/**/figures/**/*.png
+case/**/figures/**/*.pdf

@@ -1,0 +1,4 @@
+thermopack==2.2.3
+neqsim==3.18.0
+numpy==2.5.2
+matplotlib==3.10.8

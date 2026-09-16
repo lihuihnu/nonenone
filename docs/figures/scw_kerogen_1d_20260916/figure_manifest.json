@@ -1,0 +1,40 @@
+{
+  "generated_on": "2026-09-16",
+  "status": "provisional internal scientific figures; human review required",
+  "python": "3.13.5",
+  "matplotlib": "3.10.0",
+  "source_directories": {
+    "binary": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_1d\\results\\base",
+    "lmh": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_lmh_1d\\results\\base"
+  },
+  "transformations": [
+    "PVI = time_day * 0.25 PV/day",
+    "producer mass fractions = absolute produced component mass rate / sum of absolute produced component mass rates",
+    "hydrocarbon viscosity = saturation-volume-weighted oil/gas-slot viscosity; gas saturation is zero in these completed runs",
+    "spatial curves use cell-center values without interpolation or smoothing",
+    "mass-balance curve is the maximum absolute component relative error at each reported time",
+    "zero mass-balance error at initial time is omitted from the logarithmic display only and retained in the CSV"
+  ],
+  "uncertainty": "not estimated; deterministic single-run outputs",
+  "missing_data": "none in plotted completed histories",
+  "figures": [
+    "fig01_spatial_water_saturation.png",
+    "fig01_spatial_water_saturation.pdf",
+    "fig01_spatial_water_saturation.svg",
+    "fig02_producer_composition.png",
+    "fig02_producer_composition.pdf",
+    "fig02_producer_composition.svg",
+    "fig03_viscosity_and_saturation.png",
+    "fig03_viscosity_and_saturation.pdf",
+    "fig03_viscosity_and_saturation.svg",
+    "fig04_component_mass_balance.png",
+    "fig04_component_mass_balance.pdf",
+    "fig04_component_mass_balance.svg"
+  ],
+  "alt_text": {
+    "fig01": "Two stacked line charts show water saturation along the 1.2 m one-dimensional core at 0, 0.25, 0.50, 0.75, and 1.00 injected pore volumes. In both fluids the high-water region advances from the injector at x=0 toward the producer at x=1.2 m; the four-component front is sharper and farther advanced at equal PVI.",
+    "fig02": "Two line charts show producer component mass fractions versus injected pore volume. Water rises and hydrocarbon components fall after breakthrough. In the four-component case squalane remains the dominant hydrocarbon component, while nC4 and nC10 decline to small fractions.",
+    "fig03": "A four-panel figure compares average hydrocarbon-rich and water-rich viscosities on logarithmic axes and average phase saturations on linear axes. The binary hydrocarbon-rich phase is more viscous than the four-component phase, while water-rich viscosity changes little. Average water saturation rises throughout both runs.",
+    "fig04": "A logarithmic line chart shows maximum absolute component relative mass-balance error versus injected pore volume for both one-dimensional cases; errors remain small over the completed simulations."
+  }
+}

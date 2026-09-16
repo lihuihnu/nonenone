@@ -1,0 +1,5 @@
+id,source_table,temperature_K,pressure_MPa,x_water_rich,x_water_squalane_rich,role,reported_accuracy_water_rich,reported_accuracy_squalane_rich
+SQ6372P2688,Stevenson1994_Table3,637.2,26.88,0.9997,0.809,calibration,0.0005,0.002
+SQ6532P2705,Stevenson1994_Table5,653.2,27.05,0.9938,0.932,validation,0.0005,0.002
+SQ6532P2774,Stevenson1994_Table5,653.2,27.74,0.9966,0.911,calibration,0.0005,0.002
+SQ6532P2947,Stevenson1994_Table5,653.2,29.47,0.9983,0.885,validation,0.0005,0.002

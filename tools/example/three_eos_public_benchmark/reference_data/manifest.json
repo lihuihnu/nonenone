@@ -1,0 +1,32 @@
+[
+  {
+    "file": "may2015_pr_vle.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.5b00610.json",
+    "sha256": "77630e90db70bb6aabfdfa520f61f14cee5076ece0265754140a25f771659662"
+  },
+  {
+    "file": "messabeb2016_sw_co2_brine.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1021/acs.jced.6b00505.json",
+    "sha256": "71a0762e6ce7c0a89491087cfccee96e507f164b63d7b539ae6d6f60614f715f"
+  },
+  {
+    "file": "soujanya2010_cpa_meoh_water.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1016/j.jct.2009.11.020.json",
+    "sha256": "8382fec6b97ae7035ef355b3cf9e29beb1cb90e48d809159f8f40b305304d81d"
+  },
+  {
+    "file": "petropoulou2018_co2_ch4_vle.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1016/j.fluid.2018.01.011.json",
+    "sha256": "f26f16b53fe6c6ad73240215937a01f6e58239c8622a58a9b637d1391d211ac8"
+  },
+  {
+    "file": "yang2018_co2_ethane_density.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1016/j.jct.2018.02.021.json",
+    "sha256": "2317b9fdfa4bf4892f9f59f3507d2b1f1c48c2e8d21afdae04af5dc008767f30"
+  },
+  {
+    "file": "frost2014_methane_water_vle.json",
+    "url": "https://trc.nist.gov/ThermoML/10.1021/je400684k.json",
+    "sha256": "a78159d0ab6cfbadebb4028c590dffff5ccdf0acba9e4938bbcbc62379b9fe4a"
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "case_id": "five-component-full-three-eos-vs-traditional-pr-v1",
+  "comparison": {
+    "fully_compositional": ["PR", "SW", "CPA"],
+    "traditional_independent_water": ["PR"]
+  },
+  "traditional_equations": "Four-component PR oil/gas mass conservation and equilibrium plus an independent immiscible H2O conservation equation",
+  "units": "SI internally; pressure reported in bar, time in day, permeability inputs in mD",
+  "geometry": {
+    "grid_cells": [20, 20, 5],
+    "domain_m": [1000.0, 600.0, 50.0],
+    "outer_boundary": "no-flow"
+  },
+  "common_physical_state": {
+    "pressure_Pa": 6000000.0,
+    "temperature_K": 305.0,
+    "overall_mole_fraction_H2O_CO2_CH4_C2H6_nC4H10": [0.30, 0.10, 0.15, 0.15, 0.30]
+  },
+  "traditional_initialization": {
+    "dry_mole_fraction_CO2_CH4_C2H6_nC4H10": [0.14285714285714285, 0.21428571428571427, 0.21428571428571427, 0.42857142857142855],
+    "water_saturation": 0.070856323,
+    "water_saturation_method": "reconstructed from dry-phase and independent-water molar densities so the global H2O mole fraction is exactly 0.30",
+    "oil_gas_split": "restricted dry PR flash at common pressure and temperature"
+  },
+  "forcing": {
+    "injector": "pure CO2, 100000 reference m3/day, k=0..1",
+    "producer": "52 bar BHP, k=3..4"
+  },
+  "time": {
+    "method": "backward Euler with transactional adaptive substeps",
+    "common_target_days": 0.25,
+    "target_count": 20,
+    "final_time_days": 5.0,
+    "minimum_step_days": 0.00001
+  },
+  "resources": {
+    "mpi_ranks_per_run": 2,
+    "observed_traditional_pr_loop_wall_s": 45.26730959299999
+  },
+  "acceptance": {
+    "traditional_pr_compiles": true,
+    "all_four_runs_reach_day_5": true,
+    "all_common_targets_accepted": true,
+    "rejected_steps": 0,
+    "finite_state_and_well_outputs": true,
+    "component_mass_balance_gate_passes": true
+  },
+  "provenance": {
+    "fully_compositional_results": "../five_component_eos_tuned_compare/results/recomputed_f405a18/{pr,sw,cpa}",
+    "traditional_results": "results/full/pr",
+    "plotting_source_table": "figures/model_comparison/source_data.csv",
+    "plotting_manifest": "figures/model_comparison/figure_manifest.json"
+  }
+}

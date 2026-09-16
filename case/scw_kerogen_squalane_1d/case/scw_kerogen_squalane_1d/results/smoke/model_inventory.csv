@@ -1,0 +1,3 @@
+step,time_day,dissolved_co2_mass_kg,trapped_gas_mass_kg,fluid_component_0_kg,fluid_component_1_kg,oil_phase_component_0_kg,oil_phase_component_1_kg,trapped_component_0_kg,trapped_component_1_kg,adsorbed_component_0_kg,adsorbed_component_1_kg
+0,0,0,0,0.003640260945707205,2.050395878847294,0.003640260945707204,2.050395878847294,0,0,0,0
+1,0.0001,0,0,0.003678121601140744,2.050344616203116,0.003678121601140744,2.050344616203116,0,0,0,0

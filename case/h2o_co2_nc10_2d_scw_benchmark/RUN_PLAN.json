@@ -1,0 +1,35 @@
+{
+  "case": "h2o_co2_nc10_2d_scw_benchmark",
+  "models": ["new-pr", "new-sw", "new-cpa"],
+  "grid": [60, 20, 1],
+  "extent_m": [300.0, 100.0, 5.0],
+  "initial_state": {
+    "pressure_Pa": 28000000.0,
+    "temperature_K": 653.15,
+    "requested_target_saturation_o_g_w": [0.8, 0.0, 0.2],
+    "preflight_overall_composition_h2o_co2_nc10": [0.2, 0.0, 0.8]
+  },
+  "status": "blocked_by_thermodynamic_and_aqueous_closure_validity",
+  "forcing": "CO2 injector at 0.10 pore-volume/year reservoir-total-rate; producer BHP 27.5 MPa; injector maximum BHP 30 MPa",
+  "boundaries": "closed external boundaries",
+  "final_time_day": 365.25,
+  "final_pvi": 0.1,
+  "pilot": {
+    "mpi_ranks": 1,
+    "steps": 1,
+    "dt_day": 0.01
+  },
+  "formal_run": {
+    "mpi_ranks": 1,
+    "output_intervals": 10,
+    "nominal_dt_day": 36.525,
+    "adaptive_timestep": true
+  },
+  "acceptance": {
+    "all_models_reach_final_time": true,
+    "maximum_component_relative_mass_balance_error": 1e-5,
+    "maximum_saturation_closure_error": 5e-8,
+    "nonfinite_primary_variables": 0,
+    "preflight_required_before_formal_run": true
+  }
+}

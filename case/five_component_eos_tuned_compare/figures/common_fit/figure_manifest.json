@@ -1,0 +1,39 @@
+{
+  "figures": [
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\01_validation_error.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\01_validation_error.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\02_density_parity.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\02_density_parity.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\03_fitted_dry_bips.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\03_fitted_dry_bips.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\04_initial_saturation.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\04_initial_saturation.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\05_producer_mass_rate.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\en\\05_producer_mass_rate.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\01_validation_error.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\01_validation_error.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\02_density_parity.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\02_density_parity.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\03_fitted_dry_bips.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\03_fitted_dry_bips.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\04_initial_saturation.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\04_initial_saturation.pdf",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\05_producer_mass_rate.png",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\zh\\05_producer_mass_rate.pdf"
+  ],
+  "source_data": [
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\fit_summary.csv",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\fitted_parameters.csv",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\density_validation.csv",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\flow_saturation.csv",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\producer_mass_rate.csv",
+    "case\\five_component_eos_tuned_compare\\figures\\common_fit\\source_data\\flow_performance.csv"
+  ],
+  "fit_results": "tools\\example\\five_component_common_fit\\results",
+  "flow_results": "case\\five_component_eos_tuned_compare\\results\\common_fit_full_final",
+  "style": "single axes, no title, no grid, full frame, in-frame English legend",
+  "formats": [
+    "PNG 400 dpi",
+    "vector PDF"
+  ]
+}

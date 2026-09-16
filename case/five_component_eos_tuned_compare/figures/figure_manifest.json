@@ -1,0 +1,58 @@
+{
+  "source_root": "/mnt/d/DOCUMENTS/ChatGPT/MPMC_SCW_V2/MPMC_SCW_case_v67_12/case/five_component_eos_tuned_compare/results/full",
+  "source_files": [
+    "results/full/pr/reservoir_diagnostics.csv",
+    "results/full/pr/well_history.csv",
+    "results/full/pr/nonlinear_solve_history.csv",
+    "results/full/sw/reservoir_diagnostics.csv",
+    "results/full/sw/well_history.csv",
+    "results/full/sw/nonlinear_solve_history.csv",
+    "results/full/cpa/reservoir_diagnostics.csv",
+    "results/full/cpa/well_history.csv",
+    "results/full/cpa/nonlinear_solve_history.csv"
+  ],
+  "transformations": [
+    "producer q_total_surface multiplied by -1 to show positive production magnitude",
+    "injector BHP t=0 excluded because it is an unconstrained initial guess",
+    "nonlinear solve wall_time cumulatively summed by accepted end_time",
+    "pressure min/max shown as translucent spatial range around arithmetic cell mean"
+  ],
+  "missing_data": "none in source CSV; injector t=0 intentionally blank in source_data.csv",
+  "figure_size_mm": [
+    160.0,
+    100.0
+  ],
+  "png_dpi": 600,
+  "palette": {
+    "pr": "#0072B2",
+    "sw": "#D55E00",
+    "cpa": "#009E73"
+  },
+  "generated": [
+    "figures/source_data.csv",
+    "figures/en/01_pressure_response.png",
+    "figures/en/01_pressure_response.pdf",
+    "figures/en/02_final_phase_saturation.png",
+    "figures/en/02_final_phase_saturation.pdf",
+    "figures/en/03_producer_surface_rate.png",
+    "figures/en/03_producer_surface_rate.pdf",
+    "figures/en/04_water_phase_density.png",
+    "figures/en/04_water_phase_density.pdf",
+    "figures/en/05_injector_bhp.png",
+    "figures/en/05_injector_bhp.pdf",
+    "figures/en/06_cumulative_solver_time.png",
+    "figures/en/06_cumulative_solver_time.pdf",
+    "figures/zh/01_pressure_response.png",
+    "figures/zh/01_pressure_response.pdf",
+    "figures/zh/02_final_phase_saturation.png",
+    "figures/zh/02_final_phase_saturation.pdf",
+    "figures/zh/03_producer_surface_rate.png",
+    "figures/zh/03_producer_surface_rate.pdf",
+    "figures/zh/04_water_phase_density.png",
+    "figures/zh/04_water_phase_density.pdf",
+    "figures/zh/05_injector_bhp.png",
+    "figures/zh/05_injector_bhp.pdf",
+    "figures/zh/06_cumulative_solver_time.png",
+    "figures/zh/06_cumulative_solver_time.pdf"
+  ]
+}

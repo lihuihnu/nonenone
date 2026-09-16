@@ -1,0 +1,7 @@
+component,overall_mole_fraction,basis
+H2O,0.2000000000000000,match_nc10_benchmark_overall_fraction
+CO2,0.0000000100000000,numerical_trace_seed
+L,0.3340577418658802,ppt_hydrocarbon_ratio_times_0.79999999
+M,0.2735382352230156,ppt_hydrocarbon_ratio_times_0.79999999
+H,0.1333747266780503,ppt_hydrocarbon_ratio_times_0.79999999
+XH,0.0590292862330539,ppt_hydrocarbon_ratio_times_0.79999999

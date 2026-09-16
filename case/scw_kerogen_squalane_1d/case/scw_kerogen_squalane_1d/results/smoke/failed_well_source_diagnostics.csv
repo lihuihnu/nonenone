@@ -1,0 +1,1 @@
+failure,cell_id,input_cell_id,perf_index,well_name,well_id,type,control,target,signed_target,actual_control_value,control_residual,bhp_bar,WI,phase,injection_phase_fraction,dp_bar,mobility,density_kg_m3,surface_rate_m3_s,reservoir_rate_m3_s,phase_mass_rate_kg_s,component,injection_component_mass_fraction,component_source_kg_s

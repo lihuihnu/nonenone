@@ -1,0 +1,57 @@
+{
+  "case_id": "five_component_eos_tuned_compare-v1",
+  "equations": "Isothermal fully compositional oil-rich/gas-rich/water-rich mass conservation with PTz flash, TPFA fluxes and well source equations",
+  "units": "SI internally; pressure displays may use bar, time displays use day, permeability inputs use mD converted to m2",
+  "geometry": {
+    "grid_cells": [20, 20, 5],
+    "domain_m": [1000.0, 600.0, 50.0],
+    "outer_boundary": "no-flow"
+  },
+  "initial_state": {
+    "pressure_Pa": 6000000.0,
+    "temperature_K": 305.0,
+    "overall_mole_fraction_H2O_CO2_CH4_C2H6_nC4H10": [0.30, 0.10, 0.15, 0.15, 0.30]
+  },
+  "forcing": {
+    "injector": "pure CO2, 100000 reference m3/day, completed in k=0..1",
+    "producer": "52 bar BHP, completed in k=3..4"
+  },
+  "time": {
+    "method": "backward Euler with transactional adaptive substeps",
+    "common_target_days": 0.25,
+    "target_count": 20,
+    "minimum_step_days": 0.00001,
+    "cut_factor": 0.5,
+    "growth_factor": 1.25,
+    "cfl_applicable": false
+  },
+  "spatial_discretization": {
+    "method": "two-point flux approximation with phase-potential upwinding",
+    "dealiasing_applicable": false
+  },
+  "resource_bounds": {
+    "serial_pilot": {"cpu_ranks": 1, "ram_GB": 8, "wall_minutes": 30},
+    "full_run_per_eos": {"cpu_ranks": 2, "ram_GB": 16, "wall_minutes": 120},
+    "disk_GB_all_eos": 3,
+    "maximum_output_files_all_eos": 1000
+  },
+  "pilot": {
+    "target_count": 1,
+    "target_days": 0.05,
+    "required_checks": ["initial flash", "finite residual", "accepted step", "finite well rates", "component mass balance"]
+  },
+  "acceptance": {
+    "all_three_eos_complete": true,
+    "all_common_targets_accepted": true,
+    "minimum_step_not_reached": true,
+    "finite_state_and_well_outputs": true,
+    "component_mass_balance_gate_passes": true,
+    "compare_only_at_common_times": true
+  },
+  "provenance": {
+    "configuration": "case_config.hpp and well_config.hpp",
+    "runtime_options": "captured in each run log",
+    "results": "pilot: results/pilot/{pr,sw,cpa}; full: results/full/{pr,sw,cpa}",
+    "restart": "not used in v1"
+  }
+}

@@ -1,0 +1,1 @@
+failure,cell_id,input_cell_id,face_index,neighbor_cell_id,neighbor_input_cell_id,transmissibility,gravity_dz,phase,dphi_bar,upwind,mobility,density_kg_m3,darcy_rate_m3_s,phase_mass_rate_kg_s,component,phase_component_flux_kg_s,face_total_component_flux_kg_s

@@ -1,0 +1,33 @@
+{
+  "title": "Isothermal Vapor-Liquid Equilibria for Methanol + Ethanol + Water, Methanol + Water, and Ethanol + Water",
+  "authors": [
+    "Kiyofumi Kurihara",
+    "Tsuyoshi Minoura",
+    "Kouichi Takeda",
+    "Kazuo Kojima"
+  ],
+  "journal": "Journal of Chemical & Engineering Data",
+  "year": 1995,
+  "volume": 40,
+  "pages": "679-684",
+  "doi": "10.1021/je00019a033",
+  "source_location": "Table 2, methanol (1) + water (2), 333.15 K",
+  "temperature_K": 333.15,
+  "pressure_unit": "kPa",
+  "composition_basis": "mole fraction methanol",
+  "uncertainty_note": "No pointwise uncertainty is reproduced in the published table transcription.",
+  "points": [
+    {"pressure_kPa": 19.953, "x_methanol": 0.0000, "y_methanol": 0.0000},
+    {"pressure_kPa": 39.223, "x_methanol": 0.1686, "y_methanol": 0.5714},
+    {"pressure_kPa": 42.984, "x_methanol": 0.2167, "y_methanol": 0.6268},
+    {"pressure_kPa": 48.852, "x_methanol": 0.3039, "y_methanol": 0.6943},
+    {"pressure_kPa": 52.784, "x_methanol": 0.3681, "y_methanol": 0.7345},
+    {"pressure_kPa": 56.652, "x_methanol": 0.4461, "y_methanol": 0.7742},
+    {"pressure_kPa": 60.614, "x_methanol": 0.5282, "y_methanol": 0.8085},
+    {"pressure_kPa": 63.998, "x_methanol": 0.6044, "y_methanol": 0.8383},
+    {"pressure_kPa": 67.924, "x_methanol": 0.6804, "y_methanol": 0.8733},
+    {"pressure_kPa": 70.229, "x_methanol": 0.7255, "y_methanol": 0.8922},
+    {"pressure_kPa": 72.832, "x_methanol": 0.7776, "y_methanol": 0.9141},
+    {"pressure_kPa": 84.562, "x_methanol": 1.0000, "y_methanol": 1.0000}
+  ]
+}

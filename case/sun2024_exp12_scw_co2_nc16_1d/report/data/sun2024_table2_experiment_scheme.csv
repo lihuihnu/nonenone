@@ -1,0 +1,17 @@
+experiment,injection_fluid,fluid_family,pressure_MPa,temperature_C,water_rate_mL_min,n2_rate_mL_min,co2_rate_mL_min
+1,steam,Steam,10,315,10,0,0
+2,steam,Steam,12,330,10,0,0
+3,steam,Steam,14,340,10,0,0
+4,supercritical water,SCW,23,400,10,0,0
+5,supercritical water,SCW,23,374,10,0,0
+6,supercritical water,SCW,24,400,10,0,0
+7,supercritical water + N2,SCW+N2,23,400,10,2,0
+8,supercritical water + N2,SCW+N2,23,374,10,2,0
+9,supercritical water + N2,SCW+N2,24,400,10,2,0
+10,supercritical water + CO2,SCW+CO2,23,400,10,0,2
+11,supercritical water + CO2,SCW+CO2,23,374,10,0,2
+12,supercritical water + CO2,SCW+CO2,24,400,10,0,2
+13,supercritical multi-source multi-component thermal fluid,SCW+N2+CO2,23,400,10,1,1
+14,supercritical multi-source multi-component thermal fluid,SCW+N2+CO2,23,400,10,2,2
+15,supercritical multi-source multi-component thermal fluid,SCW+N2+CO2,23,420,10,1,1
+16,supercritical multi-source multi-component thermal fluid,SCW+N2+CO2,25,400,10,1,1

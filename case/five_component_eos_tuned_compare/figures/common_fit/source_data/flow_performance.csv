@@ -1,0 +1,4 @@
+model,accepted_steps,rejected_steps,snes_iterations,ksp_iterations,simulation_wall_s,max_abs_mass_balance_relative_error
+PR,20,0,60,328,172.232485194,5.036295164253088e-14
+SW,20,0,60,328,175.0645962860003,4.18885664745949e-14
+CPA,20,0,60,326,239.1465361169999,8.815912626470736e-14

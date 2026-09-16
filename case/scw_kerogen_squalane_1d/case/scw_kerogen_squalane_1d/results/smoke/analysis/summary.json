@@ -1,0 +1,30 @@
+{
+  "result_dir": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_1d\\case\\scw_kerogen_squalane_1d\\results\\smoke",
+  "component_rate_columns": [
+    "m_component_H2O",
+    "m_component_Heavy_squalane"
+  ],
+  "producer_final": {
+    "step": 1,
+    "time_day": 0.0001,
+    "producer_total_component_mass_rate_kg_s": 5.943543076816325e-06,
+    "H2O_mass_rate_kg_s": 1.053343089856407e-08,
+    "H2O_total_mass_fraction": 0.0017722477590263097,
+    "Heavy_squalane_mass_rate_kg_s": 5.933009645917761e-06,
+    "Heavy_squalane_total_mass_fraction": 0.9982277522409736,
+    "Heavy_squalane_hydrocarbon_mass_fraction": 1.0
+  },
+  "viscosity_final": {
+    "step": 1,
+    "time_day": 0.0001,
+    "oil_viscosity_Pa_s": 0.004318100687684141,
+    "gas_viscosity_Pa_s": 0.0,
+    "water_rich_viscosity_Pa_s": 0.0,
+    "hydrocarbon_phase_volume_weighted_viscosity_Pa_s": 0.004318100687684141,
+    "oil_saturation": 1.0,
+    "gas_saturation": 0.0,
+    "water_saturation": 0.0
+  },
+  "plot_written": true,
+  "interpretation_note": "Oil/gas/water are simulator phase roles. At strict-SCW conditions the hydrocarbon-enriched fluid can occupy the gas slot; inspect phase-state and saturation columns before calling it conventional oil."
+}

@@ -1,0 +1,4 @@
+﻿effect,definition_23MPa,definition_24MPa,effect_23MPa_fraction,effect_24MPa_fraction
+pure_SCW_flow_effect,C23-R04,C24-R06,8.481270912241712e-07,9.986431779296367e-07
+equal_reservoir_rate_CO2_composition_effect,R10-C23,R12-C24,1.1467403416842714e-05,1.2013271848410056e-05
+combined_CO2_plus_flow_effect,R10-R04,R12-R06,1.2315530508066885e-05,1.3011915026339693e-05

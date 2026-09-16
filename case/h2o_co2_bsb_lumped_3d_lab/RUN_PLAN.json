@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "design_status": "pilot_complete_formal_blocked",
+  "randomization_seed": 20260915,
+  "question": "On the unchanged H2O-CO2-nC10 grid, how does injected CO2/SCW ratio affect cumulative oil production and hydrocarbon recovery at 0.10 PVI?",
+  "components": ["H2O", "CO2", "L", "M", "H", "XH"],
+  "representative_hydrocarbon_lumps": {
+    "L": "C1+C2-3+C4-6",
+    "M": "C7-15",
+    "H": "C16-27",
+    "XH": "C28+"
+  },
+  "heavy_components": ["H", "XH"],
+  "primary_thermodynamic_model": "pr",
+  "thermodynamic_basis": "Heringer-2025 BSB component table and PR binary interactions; no result fitting",
+  "temperature_K": 653.15,
+  "initial_pressure_Pa": 28000000.0,
+  "producer_bhp_Pa": 27500000.0,
+  "injector_max_bhp_Pa": 30000000.0,
+  "geometry_m": {"lx": 300.0, "ly": 100.0, "lz": 5.0},
+  "grid": {"nx": 60, "ny": 20, "nz": 1},
+  "rock": {
+    "porosity": 0.20,
+    "kx_mD": 100.0,
+    "ky_mD": 100.0,
+    "kz_mD": 100.0
+  },
+  "boundary_condition": "closed_no_flow",
+  "initial_overall_composition": {
+    "H2O": 0.20,
+    "CO2": 1e-8,
+    "L": 0.3340577418658802,
+    "M": 0.2735382352230156,
+    "H": 0.1333747266780503,
+    "XH": 0.0590292862330539
+  },
+  "injection_completion": {"i": 0, "j": 9, "k_begin": 0, "k_count": 1},
+  "production_completion": {"i": 59, "j": 9, "k_begin": 0, "k_count": 1},
+  "injection": {
+    "definition": "one numerical inlet representing pre-mixed H2O and CO2 feed",
+    "factor_basis": "feed mole fraction in H2O plus CO2",
+    "scw_mole_fraction_levels": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "co2_mole_fraction_levels": [1.0, 0.75, 0.5, 0.25, 0.0],
+    "total_reservoir_rate_m3_s": 9.506426344208685e-5,
+    "rate_definition": "0.10 pore volume per year for every treatment",
+    "component_mass_fraction_source": "convert feed mole fractions with component molar masses"
+  },
+  "time": {
+    "target_pvi": 0.10,
+    "output_step_pvi": 0.002,
+    "number_of_output_intervals": 50,
+    "target_time_day": 365.25
+  },
+  "primary_endpoint": "cumulative produced hydrocarbon mass divided by initial hydrocarbon mass at 0.10 PVI",
+  "secondary_endpoints": [
+    "cumulative oil-phase reservoir volume",
+    "final oil reservoir rate",
+    "heavy-component recovery",
+    "H2O and CO2 breakthrough PVI",
+    "final mean oil gas and water saturation",
+    "injector maximum BHP",
+    "maximum component mass-balance error"
+  ],
+  "breakthrough_threshold": "interval outlet component mass rate at least 0.01 times interval inlet component mass rate",
+  "numerical_gates": {
+    "all_runs_reach_target_pvi": true,
+    "component_relative_mass_closure_max": 1e-6,
+    "injector_bhp_must_not_exceed_Pa": 30000000.0,
+    "nonfinite_reported_metrics": 0
+  },
+  "execution_status": {
+    "startup_pilot_pvi": 0.0001,
+    "startup_pilot_time_day": 0.36525,
+    "startup_pilot_runs_passed": 5,
+    "formal_target_pvi": 0.10,
+    "formal_matrix_completed": false,
+    "blocking_run": "CO2_025_SCW_075",
+    "blocking_behavior": "approaches a phase boundary near 0.00025-0.00028 PVI and reaches minimum adaptive timestep",
+    "physical_interpretation_authorized": false,
+    "report": "VALIDATION_REPORT.md"
+  },
+  "run_order": [
+    "CO2_075_SCW_025",
+    "CO2_025_SCW_075",
+    "CO2_050_SCW_050",
+    "CO2_100_SCW_000",
+    "CO2_000_SCW_100"
+  ],
+  "note_on_group_count": "The request says four groups but explicitly lists five compositions; all five listed compositions are retained."
+}

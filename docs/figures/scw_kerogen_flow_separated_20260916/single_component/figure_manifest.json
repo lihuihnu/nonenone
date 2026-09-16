@@ -1,0 +1,52 @@
+{
+  "generated_on": "2026-09-16",
+  "suite": "binary",
+  "system": "H₂O–squalane",
+  "status": "provisional internal figures; current uncalibrated flow models",
+  "python": "3.13.5",
+  "matplotlib": "3.10.0",
+  "source_runs": {
+    "PR": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\pr_np1_lu",
+    "SW": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\sw_np1_lu",
+    "CPA": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\case\\scw_kerogen_squalane_2d\\results\\current_20260916\\cpa_np1_lu"
+  },
+  "calibration_source": "D:\\DOCUMENTS\\ChatGPT\\MPMC_SCW_V2\\MPMC_SCW_UNIFIED\\tools\\example\\scw_binary_calibration\\results",
+  "figures": [
+    "fig01_pvt_lle_viscosity_calibration.png",
+    "fig01_pvt_lle_viscosity_calibration.pdf",
+    "fig01_pvt_lle_viscosity_calibration.svg",
+    "fig02_2d_water_saturation.png",
+    "fig02_2d_water_saturation.pdf",
+    "fig02_2d_water_saturation.svg",
+    "fig03_2d_composition_at_1pvi.png",
+    "fig03_2d_composition_at_1pvi.pdf",
+    "fig03_2d_composition_at_1pvi.svg",
+    "fig04_oil_water_viscosity.png",
+    "fig04_oil_water_viscosity.pdf",
+    "fig04_oil_water_viscosity.svg",
+    "fig05_producer_composition.png",
+    "fig05_producer_composition.pdf",
+    "fig05_producer_composition.svg",
+    "fig06_recovery_and_mass_balance.png",
+    "fig06_recovery_and_mass_balance.pdf",
+    "fig06_recovery_and_mass_balance.svg",
+    "fig07_watercut_and_bhp.png",
+    "fig07_watercut_and_bhp.pdf",
+    "fig07_watercut_and_bhp.svg"
+  ],
+  "transformations": [
+    "PVI = time_day * 0.25 PV/day",
+    "2-D input_index reshaped as index = i + 60*j",
+    "saturation maps use a common linear 0–1 color scale without interpolation",
+    "producer mass fractions use absolute produced component mass rates",
+    "hydrocarbon-normalized fractions exclude H2O from the denominator",
+    "viscosity bands are grid-cell min/max, not uncertainty intervals",
+    "component recovery = cumulative produced mass / initial inventory",
+    "strict zero balance errors remain in CSV and are omitted only from log display"
+  ],
+  "unavailable_requested_output": {
+    "local_2d_viscosity_maps": "cellwise viscosity is absent from current solution snapshots",
+    "lmh_sw_full_run": null
+  },
+  "uncertainty": "none estimated; EOS curves and spatial min/max bands are not confidence intervals"
+}

@@ -1,0 +1,44 @@
+{
+  "case_family": "H2O-CO2-nC10 2D displacement",
+  "models": ["independent mobile SCW + PR(CO2-nC10)"],
+  "equations": "fully implicit component mass conservation with Darcy phase fluxes; SCW is an independent mobile phase and CO2-nC10 uses Peng-Robinson phase behavior",
+  "units": {
+    "length": "m",
+    "time": "s internally, day in run controls",
+    "pressure": "Pa",
+    "temperature": "K",
+    "permeability": "m2"
+  },
+  "geometry": {"size_m": [300.0, 100.0, 5.0], "grid": [60, 20, 1]},
+  "boundaries": "closed no-flow outer boundaries; injector at (0,9,0), producer at (59,9,0)",
+  "initial_state": {
+    "pressure_Pa": 28000000.0,
+    "temperature_K": 653.15,
+    "target_saturation_OGW": [0.8, 0.0, 0.2]
+  },
+  "forcing": "CO2 injector at 0.10 pore-volume/year reservoir-total-rate; producer BHP 27.5 MPa",
+  "run": {
+    "mpi_ranks": 1,
+    "output_steps": 10,
+    "nominal_step_day": 36.525,
+    "final_time_day": 365.25,
+    "target_PVI": 0.1,
+    "adaptive_timestep": true,
+    "minimum_timestep_day": 1e-5,
+    "maximum_retries": 16,
+    "cpu_limit": "1 rank per model",
+    "ram_limit": "bounded by 1200-cell case",
+    "disk_limit": "CSV summaries and final fields only",
+    "wall_time_limit": "local interactive run; terminate on solver failure"
+  },
+  "acceptance": {
+    "run_complete": true,
+    "final_time_tolerance_day": 1e-8,
+    "finite_final_fields": true,
+    "saturation_closure_max_abs": 5e-8,
+    "component_mass_balance_max_relative": 1e-7,
+    "no_unreported_well_control_switch": true,
+    "required_outputs": ["solution_final.csv", "simulation_summary.csv", "component_mass_balance.csv", "time_step_history.csv"]
+  },
+  "scientific_scope": "single-grid, single-timestep-policy comparison; not a grid-convergence or validation claim"
+}

@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# MPMC_SCW_GENERATED_RUN_SCRIPT=1
+# Generated from case/run.sh.in. Do not hand-edit this managed script.
+# Change machine settings in config/hpc.local.mk and run `make prepare CASE=...`.
+#SBATCH -p @PARTITION@
+#SBATCH -N 1
+#SBATCH -n @TASKS@
+#SBATCH -t 24:00:00
+#SBATCH --job-name=@CASE@
+#SBATCH --err=@CASE_DIR@/logs/%j_@CASE@.err
+#SBATCH --output=@CASE_DIR@/logs/%j_@CASE@.out
+#SBATCH --chdir=@CASE_DIR@
+
+set -euo pipefail
+
+CASE_NAME="@CASE@"
+MPMC_PLATFORM="@MPMC_PLATFORM@"
+EXE_PATH="./bin/${CASE_NAME}"
+mkdir -p logs results
+
+MODULES_ENABLED="@MODULES_ENABLED@"
+if [[ "${MODULES_ENABLED}" == "1" ]]; then
+    if ! command -v module >/dev/null 2>&1; then
+        echo "Error: module command is required by MPMC_PLATFORM=${MPMC_PLATFORM}, but it is not available." >&2
+        echo "For local Linux/WSL set MODULES_ENABLED := 0 in config/hpc.local.mk." >&2
+        exit 1
+    fi
+    [[ -n "@MPI_MODULE@" ]] && module load "@MPI_MODULE@"
+    [[ -n "@BLAS_MODULE@" ]] && module load "@BLAS_MODULE@"
+fi
+
+export PETSC_DIR="@PETSC_DIR@"
+export PETSC_ARCH="@PETSC_ARCH@"
+
+# Only existing library directories are injected. This keeps optional local
+# dependencies such as VTK/X11 from creating bogus paths in LD_LIBRARY_PATH.
+LIB_DIRS=()
+append_lib_dir() {
+    local dir="$1"
+    if [[ -n "${dir}" && -d "${dir}" ]]; then
+        LIB_DIRS+=("${dir}")
+    fi
+}
+append_lib_dir "${PETSC_DIR}/${PETSC_ARCH}/lib"
+append_lib_dir "@LOCAL_LIB@"
+append_lib_dir "@VTK_LIB@"
+append_lib_dir "@METIS_LIB@"
+append_lib_dir "@X11_LIB@"
+if (( ${#LIB_DIRS[@]} > 0 )); then
+    joined_libs="$(IFS=:; echo "${LIB_DIRS[*]}")"
+    export LD_LIBRARY_PATH="${joined_libs}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
+if [[ ! -x "${EXE_PATH}" ]]; then
+    echo "Error: executable ${EXE_PATH} not found."
+    echo "Compile it first: cd @CASE_ROOT@ && make ${CASE_NAME} -j"
+    exit 1
+fi
+
+# case_config.hpp remains the physical default source. Environment variables
+# below are one-run overrides only.
+CASE_ARGS=()
+[[ -n "${NUM_STEPS:-}" ]]  && CASE_ARGS+=( -numSteps "${NUM_STEPS}" )
+[[ -n "${DT:-}" ]]         && CASE_ARGS+=( -dt "${DT}" )
+[[ -n "${OUT_STEP:-}" ]]   && CASE_ARGS+=( -out_step "${OUT_STEP}" )
+[[ -n "${ADAPTIVE_DT:-}" ]] && CASE_ARGS+=( -adaptive_dt "${ADAPTIVE_DT}" )
+[[ -n "${DT_MIN:-}" ]]      && CASE_ARGS+=( -dt_min "${DT_MIN}" )
+[[ -n "${DT_CUT:-}" ]]      && CASE_ARGS+=( -dt_cut "${DT_CUT}" )
+[[ -n "${DT_GROWTH:-}" ]]   && CASE_ARGS+=( -dt_growth "${DT_GROWTH}" )
+[[ -n "${DT_DIFFICULT_SHRINK:-}" ]] && CASE_ARGS+=( -dt_difficult_shrink "${DT_DIFFICULT_SHRINK}" )
+[[ -n "${DT_EASY_SNES:-}" ]]       && CASE_ARGS+=( -dt_easy_snes "${DT_EASY_SNES}" )
+[[ -n "${DT_DIFFICULT_SNES:-}" ]]  && CASE_ARGS+=( -dt_difficult_snes "${DT_DIFFICULT_SNES}" )
+[[ -n "${DT_MAX_RETRIES:-}" ]]     && CASE_ARGS+=( -dt_max_retries "${DT_MAX_RETRIES}" )
+[[ -n "${DT_MAX_WELL_CONTROL_ITERATIONS:-}" ]] && CASE_ARGS+=( -dt_max_well_control_iterations "${DT_MAX_WELL_CONTROL_ITERATIONS}" )
+[[ -n "${EOS:-}" ]]        && CASE_ARGS+=( -eos "${EOS}" )
+[[ -n "${RESULT_DIR:-}" ]] && CASE_ARGS+=( -result_dir "${RESULT_DIR}" )
+
+DEFAULT_MESH_DIR="@DEFAULT_MESH_DIR@"
+if [[ -n "${MESH_DIR:-}" ]]; then
+    CASE_ARGS+=( -mesh_dir "${MESH_DIR}" )
+elif [[ -n "${DEFAULT_MESH_DIR}" ]]; then
+    CASE_ARGS+=( -mesh_dir "${DEFAULT_MESH_DIR}" )
+fi
+
+# Explicit NP wins locally; under Slurm, SLURM_NTASKS is the second choice.
+NP="${NP:-${SLURM_NTASKS:-@TASKS@}}"
+
+MPI_LAUNCHER="@MPI_LAUNCHER@"
+MPI_LAUNCHER_ARGS_RAW="@MPI_LAUNCHER_ARGS@"
+MPI_LAUNCHER_ARGS=()
+if [[ -n "${MPI_LAUNCHER_ARGS_RAW}" ]]; then
+    read -r -a MPI_LAUNCHER_ARGS <<< "${MPI_LAUNCHER_ARGS_RAW}"
+fi
+if [[ "${MPI_LAUNCHER}" == */* ]]; then
+    if [[ ! -x "${MPI_LAUNCHER}" ]]; then
+        echo "Error: MPI launcher is not executable: ${MPI_LAUNCHER}" >&2
+        exit 1
+    fi
+elif ! command -v "${MPI_LAUNCHER}" >/dev/null 2>&1; then
+    echo "Error: MPI launcher not found on PATH: ${MPI_LAUNCHER}" >&2
+    exit 1
+fi
+
+SNES_ARGS=(
+    -snes_type newtonls
+    -snes_max_it @SNES_MAX_IT@
+    -snes_atol @SNES_ATOL@
+    -snes_rtol @SNES_RTOL@
+    -snes_linesearch_type basic
+)
+if [[ -n "@SNES_STOL@" ]]; then
+    SNES_ARGS+=( -snes_stol "@SNES_STOL@" )
+fi
+
+RUN_CMD=(
+    "${MPI_LAUNCHER}"
+    "${MPI_LAUNCHER_ARGS[@]}"
+    -n "${NP}"
+    "${EXE_PATH}"
+    "${SNES_ARGS[@]}"
+    -ksp_type gmres
+    -ksp_atol @KSP_ATOL@
+    -ksp_rtol @KSP_RTOL@
+    -ksp_gmres_restart 50
+    -pc_type asm
+    -pc_asm_type restrict
+    -ksp_pc_side right
+    -pc_asm_overlap 1
+    -sub_ksp_type preonly
+    -sub_pc_type ilu
+    -sub_pc_factor_levels 0
+    -sub_pc_factor_zeropivot 1.e-50
+    -sub_pc_factor_shift_type NONZERO
+    -snes_divergence_tolerance 1.e50
+    -ksp_error_if_not_converged
+    "${CASE_ARGS[@]}"
+    "$@"
+)
+
+echo "============================================================"
+echo "Case        : ${CASE_NAME}"
+echo "Platform    : ${MPMC_PLATFORM}"
+echo "MPI ranks   : ${NP}"
+echo "Launcher    : ${MPI_LAUNCHER} ${MPI_LAUNCHER_ARGS[*]}"
+echo "Executable  : ${EXE_PATH}"
+echo "Work dir    : $(pwd)"
+echo "Start time  : $(date)"
+echo "Overrides   : ${CASE_ARGS[*]:-(none; use case_config.hpp)}"
+echo "============================================================"
+
+"${RUN_CMD[@]}"
+
+echo "============================================================"
+echo "[DONE] ${CASE_NAME} finished at $(date)"
+echo "Results: $(pwd)/results"
+echo "============================================================"

@@ -1,0 +1,67 @@
+{
+  "source_root": "results/recomputed_f405a18",
+  "source_files": [
+    "results/recomputed_f405a18/pr/reservoir_diagnostics.csv",
+    "results/recomputed_f405a18/pr/well_history.csv",
+    "results/recomputed_f405a18/pr/nonlinear_solve_history.csv",
+    "results/recomputed_f405a18/sw/reservoir_diagnostics.csv",
+    "results/recomputed_f405a18/sw/well_history.csv",
+    "results/recomputed_f405a18/sw/nonlinear_solve_history.csv",
+    "results/recomputed_f405a18/cpa/reservoir_diagnostics.csv",
+    "results/recomputed_f405a18/cpa/well_history.csv",
+    "results/recomputed_f405a18/cpa/nonlinear_solve_history.csv",
+    "results/full/cpa/simulation_summary.csv",
+    "results/optimization/full_optimized/simulation_summary.csv",
+    "results/recomputed_f405a18/cpa/simulation_summary.csv"
+  ],
+  "transformations": [
+    "producer q_total_surface multiplied by -1 to show positive production magnitude",
+    "injector BHP t=0 excluded because it is an unconstrained initial guess",
+    "nonlinear solve wall_time cumulatively summed by accepted end_time",
+    "pressure min/max shown as translucent spatial range around arithmetic cell mean",
+    "CPA algorithm runtime shown as unaltered simulation-loop wall time on a logarithmic point plot"
+  ],
+  "missing_data": "none in source CSV; injector t=0 intentionally blank in source_data.csv",
+  "figure_size_mm": [
+    160.0,
+    100.0
+  ],
+  "png_dpi": 600,
+  "palette": {
+    "pr": "#0072B2",
+    "sw": "#D55E00",
+    "cpa": "#009E73"
+  },
+  "generated": [
+    "figures\\recomputed_f405a18\\source_data.csv",
+    "figures\\recomputed_f405a18\\cpa_algorithm_runtime.csv",
+    "figures\\recomputed_f405a18\\en\\01_pressure_response.png",
+    "figures\\recomputed_f405a18\\en\\01_pressure_response.pdf",
+    "figures\\recomputed_f405a18\\en\\02_final_phase_saturation.png",
+    "figures\\recomputed_f405a18\\en\\02_final_phase_saturation.pdf",
+    "figures\\recomputed_f405a18\\en\\03_producer_surface_rate.png",
+    "figures\\recomputed_f405a18\\en\\03_producer_surface_rate.pdf",
+    "figures\\recomputed_f405a18\\en\\04_water_phase_density.png",
+    "figures\\recomputed_f405a18\\en\\04_water_phase_density.pdf",
+    "figures\\recomputed_f405a18\\en\\05_injector_bhp.png",
+    "figures\\recomputed_f405a18\\en\\05_injector_bhp.pdf",
+    "figures\\recomputed_f405a18\\en\\06_cumulative_solver_time.png",
+    "figures\\recomputed_f405a18\\en\\06_cumulative_solver_time.pdf",
+    "figures\\recomputed_f405a18\\en\\07_cpa_algorithm_runtime.png",
+    "figures\\recomputed_f405a18\\en\\07_cpa_algorithm_runtime.pdf",
+    "figures\\recomputed_f405a18\\zh\\01_pressure_response.png",
+    "figures\\recomputed_f405a18\\zh\\01_pressure_response.pdf",
+    "figures\\recomputed_f405a18\\zh\\02_final_phase_saturation.png",
+    "figures\\recomputed_f405a18\\zh\\02_final_phase_saturation.pdf",
+    "figures\\recomputed_f405a18\\zh\\03_producer_surface_rate.png",
+    "figures\\recomputed_f405a18\\zh\\03_producer_surface_rate.pdf",
+    "figures\\recomputed_f405a18\\zh\\04_water_phase_density.png",
+    "figures\\recomputed_f405a18\\zh\\04_water_phase_density.pdf",
+    "figures\\recomputed_f405a18\\zh\\05_injector_bhp.png",
+    "figures\\recomputed_f405a18\\zh\\05_injector_bhp.pdf",
+    "figures\\recomputed_f405a18\\zh\\06_cumulative_solver_time.png",
+    "figures\\recomputed_f405a18\\zh\\06_cumulative_solver_time.pdf",
+    "figures\\recomputed_f405a18\\zh\\07_cpa_algorithm_runtime.png",
+    "figures\\recomputed_f405a18\\zh\\07_cpa_algorithm_runtime.pdf"
+  ]
+}

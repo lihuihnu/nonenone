@@ -1,0 +1,78 @@
+{
+  "experiment": "Unified-initial-composition H2O-CO2 binary comparison",
+  "purpose": "Compare Traditional, New-PR, New-SW, and New-CPA at conventional and supercritical-water conditions on the same 60x20x1 grid.",
+  "model_description": {
+    "governing_equations": "Fully implicit component mass conservation with Darcy phase fluxes and closed external boundaries; wells are the only external sources and sinks.",
+    "thermodynamics": {
+      "Traditional": "PR hydrocarbon gas with independent pure-water phase; no aqueous CO2 dissolution.",
+      "New-PR": "Fully compositional H2O-CO2 flash with Peng-Robinson fugacity model.",
+      "New-SW": "Fully compositional H2O-CO2 flash with Spycher-Wagner correlations.",
+      "New-CPA": "Fully compositional H2O-CO2 flash with opt-in CPA association model."
+    },
+    "aqueous_properties": "Locked IAPWS+Garcia density and McBride-Wright viscosity closures.",
+    "initial_overall_mole_fraction": {
+      "H2O": 0.8,
+      "CO2": 0.2,
+      "nC10": 0.0
+    }
+  },
+  "units": "SI internally; temperature K, pressure Pa, length m, time s, mass kg. Reports use MPa and days where labeled.",
+  "domain": {
+    "grid_cells": [60, 20, 1],
+    "dimensions_m": [300.0, 100.0, 5.0],
+    "porosity": 0.2,
+    "permeability_mD": 100.0,
+    "external_boundaries": "closed/no-flow"
+  },
+  "conditions": [
+    {
+      "name": "conventional",
+      "temperature_K": 333.15,
+      "initial_pressure_MPa": 5.16,
+      "producer_bhp_MPa": 4.66,
+      "injector_max_bhp_MPa": 7.16
+    },
+    {
+      "name": "scw",
+      "temperature_K": 653.15,
+      "initial_pressure_MPa": 28.0,
+      "producer_bhp_MPa": 27.5,
+      "injector_max_bhp_MPa": 30.0
+    }
+  ],
+  "forcing": {
+    "injector": "pure CO2 at left-center cell",
+    "injector_control": "reservoir-total-rate = 0.1 pore volume/year",
+    "producer": "BHP-controlled at right-center cell",
+    "duration_day": 365.25,
+    "final_PVI": 0.1,
+    "output_intervals": 10,
+    "nominal_dt_day": 36.525,
+    "adaptive_time_stepping": true
+  },
+  "observables": [
+    "pressure change",
+    "gas and water saturation",
+    "aqueous CO2 mole fraction",
+    "centerline profiles",
+    "component and total mass balance",
+    "nonlinear convergence and phase-cell counts"
+  ],
+  "acceptance_criteria": {
+    "completion": "All eight runs reach 365.25 days with no failed step.",
+    "saturation_closure_absolute": 5e-8,
+    "active_component_relative_mass_balance": 1e-6,
+    "total_relative_mass_balance": 1e-6,
+    "inactive_nC10": "Report absolute numerical trace separately; do not treat the relative error of a nominal-zero component as an active-component failure.",
+    "plot_integrity": "Common color limits within every four-model panel; no interpolation; phase composition masked where the phase is absent."
+  },
+  "resources": {
+    "mpi_ranks_per_run": 1,
+    "concurrent_runs": 1,
+    "estimated_peak_ram_GiB": 4,
+    "estimated_disk_GiB": 2,
+    "estimated_wall_time_hours": 2,
+    "run_count": 8,
+    "expected_primary_output_files": 112
+  }
+}

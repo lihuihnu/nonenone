@@ -1,0 +1,7 @@
+experiment_id,source_experiment,role,matched_physical_experiment,temperature_C,back_pressure_MPa,water_rate_reported_mL_min,co2_rate_reported_mL_min,rate_reference_state,analysis_endpoint
+R04,4,physical_reproduction,,400,23,10,0,not_reported_by_source,4_PV_common_reporting_endpoint
+R06,6,physical_reproduction,,400,24,10,0,not_reported_by_source,4_PV_common_reporting_endpoint
+R10,10,physical_reproduction,,400,23,10,2,not_reported_by_source,4_PV_common_reporting_endpoint
+R12,12,physical_reproduction,,400,24,10,2,not_reported_by_source,4_PV_common_reporting_endpoint
+C23,,rate_matched_control,R10,400,23,derived,0,same_declared_basis_as_R10,4_PV_common_reporting_endpoint
+C24,,rate_matched_control,R12,400,24,derived,0,same_declared_basis_as_R12,4_PV_common_reporting_endpoint

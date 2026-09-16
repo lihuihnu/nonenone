@@ -1,0 +1,1 @@
+failure,start_day,end_day,dt_day,snes_reason,cell_id,input_cell_id,target_component,component,current_accum_density,previous_accum_density,accumulation_kg_s,face_flux_kg_s,well_source_kg_s,reconstructed_residual,petsc_residual,reconstruction_error

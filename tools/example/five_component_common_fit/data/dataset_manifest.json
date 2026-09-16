@@ -1,0 +1,43 @@
+{
+  "protocol_seed": 20260825,
+  "raw_data": "NIST ThermoML JSON; files and SHA-256 are in reference_data/manifest.json",
+  "split_rule": "deterministic within-isotherm 3:1 training/validation split",
+  "rows": 201,
+  "counts": {
+    "ch4_c2": {
+      "training": 12,
+      "validation": 5
+    },
+    "ch4_nc4": {
+      "training": 13,
+      "validation": 7
+    },
+    "co2_ch4": {
+      "validation": 9,
+      "training": 28
+    },
+    "h2o_ch4": {
+      "training": 16,
+      "validation": 6
+    },
+    "co2_c2": {
+      "training": 71,
+      "validation": 22
+    },
+    "h2o_co2": {
+      "training": 9,
+      "validation": 3
+    }
+  },
+  "transformations": [
+    "paired pressure and vapor-composition records by identical ThermoML variables",
+    "converted kPa to Pa",
+    "converted CO2 molality to salt-free H2O/CO2 liquid mole fraction",
+    "used only the 1 mol/kg NaCl subset for the reservoir salinity"
+  ],
+  "limitations": [
+    "the CO2-brine source does not report vapor water; y_CO2=1 is used only for its CO2 fugacity residual",
+    "no public single-paper five-component data set contains every requested observable",
+    "unmeasured binary pairs are not fitted"
+  ]
+}

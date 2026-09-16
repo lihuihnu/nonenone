@@ -1,0 +1,4 @@
+﻿directory,experiment_id,nx,dt_pv,target_pv,final_pv,nc16_recovery,co2_breakthrough_pv,max_co2_outlet_inlet_rate_ratio,max_component_relative_closure,max_component_absolute_error_kg,medium_fine_recovery_delta,medium_fine_breakthrough_pv_delta,gate_passed
+tmp/sun2024_factorial_convergence_v4/time/R12_dtpv0p02,R12,192.0,0.02,4.0,4.000000000000001,0.8725121942662298,nan,1.3809944969154537e-06,2.5505975139768943e-10,7.174510985308302e-12,0.000123015370788071,0.0,True
+tmp/sun2024_factorial_convergence_v4/time/R12_dtpv0p01,R12,192.0,0.01,4.0,4.000000000000001,0.8726214516479626,nan,1.5126851175157588e-06,5.6702754444235095e-11,3.937065951031826e-12,0.000123015370788071,0.0,True
+tmp/sun2024_factorial_convergence_v4/grid/R12_nx192,R12,192.0,0.005,4.0,4.000000000000001,0.8727444670187506,nan,9.694317437787056e-07,5.335193302385314e-11,1.292448786882616e-12,0.000123015370788071,0.0,True

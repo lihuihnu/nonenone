@@ -1,0 +1,8 @@
+system,model,evidence_type,temperature_K,kij,lij,source,status
+H2O-squalane,PR,direct_tie_line_composition_fit,653.2,0.053233659543451335,0,Stevenson1994_tables_3_5,calibrated_but_model_structure_mismatch_remains
+H2O-squalane,PR,inverse_temperature_slope,653.2,1005.045450882816,0,Stevenson1994_tables_3_5,b_units_K
+H2O-nC4,SW,published_non_aqueous_parameter,653.2,0.5091,0,Soreide_Whitson1992,prior_not_direct_target_window_fit
+H2O-nC10,PR,published_point_fit_lij_zero,573.2,0.3157,0,Teratani2017_table_6,calibration_input_below_target_window
+H2O-nC10,PR,published_point_fit_lij_zero,593.2,0.3167,0,Teratani2017_table_6,calibration_input_below_target_window
+H2O-nC10,PR,published_point_fit_lij_zero,613.2,0.2836,0,Teratani2017_table_6,calibration_input_below_target_window
+H2O-nC10,PR,inverse_temperature_extrapolation,653.2,0.2618373654302397,0,least_squares_of_Teratani2017_table_6,target_window_extrapolation

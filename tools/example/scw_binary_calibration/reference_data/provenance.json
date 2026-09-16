@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "phase_equilibrium": {
+    "source": "Stevenson, LaBracio, Beaton and Thies (1994)",
+    "doi": "10.1016/0378-3812(94)87016-0",
+    "tables": [3, 5],
+    "input": "../../../../case/scw_kerogen_common/calibration/squalane_target_window.csv",
+    "verification": "Original table text and page image checked; the last pressure is 294.7 bar, not 294.1 bar.",
+    "reported_accuracy": {
+      "temperature_K": "better than +/-0.3 K",
+      "pressure_bar": "+/-0.3 bar",
+      "water_rich_mole_fraction": "better than +/-0.0005",
+      "squalane_rich_mole_fraction": "+/-0.002"
+    }
+  },
+  "pvt_viscosity": {
+    "source": "Mylona et al. (2014), Reference Correlations for the Density and Viscosity of Squalane from 273 to 473 K at Pressures to 200 MPa",
+    "doi": "10.1063/1.4863984",
+    "table": 9,
+    "url": "https://www.nist.gov/system/files/documents/2018/03/12/3reference_correlations_for_the_density_and_viscosity_of_squalane_from_273_to_473_k_at_pressures_to_200_mpa.pdf",
+    "density_column": "rho_corr from Eqs. (1)-(3)",
+    "viscosity_column": "eta from Eqs. (4)-(6), preferred above 410 K",
+    "expanded_uncertainty": {
+      "density_percent": 0.18,
+      "viscosity_percent": 3.0,
+      "coverage_factor": 2,
+      "note": "The paper reports expanded uncertainties at approximately 95% confidence. They are not treated as independent pointwise standard deviations."
+    },
+    "validity": "Density 273-473 K and viscosity 320-473 K, both at pressures up to 200 MPa."
+  },
+  "water_viscosity": {
+    "source": "IAPWS R12-08, Formulation 2008 for the Viscosity of Ordinary Water Substance",
+    "url": "https://iapws.org/technical-guidance/release/viscosity",
+    "use": "Independent reference check with the critical enhancement omitted outside its stated near-critical region."
+  },
+  "units": {
+    "temperature": "K",
+    "pressure_input": "MPa",
+    "pressure_internal": "Pa",
+    "density": "kg/m3",
+    "viscosity_input": "mPa s",
+    "viscosity_internal": "Pa s",
+    "volume_translation": "m3/mol",
+    "critical_volume": "m3/mol"
+  }
+}

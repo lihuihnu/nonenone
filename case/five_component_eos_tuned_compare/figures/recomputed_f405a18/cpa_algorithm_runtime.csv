@@ -1,0 +1,4 @@
+algorithm_stage,simulation_loop_wall_s,source
+original_fixed_point,1059.76227789,results/full/cpa
+b2_reduced,67.89276261399982,results/optimization/full_optimized
+current_backend,61.94721632699975,results/recomputed_f405a18/cpa

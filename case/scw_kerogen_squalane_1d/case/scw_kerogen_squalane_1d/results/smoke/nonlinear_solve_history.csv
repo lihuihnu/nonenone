@@ -1,0 +1,2 @@
+solve_id,start_time,end_time,dt,retry,control_iteration,converged,snes_iterations,ksp_iterations,initial_residual,final_residual,residual_reduction,wall_time,reason
+1,0,0.0001,0.0001,0,0,1,5,5,0.00515535324567285,5.628725729086272e-09,1.091821541775192e-06,0.01198439099971438,CONVERGED_FNORM_ABS
