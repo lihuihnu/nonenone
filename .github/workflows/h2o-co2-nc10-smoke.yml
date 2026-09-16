@@ -32,6 +32,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          # The handoff snapshot preserves script contents but not every executable bit.
+          find scripts -type f -name '*.sh' -exec chmod +x {} +
+
           PETSC_VARIABLES="$(find /usr/lib/petscdir /usr/lib -path '*/lib/petsc/conf/variables' -print -quit 2>/dev/null)"
           if [[ -z "${PETSC_VARIABLES}" ]]; then
             echo "PETSc variables file not found" >&2
