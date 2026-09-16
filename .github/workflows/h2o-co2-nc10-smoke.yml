@@ -32,9 +32,9 @@ jobs:
           echo "PETSC_DIR=${RUNNER_TEMP}/petsc-3.22.2" >> "${GITHUB_ENV}"
           echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
 
-      - name: Cache PETSc 3.22.2
+      - name: Restore PETSc 3.22.2 cache
         id: petsc-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/petsc-3.22.2
           key: petsc-3.22.2-ubuntu24-openmpi4-gcc13-v1
@@ -58,13 +58,17 @@ jobs:
             --with-x=0
           make PETSC_DIR="${PETSC_DIR}" PETSC_ARCH="${PETSC_ARCH}" all -j2
 
+      - name: Save PETSc 3.22.2 cache
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/petsc-3.22.2
+          key: ${{ steps.petsc-cache.outputs.cache-primary-key }}
+
       - name: Configure local dependency profile
         shell: bash
         run: |
           set -euo pipefail
-
-          # The handoff snapshot preserves script contents but not every executable bit.
-          # Ignore mode-only changes so the repository audit still checks content cleanliness.
           git config core.filemode false
           find scripts -type f -name '*.sh' -exec chmod +x {} +
 
@@ -72,10 +76,7 @@ jobs:
           mkdir -p "${METIS_ROOT}/include" "${METIS_ROOT}/install/lib"
           ln -sf /usr/include/metis.h "${METIS_ROOT}/include/metis.h"
           METIS_LIB="$(ldconfig -p | awk '/libmetis\.so/{print $NF; exit}')"
-          if [[ -z "${METIS_LIB}" ]]; then
-            echo "libmetis.so not found" >&2
-            exit 1
-          fi
+          test -n "${METIS_LIB}"
           ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
 
           DQ_MESH_DIR="${RUNNER_TEMP}/DQ_data"
@@ -105,24 +106,17 @@ jobs:
 
       - name: Repository audit and unit tests
         run: |
-          make audit || echo '::warning::Repository audit reports missing generated documentation figures in the slim handoff; continuing to executable gates.'
+          make audit || echo '::warning::Slim handoff omits generated documentation figures; continuing to executable gates.'
           make unit-gcc
 
       - name: Build representative cases
         shell: bash
         run: |
           set -euo pipefail
-
-          # PETSc make-rule packaging can collide with this repository's clean::
-          # rule. Rename only that runner-copy housekeeping target.
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
 
-          # The traditional case uses `fluid`/`unified` only in the optional
-          # binary-H2O initialization mode. Keep both optional uses under the
-          # same compile-time guard so the default strict -Werror build is clean.
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path('case/h2o_co2_nc10_2d_traditional/h2o_co2_nc10_2d_traditional.cpp')
           text = path.read_text()
           old = '''void initializeSolution(
@@ -148,24 +142,32 @@ jobs:
           make case CASE=h2o_co2_nc10_2d_benchmark -j2
 
       - name: Run traditional short step
+        id: traditional
+        continue-on-error: true
         run: |
           make run CASE=h2o_co2_nc10_2d_traditional NP=1 \
             RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/traditional" \
             RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
 
       - name: Run New-PR short step
+        id: pr
+        continue-on-error: true
         run: |
           make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=pr \
             RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-pr" \
             RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
 
       - name: Run New-SW short step
+        id: sw
+        continue-on-error: true
         run: |
           make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
             RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
             RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
 
       - name: Run New-CPA short step
+        id: cpa
+        continue-on-error: true
         run: |
           make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=cpa \
             RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-cpa" \
@@ -189,3 +191,21 @@ jobs:
             runner-results/
             case/h2o_co2_nc10_2d_traditional/logs/
             case/h2o_co2_nc10_2d_benchmark/logs/
+
+      - name: Enforce numerical smoke outcomes
+        if: always()
+        shell: bash
+        run: |
+          echo "traditional=${{ steps.traditional.outcome }}"
+          echo "pr=${{ steps.pr.outcome }}"
+          echo "sw=${{ steps.sw.outcome }}"
+          echo "cpa=${{ steps.cpa.outcome }}"
+          failed=0
+          for outcome in \
+            "${{ steps.traditional.outcome }}" \
+            "${{ steps.pr.outcome }}" \
+            "${{ steps.sw.outcome }}" \
+            "${{ steps.cpa.outcome }}"; do
+            [[ "${outcome}" == "success" ]] || failed=1
+          done
+          exit "${failed}"
