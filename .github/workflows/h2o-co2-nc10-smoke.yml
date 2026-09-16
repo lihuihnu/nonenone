@@ -33,6 +33,8 @@ jobs:
           set -euo pipefail
 
           # The handoff snapshot preserves script contents but not every executable bit.
+          # Ignore mode-only changes so the repository audit still checks content cleanliness.
+          git config core.filemode false
           find scripts -type f -name '*.sh' -exec chmod +x {} +
 
           PETSC_VARIABLES="$(find /usr/lib/petscdir /usr/lib -path '*/lib/petsc/conf/variables' -print -quit 2>/dev/null)"
@@ -52,6 +54,9 @@ jobs:
           fi
           ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
 
+          DQ_MESH_DIR="${RUNNER_TEMP}/DQ_data"
+          mkdir -p "${DQ_MESH_DIR}"
+
           cat > config/hpc.local.mk <<EOF
           MPMC_PLATFORM := local
           PETSC_DIR := ${PETSC_DIR}
@@ -68,6 +73,7 @@ jobs:
           MPI_MODULE :=
           BLAS_MODULE :=
           SBATCH :=
+          DQ_MESH_DIR := ${DQ_MESH_DIR}
           EOF
 
           make print-config
