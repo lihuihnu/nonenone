@@ -86,6 +86,11 @@ jobs:
 
       - name: Build representative cases
         run: |
+          # Ubuntu's PETSc 3.19 make rules define clean: while this repository's
+          # case Makefile defines clean::. GNU make rejects mixed single/double
+          # colon definitions before compiling anything. Rename only the local
+          # runner-copy cleanup target; numerical/build sources remain unchanged.
+          sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
           make case CASE=h2o_co2_nc10_2d_traditional -j2
           make case CASE=h2o_co2_nc10_2d_benchmark -j2
 
