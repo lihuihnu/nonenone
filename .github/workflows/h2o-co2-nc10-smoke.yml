@@ -27,26 +27,36 @@ jobs:
             openmpi-bin libopenmpi-dev \
             libblas-dev liblapack-dev libmetis-dev libfmt-dev
 
+      - name: Set PETSc environment
+        run: |
+          echo "PETSC_DIR=${RUNNER_TEMP}/petsc-3.22.2" >> "${GITHUB_ENV}"
+          echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
+
+      - name: Cache PETSc 3.22.2
+        id: petsc-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/petsc-3.22.2
+          key: petsc-3.22.2-ubuntu24-openmpi4-gcc13-v1
+
       - name: Build PETSc 3.22.2
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           PETSC_VERSION=3.22.2
-          PETSC_SRC="${RUNNER_TEMP}/petsc-${PETSC_VERSION}"
           curl -fL --retry 3 \
             "https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-${PETSC_VERSION}.tar.gz" \
             -o "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz"
           tar -xzf "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz" -C "${RUNNER_TEMP}"
-          cd "${PETSC_SRC}"
-          ./configure PETSC_ARCH=arch-ci \
+          cd "${PETSC_DIR}"
+          ./configure PETSC_ARCH="${PETSC_ARCH}" \
             --with-debugging=0 \
             --with-shared-libraries=1 \
             --with-mpi=1 \
             --with-fortran-bindings=0 \
             --with-x=0
-          make PETSC_DIR="${PETSC_SRC}" PETSC_ARCH=arch-ci all -j2
-          echo "PETSC_DIR=${PETSC_SRC}" >> "${GITHUB_ENV}"
-          echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
+          make PETSC_DIR="${PETSC_DIR}" PETSC_ARCH="${PETSC_ARCH}" all -j2
 
       - name: Configure local dependency profile
         shell: bash
@@ -107,11 +117,9 @@ jobs:
           # rule. Rename only that runner-copy housekeeping target.
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
 
-          # The traditional case computes `unified` only for an optional
-          # compile-time binary-H2O initialization mode. Under the default mode
-          # GCC correctly diagnoses it as unused and -Werror stops the build.
-          # Keep the same semantics by putting the computation under the same
-          # preprocessor guard in the runner copy.
+          # The traditional case uses `fluid`/`unified` only in the optional
+          # binary-H2O initialization mode. Keep both optional uses under the
+          # same compile-time guard so the default strict -Werror build is clean.
           python3 - <<'PY'
           from pathlib import Path
 
@@ -127,6 +135,8 @@ jobs:
           {
           #ifdef MPMC_H2O_CO2_BINARY_INITIAL_H2O_MOLE_FRACTION
               const auto unified = unifiedBinaryInitialSaturation(fluid);
+          #else
+              (void)fluid;
           #endif
               PetscCallAbort(PETSC_COMM_WORLD, VecSet(solution, 0.0));'''
           if old not in text:
