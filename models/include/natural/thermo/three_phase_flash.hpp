@@ -315,9 +315,90 @@ public:
 
         const CompositionalPhase referencePhase = firstActive_(active);
         const int ref = phaseIndex(referencePhase);
-        Composition referenceComposition = activeCompositions[static_cast<std::size_t>(ref)];
+        std::array<Composition, 3> stabilityCompositions = activeCompositions;
+
+        // A single active phase must carry the overall composition exactly.
+        // For SW this also prevents a stale inactive-slot composition from
+        // becoming the reference chemical potential after an O/G role switch.
+        if (eos_.usesSoreideWhitson() && active.count() == 1)
+            stabilityCompositions[static_cast<std::size_t>(ref)] = z;
+
+        for (CompositionalPhase phase : phases_)
+        {
+            if (active.contains(phase))
+                normalize_(stabilityCompositions[static_cast<std::size_t>(phaseIndex(phase))]);
+        }
+
+        // SW assigns different root/BIP semantics to nonaqueous and aqueous
+        // roles.  Natural calls stabilityTest() while Newton is still moving,
+        // so the supplied active-phase compositions are not necessarily at
+        // interphase fugacity equilibrium yet.  Building TPD directly from
+        // such an iterate can turn the existing aqueous basin into a false
+        // "missing Gas" certificate.  Only when the active records fail a
+        // cheap fugacity-closure check, first certify the current active set
+        // with a restricted flash; already-equilibrated states pay no extra
+        // flash cost.
+        if (eos_.usesSoreideWhitson() && active.count() > 1)
+        {
+            Composition rawReference =
+                stabilityCompositions[static_cast<std::size_t>(ref)];
+            const auto rawReferenceThermo = phaseResult_(
+                referencePhase, pressure, temperature, rawReference);
+            double activeFugacityMismatch = 0.0;
+            for (CompositionalPhase phase : phases_)
+            {
+                if (!active.contains(phase) || phase == referencePhase)
+                    continue;
+                const std::size_t slot =
+                    static_cast<std::size_t>(phaseIndex(phase));
+                const auto thermo = phaseResult_(
+                    phase, pressure, temperature, stabilityCompositions[slot]);
+                for (int i = 0; i < N; ++i)
+                {
+                    const std::size_t c = static_cast<std::size_t>(i);
+                    const double xRef = rawReference[c];
+                    const double x = stabilityCompositions[slot][c];
+                    if (xRef <= 10.0 * options_.compositionFloor ||
+                        x <= 10.0 * options_.compositionFloor)
+                        continue;
+                    const double refActivity = std::max(
+                        xRef * rawReferenceThermo.fugacityCoefficient[c],
+                        1.0e-300);
+                    const double activity = std::max(
+                        x * thermo.fugacityCoefficient[c], 1.0e-300);
+                    activeFugacityMismatch = std::max(
+                        activeFugacityMismatch,
+                        std::abs(std::log(refActivity / activity)));
+                }
+            }
+
+            const double certificationTolerance = std::max(
+                10.0 * options_.fugacityTolerance,
+                10.0 * options_.stabilityTolerance);
+            if (activeFugacityMismatch > certificationTolerance)
+            {
+                Result certified = flashRestrictedImpl_(
+                    pressure, temperature, z, active, &stabilityCompositions);
+                if (!certified.converged ||
+                    certified.presence.bits() != active.bits())
+                {
+                    // The supplied active set is itself not a certified
+                    // equilibrium state.  Do not manufacture a missing-phase
+                    // TPD decision from it; the caller may invoke its existing
+                    // full-flash recovery path.
+                    result.valid = false;
+                    result.stable = false;
+                    return result;
+                }
+                stabilityCompositions = certified.composition;
+            }
+        }
+
+        Composition referenceComposition =
+            stabilityCompositions[static_cast<std::size_t>(ref)];
         normalize_(referenceComposition);
-        const auto referenceThermo = phaseResult_(referencePhase, pressure, temperature, referenceComposition);
+        const auto referenceThermo = phaseResult_(
+            referencePhase, pressure, temperature, referenceComposition);
 
         std::array<double, N> logReference{};
         for (int i = 0; i < N; ++i)
@@ -358,7 +439,38 @@ public:
 
             result.trialSum[static_cast<std::size_t>(p)] = best.sum;
             result.incipientComposition[static_cast<std::size_t>(p)] = best.composition;
-            bool unstable = !best.trivial &&
+
+            // A TPD solver is allowed to converge to a stationary point that
+            // is simply one of the phases already present.  That point is
+            // trivial even when it is not the first/reference phase.  Without
+            // this check a Water-like active phase can be rediscovered through
+            // the SW Gas/Oil root and be misreported as a new phase.
+            bool coincidesWithActivePhase = false;
+            const double coincidenceTolerance = std::max(
+                10.0 * options_.coincidentPhaseCompositionTolerance, 1.0e-7);
+            for (CompositionalPhase phase : phases_)
+            {
+                if (!active.contains(phase))
+                    continue;
+                const std::size_t slot =
+                    static_cast<std::size_t>(phaseIndex(phase));
+                double maxDifference = 0.0;
+                for (int i = 0; i < N; ++i)
+                {
+                    const std::size_t c = static_cast<std::size_t>(i);
+                    maxDifference = std::max(
+                        maxDifference,
+                        std::abs(best.composition[c] -
+                                 stabilityCompositions[slot][c]));
+                }
+                if (maxDifference <= coincidenceTolerance)
+                {
+                    coincidesWithActivePhase = true;
+                    break;
+                }
+            }
+
+            bool unstable = !best.trivial && !coincidesWithActivePhase &&
                 best.sum > 1.0 + options_.stabilityTolerance;
             if (candidate == CompositionalPhase::Water && unstable &&
                 !eos_.aqueousVolumeCompositionSupported(best.composition))
