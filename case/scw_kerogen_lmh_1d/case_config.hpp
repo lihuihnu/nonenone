@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../scw_kerogen_common/benchmark_common.hpp"
-#include "../scw_kerogen_common/calibrated_binary_properties.hpp"
+#include "../scw_kerogen_common/bsb_reference_properties.hpp"
 
 #include <indices/model_config.hpp>
 #include <natural/thermo/thermodynamic_model.hpp>
@@ -44,30 +44,44 @@ struct Fluid
     static constexpr int middleComponent = 2;
     static constexpr int heavyComponent = 3;
     inline static constexpr std::array<const char *, N> componentNames{
-        "H2O", "Light_nC4", "Middle_nC10", "Heavy_squalane"};
+        "H2O", "Light_BSB_C1_C6", "Middle_BSB_C7_C15", "Heavy_BSB_C16_C27"};
 
     inline static constexpr std::array<double, N> criticalTemperature{
-        647.096, 425.125, 617.7, 855.9};
+        BsbReference::water.criticalTemperatureK,
+        BsbReference::light.criticalTemperatureK,
+        BsbReference::middle.criticalTemperatureK,
+        BsbReference::heavy.criticalTemperatureK};
     inline static constexpr std::array<double, N> criticalPressure{
-        22.064e6, 3.7960e6, 2.110e6, 0.7164e6};
+        BsbReference::water.criticalPressurePa,
+        BsbReference::light.criticalPressurePa,
+        BsbReference::middle.criticalPressurePa,
+        BsbReference::heavy.criticalPressurePa};
     inline static constexpr std::array<double, N> criticalVolume{
-        7.49587808839913e-5, 2.5492e-4, 6.0300e-4,
-        3.05355324646748e-3};
+        BsbReference::water.criticalVolumeM3PerMol,
+        BsbReference::light.criticalVolumeM3PerMol,
+        BsbReference::middle.criticalVolumeM3PerMol,
+        BsbReference::heavy.criticalVolumeM3PerMol};
     inline static constexpr std::array<double, N> acentricFactor{
-        0.3443, 0.20081, 0.4884, 1.255};
+        BsbReference::water.acentricFactor,
+        BsbReference::light.acentricFactor,
+        BsbReference::middle.acentricFactor,
+        BsbReference::heavy.acentricFactor};
     inline static constexpr std::array<double, N> molarMass{
-        0.01801528, 0.0581222, 0.142286, 0.4228};
+        BsbReference::water.molarMassKgPerMol,
+        BsbReference::light.molarMassKgPerMol,
+        BsbReference::middle.molarMassKgPerMol,
+        BsbReference::heavy.molarMassKgPerMol};
 
-    // Only H2O-squalane is tied to the existing 653.2 K experimental
-    // parameterization.  H2O-nC4/H2O-nC10 are screening values and all
-    // hydrocarbon-hydrocarbon BIPs are zero; this case is a mechanism study,
-    // not a characterized kerogen-oil PVT model.
+    // Match the H2O-CO2-BSB PR baseline: all water-hydrocarbon BIPs are 0.5
+    // and hydrocarbon-hydrocarbon BIPs are zero.
     inline static constexpr std::array<std::array<double, N>, N>
         binaryInteraction{{
-            {{0.0,    0.5091, 0.2618373654302397, 0.053233659543451335}},
-            {{0.5091, 0.0,    0.0,                0.0}},
-            {{0.2618373654302397, 0.0, 0.0,        0.0}},
-            {{0.053233659543451335, 0.0, 0.0,      0.0}}
+            {{0.0, BsbReference::waterHydrocarbonKij,
+                   BsbReference::waterHydrocarbonKij,
+                   BsbReference::waterHydrocarbonKij}},
+            {{BsbReference::waterHydrocarbonKij, 0.0, 0.0, 0.0}},
+            {{BsbReference::waterHydrocarbonKij, 0.0, 0.0, 0.0}},
+            {{BsbReference::waterHydrocarbonKij, 0.0, 0.0, 0.0}}
         }};
 
     static double cubicBinaryInteractionCoefficient(
@@ -79,11 +93,8 @@ struct Fluid
             : (j == waterComponent ? i : -1);
         if (other < 0)
             return 0.0;
-        if (other == lightComponent)
-            return ScwKerogenCalibration::nonAqueousNc4Kij(temperatureK);
-        if (other == middleComponent)
-            return ScwKerogenCalibration::extrapolatedPrNc10Kij(temperatureK);
-        return ScwKerogenCalibration::prSqualaneKij(temperatureK);
+        (void)temperatureK;
+        return BsbReference::waterHydrocarbonKij;
     }
 
     static constexpr auto thermodynamicModel =
@@ -96,7 +107,7 @@ struct Fluid
     static constexpr double temperature = ScwKerogen1D::temperature;
 
     inline static constexpr std::array<double, 3> surfaceDensity{
-        800.0, 120.0, 360.0};
+        750.0, 1.8, 985.4040020947351};
     inline static constexpr std::array<double, 3> viscosity{
         8.0e-4, 4.0e-5, 7.0e-5};
     static constexpr double waterViscosity = 7.0e-5;
@@ -109,24 +120,24 @@ struct InitialState
 {
     static constexpr double pressure = ScwKerogen1D::initialPressure;
     static constexpr double temperature = ScwKerogen1D::temperature;
-    // Preserve the original light:middle:heavy hydrocarbon ratio.  z_H2O=0.25
-    // is the common PR/SW/CPA one-phase hydrocarbon-rich baseline; it is not an
-    // artificial finite water saturation because PTz flash returns S_w=0.
-    static constexpr double initialH2OMoleFraction = 0.25;
+    // Preserve the 20/80 water/hydrocarbon split.  Within the hydrocarbon cut,
+    // use the BSB L/M/H mole fractions renormalized after excluding XH.
+    static constexpr double initialH2OMoleFraction =
+        BsbReference::initialWaterMoleFraction;
     inline static constexpr std::array<double, Fluid::N> overallComposition{
         initialH2OMoleFraction,
         (1.0 - initialH2OMoleFraction)
-            * 0.1041666666666667,
+            * BsbReference::lmhMoleFraction[0],
         (1.0 - initialH2OMoleFraction)
-            * 0.2604166666666667,
+            * BsbReference::lmhMoleFraction[1],
         (1.0 - initialH2OMoleFraction)
-            * 0.6354166666666666};
+            * BsbReference::lmhMoleFraction[2]};
 };
 
 struct Dissolution
 {
     static constexpr int component = Fluid::lightComponent;
-    static constexpr double waterMolarMass = 0.01801528;
+    static constexpr double waterMolarMass = BsbReference::water.molarMassKgPerMol;
     static constexpr double salinityMolality = 0.0;
     static constexpr double initialWaterCO2MoleFraction = 0.0;
 };
