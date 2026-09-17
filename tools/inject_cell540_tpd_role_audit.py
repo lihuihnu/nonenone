@@ -19,6 +19,7 @@ probe = r'''    struct SwTpdRoleAudit final
         Composition overall{};
         std::array<Composition, 3> compositions{};
         std::array<bool, 3> aqueousSupported{false, false, false};
+        bool waterTrialAqueousSupported{false};
         double oilGasLogFugacityMismatch{0.0};
         double oilZ{0.0};
         double gasZ{0.0};
@@ -71,6 +72,8 @@ probe = r'''    struct SwTpdRoleAudit final
         }
 
         const auto &waterTrial = audit.stability.incipientComposition[2];
+        audit.waterTrialAqueousSupported =
+            fluid_.eos.aqueousVolumeCompositionSupported(waterTrial);
         const auto trialOil = fluid_.eos.phaseResult(
             p, fluid_.temperature, waterTrial, CompositionalPhase::Oil);
         const auto trialGas = fluid_.eos.phaseResult(
@@ -112,9 +115,7 @@ state_repl = r'''                const bool auditCell540 =
                               << " water_unstable=" << stability.missingPhaseUnstable[2]
                               << " water_sum=" << stability.trialSum[2]
                               << " water_excess=" << stability.trialSum[2] - 1.0
-                              << " water_trial_aq="
-                              << kernel_.fluid().eos.aqueousVolumeCompositionSupported(
-                                     stability.incipientComposition[2])
+                              << " water_trial_aq=" << audit.waterTrialAqueousSupported
                               << " zroot_O/G=" << audit.oilZ << "/" << audit.gasZ
                               << " water_trial_zroot_O/G="
                               << audit.waterTrialOilZ << "/" << audit.waterTrialGasZ
