@@ -1,0 +1,5 @@
+system_id,proxy_name,Tc_K,Pc_MPa,Vc_cm3_mol,omega,MW_g_mol,T_ref_K,initial_kref,initial_b_K,k_lower,k_upper,fit_enabled
+OIL_GASOLINE,H2O+n-hexane_proxy,515.231,3.192179,358.490,0.269328,82.392,653.15,0.0,0.0,-0.2,1.2,1
+OIL_DIESEL,H2O+dodecane_proxy,736.423,1.751155,824.073,0.583473,215.583,653.15,0.55,0.0,-0.2,1.2,1
+OIL_MIDDLE,H2O+squalane_saturated_bracket,870.437,1.138075,1318.853,0.896554,387.349,653.15,0.05,0.0,-0.2,1.2,1
+OIL_HEAVY,H2O+heavy_oil_proxy_required,982.864,0.808714,1793.890,1.215676,660.132,653.15,0.0,0.0,-0.2,1.2,0
