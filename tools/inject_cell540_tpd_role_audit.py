@@ -31,8 +31,7 @@ probe = r'''    struct SwOilRemovalAudit final
         SwOilRemovalAudit audit;
         audit.overall = transitionOverallComposition_(primary, phaseState);
         const auto compositions = normalizedPhaseCompositions_(primary);
-        PhasePresence gasOnly;
-        gasOnly.add(CompositionalPhase::Gas);
+        const PhasePresence gasOnly = PhasePresence::gasOnly();
         audit.reduced = flash_.flashRestricted(
             primary[Indices::Primary::pressure],
             fluid_.temperature,
