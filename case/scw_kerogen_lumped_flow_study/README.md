@@ -1,13 +1,13 @@
 # SCW–干酪根裂解产物拟组分流动算例集合
 
-本目录用于后续建立“超临界水与预生成干酪根裂解产物的相平衡—黏度—多相多组分运移”数值实验集合。
+本目录用于建立“超临界水与预生成干酪根裂解产物的相平衡—黏度—多相多组分运移”数值实验集合。**当前阶段仍是零流动热力学标定；储层流动尚未获准进入。**
 
 ## 研究边界
 
 - 主目标工况固定为 **380 °C、25 MPa**；后续保留 **360 °C、25 MPa** 作为同压力亚临界水对照候选。
 - 研究对象是**预生成的干酪根裂解产物**与注入水之间的相平衡和流动耦合。
 - 当前不把干酪根裂解反应、aquathermolysis、焦炭生成或能量方程纳入本算例集合。
-- 拟组分边界、PR/SW/CPA 参数、二元作用参数和黏度模型必须有可追溯实验或文献依据，不以方便计算的代表分子反向定义真实流体。
+- 拟组分边界、PR/CPA 参数、二元作用参数和黏度模型必须有可追溯实验或文献依据，不以方便计算的代表分子反向定义真实流体。
 
 ## 实验驱动的 lumping 决策
 
@@ -28,7 +28,7 @@ Zhao et al. (*Industrial & Engineering Chemistry Research*, 2023, DOI `10.1021/a
 
 ## 当前流体拓扑
 
-第一阶段非反应流动模型按以下结构组织：
+第一阶段非反应热力学模型按以下结构组织：
 
 - `H2O`
 - `OIL_GASOLINE`：IBP–180 °C
@@ -51,13 +51,45 @@ Zhao et al. (*Industrial & Engineering Chemistry Research*, 2023, DOI `10.1021/a
 
 完整推导、方法和不确定性见 `04_PSEUDOCOMPONENT_CHARACTERIZATION.md`；机器可读表为 `fluid_characterization/pseudo_component_characterization_380c.csv`，Figure 5 的 SCN characterization basis 为 `fluid_characterization/raw/figure5_380c_scn_characterization_basis.csv`。
 
-这些性质是**实验约束 + petroleum characterization correlation 的 provisional 值**，不是直接测得的临界性质。它们可以进入下一阶段 PR/SW/CPA screening，但最终参数必须通过高温高压相平衡/PVT 数据验证。
+这些性质是**实验约束 + petroleum characterization correlation 的 provisional 值**，不是直接测得的临界性质。它们可以作为零流动 PR 标定的初始纯组分参数，但不能在未经二元实验验证的情况下直接进入储层模型。
 
 ## Heavy 与 squalane 的边界
 
 `OIL_HEAVY` 绝不默认等于 squalane。当前 >500 °C Heavy 的中心估计约为 `MW=660 g/mol`、`Tb=564 °C`、`SG=0.943`，并且实验 SARA 显示显著 resin/asphaltene character。Figure 5 可见 C38–C74 尾部也可能低估最不挥发/最极性的残余物，因此 Heavy 行明确标记为 `PROVISIONAL_HEAVY_TAIL_LOWER_BOUND_LIKE`。
 
-squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在 `fluid_characterization/squalane_benchmark.csv`，不得把其纯组分性质复制到生产 `OIL_HEAVY` 行。
+squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在 `fluid_characterization/squalane_benchmark.csv`，不得把其纯组分性质或 H2O–squalane BIP 复制到生产 `OIL_HEAVY` 行。
+
+## 零流动 PR 标定是进入储层前的硬门槛
+
+在任何 60×20×1 或其它储层流动算例开始前，必须分别完成：
+
+- `H2O–OIL_GASOLINE`
+- `H2O–OIL_DIESEL`
+- `H2O–OIL_MIDDLE`
+- `H2O–OIL_HEAVY`
+
+的高温高压 PR 二元标定与独立验证。
+
+每个二元体系的 `kij(T)` 只有在同时验证以下物理量后才能被接受：
+
+1. 相数 / phase topology；
+2. 两个共存相的组成；
+3. 相密度或与相支相关的实验 molar-volume/PVT 信息；
+4. 相界/critical-locus 位置；
+5. 独立 hold-out 温压点。
+
+只让 flash 收敛、只拟合一个富烃相端点、或者用 BIP 补偿密度错误都不能算通过。
+
+特别是 `H2O–OIL_HEAVY`：当前 squalane 只能作为非极性重饱和烃 benchmark；atmospheric-residue 数据虽然化学上更接近 Heavy，但现有数据的压力覆盖不足以证明 25 MPa 下的 Heavy LLE/density 行为。因此 Heavy 当前明确 `BLOCKED`，**禁止为了得到两相或收敛而调 BIP**。
+
+完整协议见 `05_ZERO_FLOW_PR_CALIBRATION.md`。实验代理数据源、published PR prior 以及储层门禁分别保存在：
+
+- `binary_pr_calibration/source_manifest.csv`
+- `binary_pr_calibration/published_pr_bip_priors.csv`
+- `binary_pr_calibration/h2o_squalane_reference.csv`
+- `binary_pr_calibration/reservoir_entry_gate.csv`
+
+当前总状态：`RESERVOIR_GATE_BLOCKED`。
 
 ## 当前数据审计状态
 
@@ -65,26 +97,16 @@ squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在
 
 ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、paired mass-fraction prior 和内部 carbon-number characterization。两套样品身份保持隔离，不能把 secondary paired 数据重新标成 primary raw-shale measurement。
 
-## 计划的数值实验
+## 储层数值实验（冻结）
 
-基础几何保持伪三维单层结构：
+计划中的伪三维单层结构仍保留为后续目标：`60 x 20 x 1`、均质岩石、等温全组分多相流、左侧注水右侧生产、380 °C / 25 MPa 主工况及 360 °C / 25 MPa 对照。
 
-- 网格：`60 x 20 x 1`；
-- 均质岩石；
-- 等温全组分多相流；
-- 左侧注入水、右侧生产；
-- 主工况：`380 °C / 25 MPa`；
-- 后续控制：`360 °C / 25 MPa`；
-- 重点比较温度跨临界变化，以及 PR、SW、CPA 的热力学结构差异。
+**这些流动设置当前不执行。** 只有 `binary_pr_calibration/reservoir_entry_gate.csv` 中所有四个 H2O–lump 行均为 `PASS` 后，才允许进入储层实现和运行。
 
-主要观测量：各相组成/密度/相态、相黏度与相流度、四个实验馏程 lump 的生产组成和累计采出、轻重馏分选择性、质量守恒及数值收敛性。
+## 当前工作顺序
 
-## 后续工作顺序
-
-1. 用当前 characterization 表建立 PR/SW 初始 pseudo-component 参数对象并做 380 °C / 25 MPa flash/stability preflight；
-2. 搜集/标定 H2O–lump 与 lump–lump 高温高压 VLE/LLE/PVT 数据；
-3. 单独审计 `OIL_HEAVY` 的 PNA/SARA 与 CPA association 表征；
-4. 验证密度、volume shift 和黏度 closure；
-5. 再进入 360/380 °C 对照流动算例。
-
-整个过程中不允许用方便的纯组分替代物覆盖真实实验拟组分的 provenance。
+1. 逐表追回并保存四个 H2O–lump 实验代理体系的原始高温高压 VLE/LLE/PVT 数据；
+2. 用生产 PR EOS/flash 对每个体系回归 `kij(T)`；
+3. 用留出温度/压力验证相数、两相组成、密度/体积和相界；
+4. 对失败体系记录 PR 模型结构不足，不通过额外 BIP 自由度掩盖；
+5. 四个二元体系全部通过后，才开始储层流动。
