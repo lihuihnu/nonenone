@@ -3,7 +3,7 @@ name: Run uploaded LMH 2D SW case
 on:
   push:
     branches:
-      - run/uploaded-lmh2d-20260917
+      - run/minority-amount-lmh2d-20260917
     paths:
       - .github/workflows/uploaded-lmh2d-run.yml
   workflow_dispatch:
@@ -143,6 +143,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: uploaded-lmh2d-sw-run-lu
+          name: minority-amount-lmh2d-sw-run-lu
           path: runner-results/new-sw
           if-no-files-found: warn
