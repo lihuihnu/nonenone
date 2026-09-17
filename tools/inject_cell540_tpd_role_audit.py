@@ -22,6 +22,9 @@ probe = r'''    struct SwTpdRoleAudit final
         double incipientGasOilZ{0.0};
         double incipientGasGasZ{0.0};
         double gasCompositionDistance{0.0};
+        double waterCompositionDistance{0.0};
+        bool incipientGasAqueousSupported{false};
+        bool incipientWaterAqueousSupported{false};
     };
 
     [[nodiscard]] SwTpdRoleAudit auditSwTpdRole(
@@ -48,18 +51,29 @@ probe = r'''    struct SwTpdRoleAudit final
         audit.overallOilZ = overallOil.compressibility;
         audit.overallGasZ = overallGas.compressibility;
 
-        const auto &incipient = audit.stability.incipientComposition[1];
+        const auto &incipientGas = audit.stability.incipientComposition[1];
         const auto incOil = fluid_.eos.phaseResult(
-            p, fluid_.temperature, incipient, CompositionalPhase::Oil);
+            p, fluid_.temperature, incipientGas, CompositionalPhase::Oil);
         const auto incGas = fluid_.eos.phaseResult(
-            p, fluid_.temperature, incipient, CompositionalPhase::Gas);
+            p, fluid_.temperature, incipientGas, CompositionalPhase::Gas);
         audit.incipientGasOilZ = incOil.compressibility;
         audit.incipientGasGasZ = incGas.compressibility;
+        audit.incipientGasAqueousSupported =
+            fluid_.eos.aqueousVolumeCompositionSupported(incipientGas);
+
+        const auto &incipientWater = audit.stability.incipientComposition[2];
+        audit.incipientWaterAqueousSupported =
+            fluid_.eos.aqueousVolumeCompositionSupported(incipientWater);
         for (int i = 0; i < N; ++i)
+        {
+            const std::size_t c = static_cast<std::size_t>(i);
             audit.gasCompositionDistance = std::max(
                 audit.gasCompositionDistance,
-                std::abs(incipient[static_cast<std::size_t>(i)] -
-                         audit.overall[static_cast<std::size_t>(i)]));
+                std::abs(incipientGas[c] - audit.overall[c]));
+            audit.waterCompositionDistance = std::max(
+                audit.waterCompositionDistance,
+                std::abs(incipientWater[c] - audit.overall[c]));
+        }
         return audit;
     }
 
@@ -89,6 +103,12 @@ state_repl = r'''                const bool auditCell540 =
                               << " gas_sum=" << stability.trialSum[1]
                               << " gas_excess=" << stability.trialSum[1] - 1.0
                               << " gas_dxinf=" << audit.gasCompositionDistance
+                              << " gas_aq_supported=" << audit.incipientGasAqueousSupported
+                              << " water_unstable=" << stability.missingPhaseUnstable[2]
+                              << " water_sum=" << stability.trialSum[2]
+                              << " water_excess=" << stability.trialSum[2] - 1.0
+                              << " water_dxinf=" << audit.waterCompositionDistance
+                              << " water_aq_supported=" << audit.incipientWaterAqueousSupported
                               << " z_ref=";
                     for (int c = 0; c < Indices::numComponents; ++c)
                         std::cerr << (c == 0 ? "" : ",")
@@ -97,6 +117,10 @@ state_repl = r'''                const bool auditCell540 =
                     for (int c = 0; c < Indices::numComponents; ++c)
                         std::cerr << (c == 0 ? "" : ",")
                                   << stability.incipientComposition[1][static_cast<std::size_t>(c)];
+                    std::cerr << " water_x=";
+                    for (int c = 0; c < Indices::numComponents; ++c)
+                        std::cerr << (c == 0 ? "" : ",")
+                                  << stability.incipientComposition[2][static_cast<std::size_t>(c)];
                     std::cerr << " zroot_ref_O/G="
                               << audit.overallOilZ << "/" << audit.overallGasZ
                               << " zroot_inc_O/G="
