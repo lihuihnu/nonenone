@@ -88,154 +88,62 @@ jobs:
           DQ_MESH_DIR := ${DQ_MESH_DIR}
           EOF
           make doctor-local
-
-      - name: Inject read-only dominant-residual probe
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('models/include/natural/petsc/detail/natural_petsc_runtime_failure_diagnostics.inc')
-          text = path.read_text()
-          anchor = '        PetscOwnedReadView residualView(residual);\n'
-          if text.count(anchor) != 1:
-              raise SystemExit(f'unexpected residualView anchor count: {text.count(anchor)}')
-          probe = r'''
-
-              // CI diagnostic only: locate the largest raw (scaled) PETSc row used by SNES.
-              double localAllMaximum = -1.0;
-              double localAllValue = 0.0;
-              Cell localAllCell = Cell(-1);
-              int localAllEquation = -1;
-              for (const Cell cell : ownedCells_)
-              {
-                  for (int equation = 0; equation < Indices::numEquations; ++equation)
-                  {
-                      const PetscInt global = map.globalIndex(cell, equation);
-                      if (global < residualView.begin() || global >= residualView.end())
-                          throw std::runtime_error(
-                              "Owned Natural residual row is outside PETSc ownership range.");
-                      const double value = PetscRealPart(
-                          residualView.data()[global - residualView.begin()]);
-                      const double magnitude = std::abs(value);
-                      if (magnitude > localAllMaximum)
-                      {
-                          localAllMaximum = magnitude;
-                          localAllValue = value;
-                          localAllCell = cell;
-                          localAllEquation = equation;
-                      }
-                  }
-              }
-
-              double globalAllMaximum = -1.0;
-              PetscCallMPIAbort(
-                  comm,
-                  MPI_Allreduce(&localAllMaximum, &globalAllMaximum, 1,
-                                MPI_DOUBLE, MPI_MAX, comm));
-              int allCandidateRank = localAllMaximum == globalAllMaximum
-                  ? static_cast<int>(rank)
-                  : std::numeric_limits<int>::max();
-              int allWinningRank = 0;
-              PetscCallMPIAbort(
-                  comm,
-                  MPI_Allreduce(&allCandidateRank, &allWinningRank, 1,
-                                MPI_INT, MPI_MIN, comm));
-              PetscInt allWinningCell = -1;
-              PetscInt allWinningInputCell = -1;
-              int allWinningEquation = -1;
-              double allWinningValue = 0.0;
-              if (static_cast<int>(rank) == allWinningRank)
-              {
-                  allWinningCell = static_cast<PetscInt>(localAllCell);
-                  allWinningInputCell = backend_.inputCellIndex(localAllCell);
-                  allWinningEquation = localAllEquation;
-                  allWinningValue = localAllValue;
-              }
-              PetscCallMPIAbort(comm, MPI_Bcast(
-                  &allWinningCell, 1, MPIU_INT, allWinningRank, comm));
-              PetscCallMPIAbort(comm, MPI_Bcast(
-                  &allWinningInputCell, 1, MPIU_INT, allWinningRank, comm));
-              PetscCallMPIAbort(comm, MPI_Bcast(
-                  &allWinningEquation, 1, MPI_INT, allWinningRank, comm));
-              PetscCallMPIAbort(comm, MPI_Bcast(
-                  &allWinningValue, 1, MPI_DOUBLE, allWinningRank, comm));
-              if (rank == 0)
-              {
-                  PetscPrintf(
-                      PETSC_COMM_SELF,
-                      "[MAX-RESIDUAL] abs=%.12e raw=% .12e cell=%lld input=%lld equation=%d\\n",
-                      globalAllMaximum,
-                      allWinningValue,
-                      static_cast<long long>(allWinningCell),
-                      static_cast<long long>(allWinningInputCell),
-                      allWinningEquation);
-              }
-          '''
-          text = text.replace(anchor, anchor + probe, 1)
-
-          cache_anchor = '''        const auto &wellFunction = evaluateWellFunctionContributions_(cache, bhp);\n'''
-          if text.count(cache_anchor) != 1:
-              raise SystemExit(f'unexpected wellFunction anchor count: {text.count(cache_anchor)}')
-          state_probe = r'''
-
-              if (static_cast<int>(rank) == allWinningRank && allWinningCell >= 0)
-              {
-                  const Cell allCell = static_cast<Cell>(allWinningCell);
-                  const PetscInt allBlock = map.localBlockIndex(allCell);
-                  const auto &allEntry = cache[static_cast<std::size_t>(allBlock)];
-                  const auto &s = allEntry.state;
-                  const auto &p = allEntry.properties;
-                  const int c = Indices::numComponents - 1;
-                  const std::size_t ci = static_cast<std::size_t>(c);
-                  const double xo = scalarValue(s.liquidMoleFraction[ci]);
-                  const double xg = scalarValue(s.vaporMoleFraction[ci]);
-                  const double xw = scalarValue(s.aqueousMoleFraction[ci]);
-                  const double fo = scalarValue(p.fugacity[0][ci]);
-                  const double fg = scalarValue(p.fugacity[1][ci]);
-                  const double fw = scalarValue(p.fugacity[2][ci]);
-                  PetscPrintf(
-                      PETSC_COMM_SELF,
-                      "[MAX-EQ-STATE] cell=%lld eq=%d presence=%u dep=%d xO=%.16e xG=%.16e xW=%.16e fO=%.16e fG=%.16e fW=%.16e trace=%.16e\\n",
-                      static_cast<long long>(allWinningCell),
-                      allWinningEquation,
-                      static_cast<unsigned>(s.phasePresence.bits()),
-                      c,
-                      xo, xg, xw, fo, fg, fw,
-                      NaturalNumerics::phaseEquilibriumTraceComposition);
-              }
-          '''
-          text = text.replace(cache_anchor, cache_anchor + state_probe, 1)
-          path.write_text(text)
-          PY
-          git diff --check
-
-      - name: Build H2O-CO2-nC10 benchmark
-        shell: bash
-        run: |
-          set -euo pipefail
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
-          make case CASE=h2o_co2_nc10_2d_benchmark -j2
 
-      - name: Run New-SW short step
-        run: |
-          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
-            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
-            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
-
-      - name: Show SW numerical summaries
-        if: always()
+      - name: Sweep SW trace-composition boundary
         shell: bash
         run: |
           set -euo pipefail
-          for f in \
-            runner-results/new-sw/nonlinear_solve_history.csv \
-            runner-results/new-sw/time_step_history.csv \
-            runner-results/new-sw/component_mass_balance.csv \
-            runner-results/new-sw/simulation_summary.csv; do
-            if [[ -f "$f" ]]; then
-              echo "===== $f ====="
-              cat "$f"
+          numerics="models/include/natural/numerics.hpp"
+          mkdir -p "${GITHUB_WORKSPACE}/runner-results/sweep"
+          : > "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
+
+          for threshold in 1.0e-13 1.0e-12 1.0e-11 1.0e-10; do
+            python3 - "$numerics" "$threshold" <<'PY'
+          import pathlib, re, sys
+          path = pathlib.Path(sys.argv[1])
+          threshold = sys.argv[2]
+          text = path.read_text()
+          pattern = r'(phaseEquilibriumTraceComposition\s*=\s*)[0-9.eE+-]+;'
+          updated, count = re.subn(pattern, rf'\g<1>{threshold};', text, count=1)
+          if count != 1:
+              raise SystemExit('trace-composition constant not found')
+          path.write_text(updated)
+          PY
+
+            echo "===== threshold=${threshold} ====="
+            grep 'phaseEquilibriumTraceComposition' "$numerics"
+            make case CASE=h2o_co2_nc10_2d_benchmark -j2
+
+            tag="$(echo "$threshold" | tr '.+-' '___')"
+            result_dir="${GITHUB_WORKSPACE}/runner-results/sweep/${tag}"
+            set +e
+            make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
+              RESULT_DIR="$result_dir" \
+              RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false' \
+              > "${GITHUB_WORKSPACE}/runner-results/sweep/${tag}.log" 2>&1
+            rc=$?
+            set -e
+
+            if [[ $rc -eq 0 ]]; then
+              status=PASS
+            else
+              status=FAIL
             fi
+            echo "${threshold},${status},${rc}" | tee -a "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
+            if [[ -f "$result_dir/nonlinear_solve_history.csv" ]]; then
+              tail -n +1 "$result_dir/nonlinear_solve_history.csv"
+            fi
+            tail -n 30 "${GITHUB_WORKSPACE}/runner-results/sweep/${tag}.log"
           done
+
+          echo "===== SW TRACE SWEEP SUMMARY ====="
+          cat "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
+
+      - name: Upload sweep artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sw-trace-boundary-sweep
+          path: runner-results/sweep
+          if-no-files-found: warn
