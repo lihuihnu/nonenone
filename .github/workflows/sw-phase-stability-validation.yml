@@ -6,6 +6,12 @@ on:
       - fix/sw-phase-stability-transition
     paths:
       - .github/workflows/sw-phase-stability-validation.yml
+      - models/include/natural/numerics.hpp
+      - models/include/natural/state/state_codec.hpp
+      - models/include/natural/state/three_phase_equilibrium.hpp
+      - models/include/natural/thermo/three_phase_flash.hpp
+      - test/src/unit/sw_phase_ordering_test.cpp
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -88,62 +94,67 @@ jobs:
           DQ_MESH_DIR := ${DQ_MESH_DIR}
           EOF
           make doctor-local
-          sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
 
-      - name: Sweep SW trace-composition boundary
+      - name: Verify production thresholds
         shell: bash
         run: |
           set -euo pipefail
-          numerics="models/include/natural/numerics.hpp"
-          mkdir -p "${GITHUB_WORKSPACE}/runner-results/sweep"
-          : > "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
+          grep 'phaseEquilibriumTraceComposition = 1.0e-14' models/include/natural/numerics.hpp
+          grep 'dependentCompositionCancellationBoundary = 1.0e-13' models/include/natural/numerics.hpp
+          git diff --check
 
-          for threshold in 1.0e-13 1.0e-12 1.0e-11 1.0e-10; do
-            python3 - "$numerics" "$threshold" <<'PY'
-          import pathlib, re, sys
-          path = pathlib.Path(sys.argv[1])
-          threshold = sys.argv[2]
-          text = path.read_text()
-          pattern = r'(phaseEquilibriumTraceComposition\s*=\s*)[0-9.eE+-]+;'
-          updated, count = re.subn(pattern, rf'\g<1>{threshold};', text, count=1)
-          if count != 1:
-              raise SystemExit('trace-composition constant not found')
-          path.write_text(updated)
-          PY
+      - name: Full unit regression
+        run: make unit-gcc
 
-            echo "===== threshold=${threshold} ====="
-            grep 'phaseEquilibriumTraceComposition' "$numerics"
-            make case CASE=h2o_co2_nc10_2d_benchmark -j2
+      - name: Build H2O-CO2-nC10 benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          # PETSc 3.22 declares a single-colon clean target; rename only the
+          # repository cleanup target in the runner working copy.
+          sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
+          make case CASE=h2o_co2_nc10_2d_benchmark -j2
 
-            tag="$(echo "$threshold" | tr '.+-' '___')"
-            result_dir="${GITHUB_WORKSPACE}/runner-results/sweep/${tag}"
-            set +e
-            make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
-              RESULT_DIR="$result_dir" \
-              RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false' \
-              > "${GITHUB_WORKSPACE}/runner-results/sweep/${tag}.log" 2>&1
-            rc=$?
-            set -e
+      - name: Run New-PR short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=pr \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-pr" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
 
-            if [[ $rc -eq 0 ]]; then
-              status=PASS
-            else
-              status=FAIL
-            fi
-            echo "${threshold},${status},${rc}" | tee -a "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
-            if [[ -f "$result_dir/nonlinear_solve_history.csv" ]]; then
-              tail -n +1 "$result_dir/nonlinear_solve_history.csv"
-            fi
-            tail -n 30 "${GITHUB_WORKSPACE}/runner-results/sweep/${tag}.log"
+      - name: Run New-SW short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Run New-CPA short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=cpa \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-cpa" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Show numerical summaries
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for model in new-pr new-sw new-cpa; do
+            echo "===== ${model} ====="
+            for f in \
+              "runner-results/${model}/nonlinear_solve_history.csv" \
+              "runner-results/${model}/time_step_history.csv" \
+              "runner-results/${model}/simulation_summary.csv"; do
+              if [[ -f "$f" ]]; then
+                echo "--- $f"
+                cat "$f"
+              fi
+            done
           done
 
-          echo "===== SW TRACE SWEEP SUMMARY ====="
-          cat "${GITHUB_WORKSPACE}/runner-results/sweep/summary.txt"
-
-      - name: Upload sweep artifact
+      - name: Upload validation results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sw-trace-boundary-sweep
-          path: runner-results/sweep
+          name: sw-phase-stability-final-validation
+          path: runner-results
           if-no-files-found: warn
