@@ -6,6 +6,7 @@
 #include <indices/model_config.hpp>
 #include <natural/compositional_mixture.hpp>
 #include <natural/fluid_system.hpp>
+#include <natural/state/state_codec.hpp>
 #include <natural/state/three_phase_equilibrium.hpp>
 #include <natural/thermo/cubic_eos.hpp>
 #include <natural/thermo/soreide_whitson.hpp>
@@ -272,6 +273,49 @@ void checkTransientNewtonStabilityUsesRestrictedEquilibriumReference()
     }
 }
 
+void checkDependentCompositionCancellationBoundary()
+{
+    using AdIndices = MPMC::ADIndices<Config>;
+    using Codec = MPMC::CellStateCodec<AdIndices>;
+
+    typename Codec::PrimaryArray primary{};
+    primary[AdIndices::Primary::pressure] = 5.16e6;
+    primary[AdIndices::Primary::liquidSaturation] = 0.8;
+    primary[AdIndices::Primary::vaporSaturation] = 0.0;
+    primary[AdIndices::Primary::waterSaturation] = 0.2;
+
+    constexpr double stalledWaterNc10 = 9.7810648469476291e-14;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[0])] =
+        0.999;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[1])] =
+        0.001 - stalledWaterNc10;
+
+    MPMC::PhaseStateData<AdIndices> phaseState;
+    phaseState.phasePresence = MPMC::PhasePresence(
+        MPMC::PhasePresence::oilBit | MPMC::PhasePresence::waterBit);
+
+    const auto boundaryState = Codec::decode(primary, phaseState);
+    const auto &dependent = boundaryState.aqueousMoleFraction[2];
+    require(std::abs(dependent.value()) < 1.0e-30,
+            "dependent SW trace composition must snap to zero boundary");
+    require(dependent.derivative(AdIndices::Primary::waterComposition[0]) == -1.0,
+            "dependent boundary must retain first composition derivative");
+    require(dependent.derivative(AdIndices::Primary::waterComposition[1]) == -1.0,
+            "dependent boundary must retain second composition derivative");
+
+    // The cancellation treatment is not a global 1e-13 trace threshold: a
+    // clearly resolvable dependent value above the measured boundary remains a
+    // normal positive composition and therefore continues to use thermodynamic
+    // equilibrium equations.
+    constexpr double resolvableWaterNc10 = 2.0e-13;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[1])] =
+        0.001 - resolvableWaterNc10;
+    const auto resolvedState = Codec::decode(primary, phaseState);
+    require(resolvedState.aqueousMoleFraction[2].value() >
+                MPMC::NaturalNumerics::dependentCompositionCancellationBoundary,
+            "resolvable dependent composition must not be snapped to zero");
+}
+
 } // namespace
 
 int main()
@@ -280,6 +324,7 @@ int main()
         checkBenchmarkFrontState();
         checkNewtonStateCanonicalization();
         checkTransientNewtonStabilityUsesRestrictedEquilibriumReference();
+        checkDependentCompositionCancellationBoundary();
         std::cout << "SW benchmark-front phase ordering: ALL PASS\n";
         return 0;
     } catch (const std::exception& error) {
