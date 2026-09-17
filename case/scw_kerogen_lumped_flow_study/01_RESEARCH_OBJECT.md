@@ -4,7 +4,7 @@
 
 The primary geological precursor for this case collection is fixed to the **low-maturity, organic-rich lacustrine Chang 7 shale collected from outcrops in Tongchuan, southern Ordos Basin, China**, reported by Zhao et al. in *Sustainable Energy & Fuels* (2023), DOI: `10.1039/D2SE01361D`.
 
-The target fluid for later flow simulations is **not generic kerogen**. It is the **pre-generated oil produced from this specific Chang 7 shale by supercritical-water conversion near 380 °C**. This distinction must be preserved in all later PVT, lumping, viscosity and flow work.
+The target fluid for later flow simulations is **not generic kerogen**. It is the **pre-generated oil produced from this specific Chang 7 shale by supercritical-water conversion at 380 °C and 25 MPa**. This distinction must be preserved in all later PVT, lumping, viscosity and flow work.
 
 ## Source-rock identity
 
@@ -26,13 +26,13 @@ The reported sample is:
 
 The same paper identifies dolomite, feldspar, quartz, clay and pyrite as relevant mineral classes and shows that minerals materially affect oil yield under SCW conditions. Exact mineral fractions for the chosen sample remain to be extracted from the primary/supplementary data before any mineral-specific model is parameterized.
 
-## Reference SCW conversion condition
+## Locked SCW conversion and numerical target condition
 
-The closest direct experimental anchor to the intended numerical study is:
+The direct experimental anchor and the intended primary numerical condition are now the same:
 
 - Temperature: `380 °C` (`653.15 K`).
 - Pressure: `25 MPa`.
-- Duration: `4 h`.
+- Duration of the reference conversion experiment: `4 h`.
 - Water:shale mass ratio in the main temperature-series experiments: `1:1`.
 - Reported oil yield at 380 °C: `352.1 mg/(g TOC)`.
 - Oil characterization available in the paper: SARA fractions (saturates, aromatics, resins, asphaltenes).
@@ -40,15 +40,16 @@ The closest direct experimental anchor to the intended numerical study is:
 
 The paper notes that oil recovery by solvent evaporation can lose hydrocarbons with boiling points below about 46 °C; therefore the published liquid-oil composition must not be treated as a complete C1+ product distribution without correcting for this measurement boundary.
 
-## Relation to the 28 MPa numerical target
+## Numerical-condition policy
 
-The **experimental reference pressure is 25 MPa, not 28 MPa**. The proposed `380 °C / 28 MPa` flow case is therefore an application/pressure-extension case, not an exact reproduction of Zhao et al.
+The primary flow case shall use **380 °C / 25 MPa**. This removes the previous 25→28 MPa pressure extension and allows the thermodynamic and transport model to be compared directly against the closest available SCW conversion experiment before flow-specific assumptions are introduced.
 
-The future study shall distinguish:
+The planned first temperature control is:
 
-1. **Validation/reference state:** 380 °C, 25 MPa, tied directly to the published SCW conversion experiment.
-2. **Target flow state:** 380 °C, 28 MPa, using a PVT model calibrated/checked against available nearby-pressure data and explicitly treating 25→28 MPa as an extrapolation/interpolation uncertainty.
-3. **Subcritical control:** 360 °C, 28 MPa, only after the fluid characterization is fixed.
+1. **Primary/reference flow state:** 380 °C, 25 MPa.
+2. **Subcritical control:** 360 °C, 25 MPa, only after the fluid characterization is fixed.
+
+Any later pressure sweep (for example 22–30 MPa) must be treated as a separate sensitivity study rather than part of the locked baseline.
 
 ## What is and is not locked by this decision
 
@@ -57,7 +58,8 @@ Locked:
 - geological source: Tongchuan Chang 7 lacustrine shale;
 - organic-matter class: low-maturity Type II kerogen;
 - precursor geochemical baseline listed above;
-- the 380 °C SCW-generated oil from this sample as the fluid family to characterize;
+- the 380 °C / 25 MPa SCW-generated oil from this sample as the fluid family to characterize;
+- 380 °C / 25 MPa as the primary numerical thermodynamic condition;
 - Zhao et al. (2023) as the primary source for the first-stage product characterization.
 
 Not yet locked:
@@ -79,4 +81,4 @@ A separate Chang 7 semi-open pyrolysis study reports a different sample with app
 
 ## Acceptance criterion for Step 1
 
-Step 1 is complete only if all subsequent files and figures refer to the research object by the specific identity above instead of the generic phrases “kerogen” or “Chang 7 kerogen,” and if data imported from other Chang 7 samples carry their own sample identifiers and evidence level.
+Step 1 is complete only if all subsequent files and figures refer to the research object by the specific identity above instead of the generic phrases “kerogen” or “Chang 7 kerogen,” use 380 °C / 25 MPa as the locked primary condition, and label data imported from other Chang 7 samples with their own sample identifiers and evidence level.
