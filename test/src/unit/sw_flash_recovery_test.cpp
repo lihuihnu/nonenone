@@ -233,6 +233,93 @@ void checkPressureContinuationThreePhase(const Eos& eos)
                          result,
                          "SW pressure-continuation fallback");
 }
+Eos makeLmhBoundarySw()
+{
+    constexpr std::array<double, 4> lmhTc{
+        647.30, 354.1916431226766, 605.78, 751.00};
+    constexpr std::array<double, 4> lmhPc{
+        22.048e6, 4.065799256505576e6, 2.175e6, 1.654e6};
+    constexpr std::array<double, 4> lmhVc{
+        5.594803743e-5, 1.95564637471291e-4,
+        6.252498825299838e-4, 1.0193008374141067e-3};
+    constexpr std::array<double, 4> lmhOmega{
+        0.344, 0.1498936802973978, 0.618, 0.957};
+    constexpr std::array<double, 4> lmhMw{
+        0.018015, 0.04606110037174722, 0.140960, 0.280990};
+    constexpr std::array<std::array<double, 4>, 4> lmhKij{{
+        {{0.0, 0.5, 0.5, 0.5}},
+        {{0.5, 0.0, 0.0, 0.0}},
+        {{0.5, 0.0, 0.0, 0.0}},
+        {{0.5, 0.0, 0.0, 0.0}}
+    }};
+
+    MPMC::CompositionalMixture<Indices> mixture(
+        lmhTc, lmhPc, lmhVc, lmhOmega, lmhMw, lmhKij);
+    Eos eos(
+        0.45724, 0.07780, std::move(mixture), 1,
+        2.4142135623730951, -0.4142135623730951, 1.0e-30);
+
+    Eos::SoreideWhitsonOptions sw;
+    sw.waterComponent = 0;
+    sw.salinityMolality = 0.0;
+    sw.aqueousWaterBip[0] = [](double, double) { return 0.0; };
+    for (int component = 1; component < 4; ++component)
+    {
+        const std::size_t c = static_cast<std::size_t>(component);
+        const double componentTc = lmhTc[c];
+        const double componentOmega = lmhOmega[c];
+        sw.aqueousWaterBip[c] =
+            [componentTc, componentOmega](double temperature, double salinity) {
+                return MPMC::SoreideWhitsonCorrelations::hydrocarbonAqueousBip(
+                    temperature, componentTc, componentOmega, salinity);
+            };
+    }
+    eos.configureSoreideWhitson(std::move(sw));
+    eos.configureAqueousCompositionDomain(0, 0.02);
+    return eos;
+}
+
+void checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin()
+{
+    // Real cell-540 boundary state from the 60x20 LMH SW displacement. The
+    // pre-fix Gas multi-start search selected a 99.48 mol% H2O stationary point
+    // (trialSum > 1) even though that composition crosses from the current
+    // non-aqueous reference into the explicit <=2 mol% solute Water domain.
+    // The independently solved Water trial lies outside that domain, so the
+    // physical state is still Oil-only.
+    constexpr double pressure = 278.772e5;
+    constexpr double temperature = 653.2;
+    constexpr Composition z{
+        0.91456, 0.0385195, 0.0315411, 0.0153792};
+
+    const auto eos = makeLmhBoundarySw();
+    MPMC::ThreePhaseFlashOptions options;
+    options.waterComponent = 0;
+    const Flash flash(eos, options);
+    const std::array<Composition, 3> compositions{z, z, z};
+    require(!eos.aqueousVolumeCompositionSupported(z),
+            "LMH boundary reference must remain outside the Water property domain");
+    const auto stability = flash.stabilityTest(
+        pressure,
+        temperature,
+        z,
+        MPMC::PhasePresence::oilOnly(),
+        compositions);
+
+    require(stability.valid,
+            "LMH SW Oil-only boundary stability must remain numerically valid");
+    require(stability.stable,
+            "LMH SW Oil-only boundary must not create a wrong-role phase");
+    require(!stability.missingPhaseUnstable[1],
+            "water-like nonaqueous TPD basin must not appear as Gas");
+    require(!stability.missingPhaseUnstable[2],
+            "unsupported aqueous TPD basin must not appear as Water");
+    require(!eos.aqueousVolumeCompositionSupported(
+                stability.incipientComposition[1]),
+            "selected Gas TPD stationary point must remain outside Water role domain");
+}
+
+
 } // namespace
 
 int main()
@@ -242,6 +329,7 @@ int main()
         checkStableReducedSet(eos);
         checkAllocationThreePhase(eos);
         checkPressureContinuationThreePhase(eos);
+        checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin();
         std::cout << "SW fail-only flash recovery: ALL PASS\n";
         return 0;
     } catch (const std::exception& error) {

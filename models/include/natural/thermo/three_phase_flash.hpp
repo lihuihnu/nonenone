@@ -417,6 +417,10 @@ public:
             const int p = phaseIndex(candidate);
             Trial best;
             best.sum = -std::numeric_limits<double>::infinity();
+            Trial bestWrongSwRole;
+            bestWrongSwRole.sum = -std::numeric_limits<double>::infinity();
+            const bool referenceSupportsAqueousRole =
+                eos_.aqueousVolumeCompositionSupported(referenceComposition);
 
             const auto seeds = stabilitySeeds_(
                 candidate, pressure, temperature, z, referenceComposition);
@@ -426,12 +430,56 @@ public:
                 const Trial trial = stabilityTrial_(
                     candidate, pressure, temperature, logReference,
                     referenceComposition, seed);
-                if (trial.valid && (!best.valid || trial.sum > best.sum))
+                if (!trial.valid)
+                    continue;
+
+                // Some flow configurations attach an explicit composition
+                // validity domain to the public Water role (for example the
+                // IAPWS aqueous viscosity/volume closures).  If the current
+                // non-aqueous reference lies outside that domain, an SW
+                // Oil/Gas TPD search must not use a stationary point that
+                // crosses into the Water domain as evidence for a new
+                // non-aqueous phase: that point was evaluated with the
+                // non-aqueous SW BIP/root model.  Let the independent Water
+                // candidate, evaluated with the aqueous SW model, decide the
+                // phase appearance instead.  When no restricted aqueous domain
+                // is configured, both reference and trial are supported and
+                // the historical pure-thermodynamic SW topology is unchanged.
+                const bool wrongSwRole =
+                    eos_.usesSoreideWhitson() &&
+                    candidate != CompositionalPhase::Water &&
+                    !referenceSupportsAqueousRole &&
+                    waterIsDominant_(trial.composition);
+                if (wrongSwRole)
+                {
+                    if (!bestWrongSwRole.valid ||
+                        trial.sum > bestWrongSwRole.sum)
+                    {
+                        bestWrongSwRole = trial;
+                    }
+                    continue;
+                }
+
+                if (!best.valid || trial.sum > best.sum)
                     best = trial;
             }
 
             if (!best.valid)
             {
+                if (bestWrongSwRole.valid)
+                {
+                    // A stationary solve did converge, but only in a physical
+                    // role excluded from this candidate. Preserve it for
+                    // diagnostics without turning a role-classification issue
+                    // into an invalid stability calculation.
+                    result.trialSum[static_cast<std::size_t>(p)] =
+                        bestWrongSwRole.sum;
+                    result.incipientComposition[static_cast<std::size_t>(p)] =
+                        bestWrongSwRole.composition;
+                    result.missingPhaseUnstable[static_cast<std::size_t>(p)] = false;
+                    continue;
+                }
+
                 result.valid = false;
                 result.stable = false; // 数值：试探失败时按“不稳定”保守处理，避免错误抑制新相出现。
                 continue;
