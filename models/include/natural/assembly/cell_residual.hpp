@@ -204,6 +204,19 @@ assembleCellLocalResidual(
         {
             const auto &referenceComposition = phaseComposition(referencePhase);
             const auto &otherComposition = phaseComposition(otherPhase);
+            const bool oilParticipates =
+                referencePhase == Indices::Phase::liquid ||
+                otherPhase == Indices::Phase::liquid;
+            const Scalar continuationScale =
+                oilParticipates ? currentState.liquidSaturation : Scalar(1.0);
+
+            const auto boundaryCoordinate = [&](
+                int phase, std::size_t component) -> Scalar
+            {
+                if (phase == Indices::Phase::liquid)
+                    return currentState.liquidComponentAmount[component];
+                return continuationScale * phaseComposition(phase)[component];
+            };
 
             for (int component = 0; component < Indices::numComponents; ++component)
             {
@@ -222,7 +235,7 @@ assembleCellLocalResidual(
                 if (otherTrace)
                 {
                     residual.value[static_cast<std::size_t>(equation)] =
-                        otherComposition[c];
+                        boundaryCoordinate(otherPhase, c);
                     continue;
                 }
 
@@ -238,6 +251,9 @@ assembleCellLocalResidual(
                         if (scalarValue(alternateComposition[c]) >
                             NaturalNumerics::phaseEquilibriumTraceComposition)
                         {
+                            // Once Oil is trace for this component, this row is a genuine
+                            // G-W condition and must remain unscaled as S_o -> 0; it is the
+                            // same physical equation used after Oil leaves the active set.
                             residual.value[static_cast<std::size_t>(equation)] =
                                 (currentProperties.fugacity[static_cast<std::size_t>(alternateReferencePhase)][c] -
                                  currentProperties.fugacity[static_cast<std::size_t>(otherPhase)][c]) /
@@ -247,11 +263,16 @@ assembleCellLocalResidual(
                     }
 
                     residual.value[static_cast<std::size_t>(equation)] =
-                        referenceComposition[c];
+                        boundaryCoordinate(referencePhase, c);
                     continue;
                 }
 
+                // q_i=S_o x_i removes the vanishing accumulation column, while
+                // multiplying O-* equilibrium rows by S_o cancels the reciprocal
+                // d(x_i)/d(q_i) scale.  The active-phase root is unchanged for
+                // S_o>0, and the row vanishes continuously as Oil disappears.
                 residual.value[static_cast<std::size_t>(equation)] =
+                    continuationScale *
                     (currentProperties.fugacity[static_cast<std::size_t>(referencePhase)][c] -
                      currentProperties.fugacity[static_cast<std::size_t>(otherPhase)][c]) /
                     units::bar / fugacityScalingFactor;
@@ -278,6 +299,23 @@ assembleCellLocalResidual(
                 saturation;
         };
 
+        const auto writeInactiveOilAmountBlock = [&](const auto &equationIndices)
+        {
+            // q_O is the continuation coordinate for the disappearing reference
+            // phase.  Driving every phase-component amount to zero also drives
+            // q_N=S_o-sum(q_i) to zero, closing S_o without an x_O dummy state.
+            for (int component = 0;
+                 component < Indices::numIndependentCompositionsPerPhase;
+                 ++component)
+            {
+                residual.value[static_cast<std::size_t>(
+                    equationIndices[static_cast<std::size_t>(component)])] =
+                    currentState.liquidComponentAmount[static_cast<std::size_t>(component)];
+            }
+            residual.value[static_cast<std::size_t>(equationIndices.back())] =
+                currentState.liquidComponentAmount.back();
+        };
+
         if (oil)
         {
             if (gas)
@@ -301,9 +339,7 @@ assembleCellLocalResidual(
         {
             // 状态：油相缺失时，第一个方程块负责移除参考油相未知量；若气/水两相
             // 仍存在，第二个方程块直接施加 G-W 逸度平衡。
-            writeInactiveBlock(Indices::Equation::fugacity,
-                               currentState.liquidMoleFraction,
-                               currentState.liquidSaturation);
+            writeInactiveOilAmountBlock(Indices::Equation::fugacity);
 
             if (gas && water)
                 writeFugacityBlock(Indices::Equation::waterFugacity,

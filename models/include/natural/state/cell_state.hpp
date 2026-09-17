@@ -27,6 +27,10 @@ struct CellState
     Scalar wellPressure{0.0};
     Scalar aqueousCO2MoleFraction{0.0};
 
+    // Fully-compositional mode stores the oil primary block as q_i=S_o x_i.
+    // Keep the phase amounts alongside physical mole fractions so inactive-oil
+    // complementarity rows can close q->0 without dividing by S_o.
+    std::array<Scalar, numComponents> liquidComponentAmount{};
     std::array<Scalar, numComponents> liquidMoleFraction{};
     std::array<Scalar, numComponents> vaporMoleFraction{};
     std::array<Scalar, numComponents> aqueousMoleFraction{};

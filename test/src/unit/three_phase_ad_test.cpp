@@ -74,6 +74,30 @@ void testAdPath()
     equilibrium.assignFlashResult(primary, phaseState, flash);
 
     const auto state = MPMC::CellStateCodec<Indices>::decode(primary, phaseState);
+
+    // Oil composition primaries are phase-component amounts q_i=S_o x_i.
+    // The codec must recover the physical mole fractions while retaining both
+    // the direct q derivative and the q/S_o chain rule.
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        const std::size_t c = static_cast<std::size_t>(component);
+        const int qIndex = Indices::Primary::liquidComposition[c];
+        const double so = flash.saturation[0];
+        const double expectedQ = so * flash.composition[0][c];
+        require(std::abs(primary[static_cast<std::size_t>(qIndex)] - expectedQ) < 1.0e-13,
+                "PTz assignment must store Oil q_i=S_o x_i");
+        require(std::abs(MPMC::scalarValue(state.liquidComponentAmount[c]) - expectedQ) < 1.0e-13,
+                "CellState must retain the Oil phase-component amount");
+        require(std::abs(MPMC::scalarValue(state.liquidMoleFraction[c]) - flash.composition[0][c]) < 1.0e-12,
+                "Oil q/S_o decode must recover the physical mole fraction");
+        require(std::abs(state.liquidComponentAmount[c].derivative(qIndex) - 1.0) < 1.0e-14,
+                "Oil q coordinate must keep an identity AD column");
+        require(std::abs(state.liquidMoleFraction[c].derivative(qIndex) - 1.0 / so) < 1.0e-9,
+                "Oil mole fraction must expose d(q/S_o)/dq");
+    }
+
     MPMC::CellPropertyEvaluator<Indices> evaluator(fluid);
     const auto properties = evaluator.evaluate(state, Value(0.25));
     const auto accumulation = MPMC::computeFluidAccumulation<Indices>(properties);
@@ -186,6 +210,100 @@ void testAdPath()
                     "G8J split residual changed an AD derivative");
         }
     }
+
+}
+
+void testOilMinorityContinuation()
+{
+    auto fluid = makeFluid();
+    MPMC::FullyCompositionalThreePhaseEquilibrium<Indices> equilibrium(fluid);
+    const Composition z{0.75, 0.025, 0.025, 0.20};
+    const auto flash = equilibrium.flashPTZ(50.0e5, fluid.temperature, z);
+    require(flash.converged && flash.presence.count() == 3,
+            "minority continuation regression requires a three-phase flash");
+
+    std::array<double, Indices::numPrimaryVariables> base{};
+    base[Indices::Primary::pressure] = 50.0e5;
+    MPMC::PhaseStateData<Indices> phaseState;
+    equilibrium.assignFlashResult(base, phaseState, flash);
+
+    // Perturb Gas composition so the O-G fugacity block is intentionally off
+    // equilibrium, then hold the physical O/G/W compositions fixed while only
+    // changing S_o. The continuation row must scale linearly with S_o.
+    base[static_cast<std::size_t>(Indices::Primary::vaporComposition[0])] += 1.0e-4;
+
+    const auto makeMinorityState = [&](double so) {
+        auto primary = base;
+        primary[Indices::Primary::liquidSaturation] = so;
+        primary[Indices::Primary::vaporSaturation] =
+            1.0 - so - primary[Indices::Primary::waterSaturation];
+        for (int component = 0;
+             component < Indices::numIndependentCompositionsPerPhase;
+             ++component)
+        {
+            const std::size_t c = static_cast<std::size_t>(component);
+            primary[static_cast<std::size_t>(Indices::Primary::liquidComposition[c])] =
+                so * flash.composition[0][c];
+        }
+        return primary;
+    };
+
+    MPMC::CellPropertyEvaluator<Indices> evaluator(fluid);
+    MPMC::CellProperties<Indices, double> previous{};
+    const auto residualAt = [&](double so) {
+        const auto primary = makeMinorityState(so);
+        const auto state = MPMC::CellStateCodec<Indices>::decode(primary, phaseState);
+        const auto properties = evaluator.evaluate(state, Value(0.25));
+        return MPMC::assembleCellLocalResidual<Indices>(
+            state, properties, previous, 1.0, 1.0, 1.0);
+    };
+
+    constexpr double largeSo = 1.0e-2;
+    constexpr double smallSo = 1.0e-3;
+    const auto largeResidual = residualAt(largeSo);
+    const auto smallResidual = residualAt(smallSo);
+    const auto equation = static_cast<std::size_t>(Indices::Equation::fugacity[0]);
+    const double largeValue = MPMC::scalarValue(largeResidual.value[equation]);
+    const double smallValue = MPMC::scalarValue(smallResidual.value[equation]);
+    require(std::abs(smallValue) > 1.0e-16,
+            "continuation regression needs a nonzero O-G mismatch");
+    require(std::abs(largeValue / smallValue - largeSo / smallSo) < 2.0e-8,
+            "O-* fugacity residual must vanish linearly with S_o at fixed composition");
+
+    // At the inactive endpoint, the same equation block changes to q_i=0 and
+    // q_N=S_o-sum(q_i)=0.  Check the exact AD closure, including dependent q_N.
+    auto inactivePrimary = makeMinorityState(0.0);
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        inactivePrimary[static_cast<std::size_t>(
+            Indices::Primary::liquidComposition[static_cast<std::size_t>(component)])] = 0.0;
+    }
+    auto inactivePhaseState = phaseState;
+    inactivePhaseState.phasePresence.remove(MPMC::CompositionalPhase::Oil);
+    const auto inactiveState =
+        MPMC::CellStateCodec<Indices>::decode(inactivePrimary, inactivePhaseState);
+    MPMC::CellProperties<Indices, Value> inactiveProperties{};
+    const auto inactiveResidual = MPMC::assembleCellLocalResidual<Indices>(
+        inactiveState, inactiveProperties, previous, 1.0, 1.0, 1.0);
+
+    const int q0 = Indices::Primary::liquidComposition[0];
+    require(std::abs(inactiveResidual.value[static_cast<std::size_t>(
+                         Indices::Equation::fugacity[0])].derivative(q0) - 1.0) < 1.0e-14,
+            "inactive Oil q_i row must keep an identity Jacobian");
+    const auto &dependentRow = inactiveResidual.value[
+        static_cast<std::size_t>(Indices::Equation::fugacity.back())];
+    require(std::abs(dependentRow.derivative(Indices::Primary::liquidSaturation) - 1.0) < 1.0e-14,
+            "inactive Oil q_N row must contain +dS_o");
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        const int qIndex = Indices::Primary::liquidComposition[static_cast<std::size_t>(component)];
+        require(std::abs(dependentRow.derivative(qIndex) + 1.0) < 1.0e-14,
+                "inactive Oil q_N row must contain -dq_i");
+    }
 }
 
 } // namespace
@@ -195,6 +313,7 @@ int main()
     try
     {
         testAdPath();
+        testOilMinorityContinuation();
         std::cout << "Fully compositional three-phase AD path: ALL PASS\n";
         return 0;
     }

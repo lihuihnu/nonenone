@@ -413,12 +413,10 @@ void testWellAndLimiter()
     near(delta[Full::Primary::liquidSaturation], 0.1, 1e-14, "saturation Newton limiter");
     near(delta[Full::Primary::aqueousCO2MoleFraction], 0.02, 1e-14, "aqueous Newton limiter");
 
-    // Fully-compositional regression: a pathological composition correction in
-    // one phase must not freeze saturation or the other two composition blocks.
-    // The pre-v59 limiter used one global thermodynamic scale, so the O(100)
-    // oil-composition correction below would shrink every thermodynamic update
-    // by O(1e-3), reproducing the near-phase-boundary residual plateau seen in
-    // the three-EOS HPC logs.
+    // Fully-compositional regression: Oil now uses q_i=S_o x_i. A pathological
+    // O(100) phase-amount correction must be bounded together with q_N while it
+    // must not feed that extra damping back into the three saturation updates or
+    // the Gas/Water mole-fraction blocks.
     std::array<double, FullyCompositional::numPrimaryVariables> threePhaseDelta{};
     std::array<double, FullyCompositional::numPrimaryVariables> threePhaseState{};
     threePhaseState[FullyCompositional::Primary::pressure] = 100.0;
@@ -443,7 +441,7 @@ void testWellAndLimiter()
          "trace-phase composition must not freeze water saturation update");
     near(threePhaseDelta[static_cast<std::size_t>(
              FullyCompositional::Primary::liquidComposition[0])],
-         0.1, 1e-14, "oil composition block must still be safely limited");
+         0.05, 1e-14, "oil phase-amount block must reserve the dependent q_N budget");
     near(threePhaseDelta[static_cast<std::size_t>(
              FullyCompositional::Primary::vaporComposition[0])],
          0.02, 1e-14, "gas composition block should keep its own Newton scale");

@@ -46,6 +46,27 @@ void near(double actual, double expected, double tolerance, const std::string &m
         throw std::runtime_error(message);
 }
 
+void writePrimaryComposition(
+    std::array<double, Indices::numPrimaryVariables> &primary,
+    MPMC::CompositionalPhase phase,
+    const std::array<double, Indices::numComponents> &composition)
+{
+    const auto &indices = phase == MPMC::CompositionalPhase::Oil
+        ? Indices::Primary::liquidComposition
+        : (phase == MPMC::CompositionalPhase::Gas
+               ? Indices::Primary::vaporComposition
+               : Indices::Primary::waterComposition);
+    const double amountScale = phase == MPMC::CompositionalPhase::Oil
+        ? primary[Indices::Primary::liquidSaturation]
+        : 1.0;
+    for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+    {
+        const std::size_t c = static_cast<std::size_t>(i);
+        primary[static_cast<std::size_t>(indices[c])] =
+            amountScale * composition[c];
+    }
+}
+
 template <class FactoryConfig>
 auto flashInitial()
 {
@@ -213,14 +234,12 @@ void checkSwNearPhaseBoundaryHysteresis()
     primary[Indices::Primary::vaporSaturation] = saturation[1];
     primary[Indices::Primary::waterSaturation] = saturation[2];
 
-    const auto writeComposition = [&](const auto &indices, const auto &values) {
-        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
-            primary[static_cast<std::size_t>(indices[static_cast<std::size_t>(i)])] =
-                values[static_cast<std::size_t>(i)];
-    };
-    writeComposition(Indices::Primary::liquidComposition, composition[0]);
-    writeComposition(Indices::Primary::vaporComposition, composition[1]);
-    writeComposition(Indices::Primary::waterComposition, composition[2]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Oil, composition[0]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Gas, composition[1]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Water, composition[2]);
 
     MPMC::PhaseStateData<Indices> phaseState;
     phaseState.phasePresence = MPMC::PhasePresence::all();
@@ -269,14 +288,12 @@ void checkConsistentPhaseBoundaryHysteresis()
     primary[Indices::Primary::liquidSaturation] = saturation[0];
     primary[Indices::Primary::vaporSaturation] = saturation[1];
     primary[Indices::Primary::waterSaturation] = saturation[2];
-    const auto writeComposition = [&](const auto &indices, const auto &values) {
-        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
-            primary[static_cast<std::size_t>(indices[static_cast<std::size_t>(i)])] =
-                values[static_cast<std::size_t>(i)];
-    };
-    writeComposition(Indices::Primary::liquidComposition, composition[0]);
-    writeComposition(Indices::Primary::vaporComposition, composition[1]);
-    writeComposition(Indices::Primary::waterComposition, composition[2]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Oil, composition[0]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Gas, composition[1]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Water, composition[2]);
 
     MPMC::PhaseStateData<Indices> phaseState;
     phaseState.phasePresence = MPMC::PhasePresence::all();
@@ -321,14 +338,12 @@ void checkLateBoundaryState(
     primary[Indices::Primary::vaporSaturation] = saturation[1];
     primary[Indices::Primary::waterSaturation] = saturation[2];
 
-    const auto writeComposition = [&](const auto &indices, const auto &values) {
-        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
-            primary[static_cast<std::size_t>(indices[static_cast<std::size_t>(i)])] =
-                values[static_cast<std::size_t>(i)];
-    };
-    writeComposition(Indices::Primary::liquidComposition, composition[0]);
-    writeComposition(Indices::Primary::vaporComposition, composition[1]);
-    writeComposition(Indices::Primary::waterComposition, composition[2]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Oil, composition[0]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Gas, composition[1]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Water, composition[2]);
 
     MPMC::PhaseStateData<Indices> phaseState;
     phaseState.phasePresence = MPMC::PhasePresence::all();
@@ -410,14 +425,12 @@ void checkV58CpaMinimumDtPlateauRegression()
     primary[Indices::Primary::vaporSaturation] = saturation[1];
     primary[Indices::Primary::waterSaturation] = saturation[2];
 
-    const auto writeComposition = [&](const auto &indices, const auto &values) {
-        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
-            primary[static_cast<std::size_t>(indices[static_cast<std::size_t>(i)])] =
-                values[static_cast<std::size_t>(i)];
-    };
-    writeComposition(Indices::Primary::liquidComposition, composition[0]);
-    writeComposition(Indices::Primary::vaporComposition, composition[1]);
-    writeComposition(Indices::Primary::waterComposition, composition[2]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Oil, composition[0]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Gas, composition[1]);
+    writePrimaryComposition(
+        primary, MPMC::CompositionalPhase::Water, composition[2]);
 
     MPMC::PhaseStateData<Indices> phaseState;
     phaseState.phasePresence = MPMC::PhasePresence::all();

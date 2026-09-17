@@ -79,17 +79,53 @@ MPMC::FluidSystem<Indices> makeFluid()
 
 void writeComposition(
     std::array<double, Indices::numPrimaryVariables>& primary,
-    const std::array<int, Indices::numIndependentCompositionsPerPhase>& indices,
+    MPMC::CompositionalPhase phase,
     const Composition& composition)
 {
+    const auto &indices = phase == MPMC::CompositionalPhase::Oil
+        ? Indices::Primary::liquidComposition
+        : (phase == MPMC::CompositionalPhase::Gas
+               ? Indices::Primary::vaporComposition
+               : Indices::Primary::waterComposition);
+    const double amountScale = phase == MPMC::CompositionalPhase::Oil
+        ? primary[Indices::Primary::liquidSaturation]
+        : 1.0;
     for (int component = 0;
          component < Indices::numIndependentCompositionsPerPhase;
          ++component)
     {
-        primary[static_cast<std::size_t>(
-            indices[static_cast<std::size_t>(component)])] =
-            composition[static_cast<std::size_t>(component)];
+        const auto c = static_cast<std::size_t>(component);
+        primary[static_cast<std::size_t>(indices[c])] =
+            amountScale * composition[c];
     }
+}
+
+Composition readComposition(
+    const std::array<double, Indices::numPrimaryVariables>& primary,
+    MPMC::CompositionalPhase phase)
+{
+    const auto &indices = phase == MPMC::CompositionalPhase::Oil
+        ? Indices::Primary::liquidComposition
+        : (phase == MPMC::CompositionalPhase::Gas
+               ? Indices::Primary::vaporComposition
+               : Indices::Primary::waterComposition);
+    const double amountScale = phase == MPMC::CompositionalPhase::Oil
+        ? primary[Indices::Primary::liquidSaturation]
+        : 1.0;
+    if (!(amountScale > 0.0))
+        throw std::runtime_error("active Oil composition requires positive saturation");
+
+    Composition composition{};
+    composition.back() = 1.0;
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        const auto c = static_cast<std::size_t>(component);
+        composition[c] = primary[static_cast<std::size_t>(indices[c])] / amountScale;
+        composition.back() -= composition[c];
+    }
+    return composition;
 }
 
 void checkBenchmarkFrontState()
@@ -164,9 +200,9 @@ void checkNewtonStateCanonicalization()
         0.002326074097273210, 0.3900437088477006, 0.6076302170550262};
     const Composition waterRich{
         0.9900629231333399, 0.009937076866523781, 1.36318761812e-13};
-    writeComposition(primary, Indices::Primary::liquidComposition, co2Rich);
-    writeComposition(primary, Indices::Primary::vaporComposition, nc10Rich);
-    writeComposition(primary, Indices::Primary::waterComposition, waterRich);
+    writeComposition(primary, MPMC::CompositionalPhase::Oil, co2Rich);
+    writeComposition(primary, MPMC::CompositionalPhase::Gas, nc10Rich);
+    writeComposition(primary, MPMC::CompositionalPhase::Water, waterRich);
 
     MPMC::PhaseStateData<Indices> phaseState;
     phaseState.phasePresence = MPMC::PhasePresence::all();
@@ -174,14 +210,14 @@ void checkNewtonStateCanonicalization()
     const Composition overallBefore = phaseState.overallComposition;
     equilibrium.updatePhaseState(primary, phaseState);
 
-    require(
-        primary[Indices::Primary::vaporComposition[1]] >
-            primary[Indices::Primary::liquidComposition[1]],
-        "SW Newton state must map the CO2-rich phase to gas");
-    require(
-        primary[Indices::Primary::liquidComposition[0]] <
-            primary[Indices::Primary::vaporComposition[0]],
-        "SW Newton state must map the lower-water nonaqueous phase to oil");
+    const auto canonicalOil =
+        readComposition(primary, MPMC::CompositionalPhase::Oil);
+    const auto canonicalGas =
+        readComposition(primary, MPMC::CompositionalPhase::Gas);
+    require(canonicalGas[1] > canonicalOil[1],
+            "SW Newton state must map the CO2-rich phase to gas");
+    require(canonicalOil[0] < canonicalGas[0],
+            "SW Newton state must map the lower-water nonaqueous phase to oil");
     for (std::size_t component = 0; component < overallBefore.size(); ++component)
     {
         require(
@@ -223,9 +259,9 @@ void checkTransientNewtonStabilityUsesRestrictedEquilibriumReference()
             betaOil * oilIterate[component] +
             betaWater * waterIterate[component];
 
-    writeComposition(primary, Indices::Primary::liquidComposition, oilIterate);
-    writeComposition(primary, Indices::Primary::vaporComposition, overall);
-    writeComposition(primary, Indices::Primary::waterComposition, waterIterate);
+    writeComposition(primary, MPMC::CompositionalPhase::Oil, oilIterate);
+    writeComposition(primary, MPMC::CompositionalPhase::Gas, overall);
+    writeComposition(primary, MPMC::CompositionalPhase::Water, waterIterate);
 
     MPMC::ThreePhaseFlashOptions options;
     options.waterComponent = 0;
@@ -260,10 +296,9 @@ void checkTransientNewtonStabilityUsesRestrictedEquilibriumReference()
          ++component)
     {
         const std::size_t c = static_cast<std::size_t>(component);
-        require(std::abs(
-                    primary[static_cast<std::size_t>(
-                        Indices::Primary::liquidComposition[c])] -
-                    oilIterate[c]) < 1.0e-14,
+        const auto decodedOil =
+            readComposition(primary, MPMC::CompositionalPhase::Oil);
+        require(std::abs(decodedOil[c] - oilIterate[c]) < 1.0e-14,
                 "SW stability check must not overwrite oil Newton iterate");
         require(std::abs(
                     primary[static_cast<std::size_t>(

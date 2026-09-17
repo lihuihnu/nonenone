@@ -7,6 +7,7 @@
 #include <natural/fluid_system.hpp>
 #include <natural/numerics.hpp>
 #include <natural/state/phase_state_data.hpp>
+#include <natural/state/phase_amount_coordinate.hpp>
 #include <natural/state/phase_update_result.hpp>
 #include <natural/thermo/three_phase_flash.hpp>
 
@@ -40,17 +41,33 @@ std::array<double, Indices::numComponents> compositionFromPrimary(
     CompositionalPhase phase)
 {
     std::array<double, Indices::numComponents> result{};
-    const auto *indices = &Indices::Primary::liquidComposition;
-    if (phase == CompositionalPhase::Gas)
-        indices = &Indices::Primary::vaporComposition;
-    else if (phase == CompositionalPhase::Water)
-        indices = &Indices::Primary::waterComposition;
 
+    if (phase == CompositionalPhase::Oil)
+    {
+        std::array<double, Indices::numComponents> amount{};
+        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+        {
+            const std::size_t c = static_cast<std::size_t>(i);
+            amount[c] = primary[static_cast<std::size_t>(
+                Indices::Primary::liquidComposition[c])];
+        }
+        const double saturation =
+            primary[static_cast<std::size_t>(Indices::Primary::liquidSaturation)];
+        completeOilPhaseAmount(saturation, amount);
+
+        std::array<double, Indices::numComponents> fallback{};
+        fallback.fill(1.0 / static_cast<double>(Indices::numComponents));
+        return oilMoleFractionFromAmount(saturation, amount, fallback);
+    }
+
+    const auto &indices = phase == CompositionalPhase::Gas
+        ? Indices::Primary::vaporComposition
+        : Indices::Primary::waterComposition;
     result.back() = 1.0;
     for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
     {
         const std::size_t c = static_cast<std::size_t>(i);
-        result[c] = primary[static_cast<std::size_t>((*indices)[c])];
+        result[c] = primary[static_cast<std::size_t>(indices[c])];
         result.back() -= result[c];
     }
     return result;
@@ -62,16 +79,27 @@ void writeCompositionToPrimary(
     const std::array<double, Indices::numComponents> &composition,
     CompositionalPhase phase)
 {
-    const auto *indices = &Indices::Primary::liquidComposition;
-    if (phase == CompositionalPhase::Gas)
-        indices = &Indices::Primary::vaporComposition;
-    else if (phase == CompositionalPhase::Water)
-        indices = &Indices::Primary::waterComposition;
+    if (phase == CompositionalPhase::Oil)
+    {
+        const double saturation =
+            primary[static_cast<std::size_t>(Indices::Primary::liquidSaturation)];
+        for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+        {
+            const std::size_t c = static_cast<std::size_t>(i);
+            primary[static_cast<std::size_t>(
+                Indices::Primary::liquidComposition[c])] =
+                saturation * composition[c];
+        }
+        return;
+    }
 
+    const auto &indices = phase == CompositionalPhase::Gas
+        ? Indices::Primary::vaporComposition
+        : Indices::Primary::waterComposition;
     for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
     {
         const std::size_t c = static_cast<std::size_t>(i);
-        primary[static_cast<std::size_t>((*indices)[c])] = composition[c];
+        primary[static_cast<std::size_t>(indices[c])] = composition[c];
     }
 }
 
@@ -506,12 +534,49 @@ public:
         PrimaryArray &primary,
         bool useVariableBounds) const
     {
+        // Oil uses q_i=S_o x_i.  Cross-component bounds cannot express
+        // sum(q_i)<=S_o, therefore this amount-simplex repair is required even
+        // when SNES variable bounds are enabled.  Saturation signs themselves
+        // remain untouched so updatePhaseState() still sees the active-set signal.
+        const double oilSaturation =
+            primary[static_cast<std::size_t>(Indices::Primary::liquidSaturation)];
+        if (oilSaturation > 0.0)
+        {
+            const double floorAmount = oilSaturation * flash_.options().compositionFloor;
+            const double maximumIndependentAmount =
+                oilSaturation * (1.0 - flash_.options().compositionFloor);
+            double independentAmountSum = 0.0;
+            for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+            {
+                const int index = Indices::Primary::liquidComposition[static_cast<std::size_t>(i)];
+                double &value = primary[static_cast<std::size_t>(index)];
+                value = std::clamp(value, floorAmount, maximumIndependentAmount);
+                independentAmountSum += value;
+            }
+            if (independentAmountSum > maximumIndependentAmount)
+            {
+                const double scale = maximumIndependentAmount / independentAmountSum;
+                for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+                {
+                    const int index = Indices::Primary::liquidComposition[static_cast<std::size_t>(i)];
+                    primary[static_cast<std::size_t>(index)] *= scale;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < Indices::numIndependentCompositionsPerPhase; ++i)
+            {
+                const int index = Indices::Primary::liquidComposition[static_cast<std::size_t>(i)];
+                primary[static_cast<std::size_t>(index)] = 0.0;
+            }
+        }
+
         if (useVariableBounds)
             return;
-        // Only protect grossly invalid independent mole fractions; saturation
-        // signs are intentionally left untouched.
+
+        // Gas and water remain ordinary N-1 mole-fraction coordinates.
         for (const auto *indices : {
-                 &Indices::Primary::liquidComposition,
                  &Indices::Primary::vaporComposition,
                  &Indices::Primary::waterComposition})
         {
@@ -525,9 +590,6 @@ public:
                 independentSum += value;
             }
 
-            // The dependent last component is 1-sum(x_1..x_{N-1}).  Preserve
-            // a strictly positive last component instead of allowing individual
-            // clamps to create sum(x_independent)>1.
             const double maximumIndependentSum =
                 1.0 - flash_.options().compositionFloor;
             if (independentSum > maximumIndependentSum)
@@ -558,7 +620,9 @@ private:
     {
         if (!fluid_.eos.usesSoreideWhitson() ||
             !phaseState.phasePresence.contains(CompositionalPhase::Oil) ||
-            !phaseState.phasePresence.contains(CompositionalPhase::Gas))
+            !phaseState.phasePresence.contains(CompositionalPhase::Gas) ||
+            primary[Indices::Primary::liquidSaturation] <=
+                NaturalNumerics::minimumNormalizationDenominator)
         {
             return;
         }
@@ -588,19 +652,14 @@ private:
             return;
         }
 
+        const Composition oldOilComposition = composition[0];
+        const Composition oldGasComposition = composition[1];
         std::swap(primary[Indices::Primary::liquidSaturation],
                   primary[Indices::Primary::vaporSaturation]);
-        for (int component = 0;
-             component < Indices::numIndependentCompositionsPerPhase;
-             ++component)
-        {
-            const std::size_t c = static_cast<std::size_t>(component);
-            std::swap(
-                primary[static_cast<std::size_t>(
-                    Indices::Primary::liquidComposition[c])],
-                primary[static_cast<std::size_t>(
-                    Indices::Primary::vaporComposition[c])]);
-        }
+        three_phase_detail::writeCompositionToPrimary<Indices>(
+            primary, oldGasComposition, CompositionalPhase::Oil);
+        three_phase_detail::writeCompositionToPrimary<Indices>(
+            primary, oldOilComposition, CompositionalPhase::Gas);
         std::swap(phaseState.phaseMoleFraction[0],
                   phaseState.phaseMoleFraction[1]);
         std::swap(phaseState.phaseCompressibility[0],
@@ -760,11 +819,67 @@ private:
         return z;
     }
 
+    [[nodiscard]] Composition recoverOilCompositionAtAmountBoundary_(
+        const PhaseStateData<Indices> &phaseState,
+        const std::array<Composition, 3> &composition) const
+    {
+        const double floor = flash_.options().compositionFloor;
+        Composition oil{};
+
+        const auto recoverFromRatio = [&](
+            CompositionalPhase sourcePhase,
+            const Composition &source,
+            const Composition &sourceOilRatio) -> bool
+        {
+            if (!phaseState.phasePresence.contains(sourcePhase))
+                return false;
+            double sum = 0.0;
+            for (int component = 0; component < N; ++component)
+            {
+                const std::size_t c = static_cast<std::size_t>(component);
+                const double ratio = sourceOilRatio[c];
+                if (!(ratio > floor) || !std::isfinite(ratio))
+                    return false;
+                oil[c] = source[c] / ratio;
+                if (!(oil[c] >= 0.0) || !std::isfinite(oil[c]))
+                    return false;
+                sum += oil[c];
+            }
+            if (!(sum > NaturalNumerics::minimumNormalizationDenominator))
+                return false;
+            three_phase_detail::normalize(oil, floor);
+            return true;
+        };
+
+        if (recoverFromRatio(
+                CompositionalPhase::Gas, composition[1],
+                phaseState.vaporOilEquilibriumRatio))
+            return oil;
+        if (recoverFromRatio(
+                CompositionalPhase::Water, composition[2],
+                phaseState.waterOilEquilibriumRatio))
+            return oil;
+
+        // A single Oil phase that Newton has overshot has no companion K-ratio
+        // from which to reconstruct x_O. The accepted overall composition is
+        // then exactly the only material-carrying composition available.
+        oil = phaseState.overallComposition;
+        three_phase_detail::normalize(oil, floor);
+        return oil;
+    }
+
     [[nodiscard]] Composition transitionOverallComposition_(
         const PrimaryArray &primary,
         const PhaseStateData<Indices> &phaseState) const
     {
-        const auto composition = normalizedPhaseCompositions_(primary);
+        auto composition = normalizedPhaseCompositions_(primary);
+        if (phaseState.phasePresence.contains(CompositionalPhase::Oil) &&
+            primary[Indices::Primary::liquidSaturation] <=
+                NaturalNumerics::minimumNormalizationDenominator)
+        {
+            composition[0] =
+                recoverOilCompositionAtAmountBoundary_(phaseState, composition);
+        }
         Composition z{};
         double betaSum = 0.0;
 
