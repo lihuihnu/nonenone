@@ -22,7 +22,7 @@ Zhao et al. (*Industrial & Engineering Chemistry Research*, 2023, DOI `10.1021/a
 | `OIL_MIDDLE` | 350–500 °C | 34.11 |
 | `OIL_HEAVY` | >500 °C | 41.35 |
 
-因此当前首选的烃相 lumping topology 直接采用这四个**实验馏程区间**。详细决策见 `03_EXPERIMENT_DRIVEN_LUMPING.md`，机器可读表见 `fluid_characterization/experimental_lumping_380c.csv`。
+因此当前烃相 lumping topology 直接采用这四个**实验馏程区间**。详细决策见 `03_EXPERIMENT_DRIVEN_LUMPING.md`，机器可读表见 `fluid_characterization/experimental_lumping_380c.csv`。
 
 这组分数来自酸洗 Type-II 干酪根实验，属于 `SECONDARY_PAIRED`：它们是当前最直接的真实实验先验，但不能伪装成完整 raw-shale 主样品的同样分数。主样品如果后续获得同物理样品 simulated-distillation，应保留相同实验驱动原则并用主样品数据重新赋值。
 
