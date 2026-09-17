@@ -173,7 +173,41 @@ jobs:
                       allWinningEquation);
               }
           '''
-          path.write_text(text.replace(anchor, anchor + probe, 1))
+          text = text.replace(anchor, anchor + probe, 1)
+
+          cache_anchor = '''        const auto &wellFunction = evaluateWellFunctionContributions_(cache, bhp);\n'''
+          if text.count(cache_anchor) != 1:
+              raise SystemExit(f'unexpected wellFunction anchor count: {text.count(cache_anchor)}')
+          state_probe = r'''
+
+              if (static_cast<int>(rank) == allWinningRank && allWinningCell >= 0)
+              {
+                  const Cell allCell = static_cast<Cell>(allWinningCell);
+                  const PetscInt allBlock = map.localBlockIndex(allCell);
+                  const auto &allEntry = cache[static_cast<std::size_t>(allBlock)];
+                  const auto &s = allEntry.state;
+                  const auto &p = allEntry.properties;
+                  const int c = Indices::numComponents - 1;
+                  const std::size_t ci = static_cast<std::size_t>(c);
+                  const double xo = scalarValue(s.liquidMoleFraction[ci]);
+                  const double xg = scalarValue(s.vaporMoleFraction[ci]);
+                  const double xw = scalarValue(s.aqueousMoleFraction[ci]);
+                  const double fo = scalarValue(p.fugacity[0][ci]);
+                  const double fg = scalarValue(p.fugacity[1][ci]);
+                  const double fw = scalarValue(p.fugacity[2][ci]);
+                  PetscPrintf(
+                      PETSC_COMM_SELF,
+                      "[MAX-EQ-STATE] cell=%lld eq=%d presence=%u dep=%d xO=%.16e xG=%.16e xW=%.16e fO=%.16e fG=%.16e fW=%.16e trace=%.16e\\n",
+                      static_cast<long long>(allWinningCell),
+                      allWinningEquation,
+                      static_cast<unsigned>(s.phasePresence.bits()),
+                      c,
+                      xo, xg, xw, fo, fg, fw,
+                      NaturalNumerics::phaseEquilibriumTraceComposition);
+              }
+          '''
+          text = text.replace(cache_anchor, cache_anchor + state_probe, 1)
+          path.write_text(text)
           PY
           git diff --check
 
