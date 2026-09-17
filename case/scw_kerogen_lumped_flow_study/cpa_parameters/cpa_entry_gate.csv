@@ -10,4 +10,4 @@ middle_water_kij,OPEN,yes,yes,"No long-chain extrapolation from C1-C10 correlati
 heavy_water_kij,BLOCKED_NO_TUNING,yes,yes,"No tuning for phase appearance or convergence."
 middle_cross_association,UNRESOLVED,no,yes,"Enable only after PNA/aromatic fraction and water-solubility evidence support a mixed-lump solvation representation."
 heavy_association,UNRESOLVED,no,yes,"Do not invent association sites/epsilon/beta; consider future polar/nonpolar heavy split."
-ALL_CPA,,,, 
+ALL_CPA,CPA_GATE_BLOCKED,yes,yes,"CPA baseline exists, but binary calibration and Heavy association/physical validation are incomplete."
