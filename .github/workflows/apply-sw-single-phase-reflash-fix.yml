@@ -100,13 +100,27 @@ jobs:
           set -euo pipefail
           python3 tools/apply_sw_single_phase_reflash_fix.py
           git diff --check
-          git diff -- models/include/natural/state/three_phase_equilibrium.hpp test/src/unit/sw_phase_ordering_test.cpp
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              'models/include/natural/thermo/three_phase_flash.hpp',
+              'test/src/unit/sw_flash_recovery_test.cpp',
+          }
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected candidate diff: {sorted(changed)}')
+          PY
+          git diff -- \
+            models/include/natural/thermo/three_phase_flash.hpp \
+            test/src/unit/sw_flash_recovery_test.cpp
 
-      - name: Run targeted SW regression
+      - name: Run targeted SW regressions
         shell: bash
         run: |
           set -euo pipefail
-          make -C test bin/sw_phase_ordering_test -j2
+          make -C test bin/sw_flash_recovery_test bin/sw_phase_ordering_test -j2
+          test/bin/sw_flash_recovery_test
           test/bin/sw_phase_ordering_test
 
       - name: Run unit regression excluding documented baseline BIP assertion
@@ -116,7 +130,7 @@ jobs:
           # The uploaded LMH branch already has a case-config/test mismatch:
           # scw_kerogen_lmh_2d_case_test expects PR H2O-HC k_ij values
           # 0.5091 / 0.261837..., while the uploaded CommonFluid returns 0.5.
-          # The SW reflash patch must neither hide nor modify that independent issue.
+          # This SW stability patch must neither hide nor modify that issue.
           git diff --quiet origin/run/uploaded-lmh2d-20260917 -- \
             case/scw_kerogen_lmh_2d/case_config.hpp \
             test/src/unit/scw_kerogen_lmh_2d_case_test.cpp
@@ -166,26 +180,21 @@ jobs:
                       accepted.append(float(row['time']))
           maximum = max(accepted, default=0.0)
           print(f'maximum accepted time = {maximum:.15g} day')
-          # Old code could not advance past about 0.00400160 day because an
-          # O-only -> unrelated W-only role jump made line search fail at the
-          # minimum dt. Require a material advance beyond that barrier while
-          # preserving original timestep and nonlinear tolerances.
           if maximum < 0.00401:
-              raise SystemExit('SW run did not cross the former cell-540 reflash barrier')
+              raise SystemExit('SW run did not cross the former cell-540 role-switch barrier')
           PY
 
       - name: Commit validated production changes
         shell: bash
         run: |
           set -euo pipefail
-          git status --short
           git add \
-            models/include/natural/state/three_phase_equilibrium.hpp \
-            test/src/unit/sw_phase_ordering_test.cpp
+            models/include/natural/thermo/three_phase_flash.hpp \
+            test/src/unit/sw_flash_recovery_test.cpp
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix: preserve SW TPD phase identity across reflash'
+          git commit -m 'fix: reject wrong-role SW stability trials'
           git push origin HEAD:fix/sw-single-phase-reflash-canonicalization
 
       - name: Upload validation evidence
