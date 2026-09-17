@@ -1,0 +1,122 @@
+name: Validate SW phase stability fix
+
+on:
+  push:
+    branches:
+      - fix/sw-phase-stability-transition
+    paths:
+      - .github/workflows/sw-phase-stability-validation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  sw-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential gfortran python3 curl ca-certificates \
+            openmpi-bin libopenmpi-dev \
+            libblas-dev liblapack-dev libmetis-dev libfmt-dev
+
+      - name: Set PETSc environment
+        run: |
+          echo "PETSC_DIR=${RUNNER_TEMP}/petsc-3.22.2" >> "${GITHUB_ENV}"
+          echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
+
+      - name: Restore PETSc 3.22.2 cache
+        id: petsc-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/petsc-3.22.2
+          key: petsc-3.22.2-ubuntu24-openmpi4-gcc13-v1
+
+      - name: Build PETSc 3.22.2 on cache miss
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PETSC_VERSION=3.22.2
+          curl -fL --retry 3 \
+            "https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-${PETSC_VERSION}.tar.gz" \
+            -o "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz" -C "${RUNNER_TEMP}"
+          cd "${PETSC_DIR}"
+          ./configure PETSC_ARCH="${PETSC_ARCH}" \
+            --with-debugging=0 --with-shared-libraries=1 --with-mpi=1 \
+            --with-fortran-bindings=0 --with-x=0
+          make PETSC_DIR="${PETSC_DIR}" PETSC_ARCH="${PETSC_ARCH}" all -j2
+
+      - name: Configure local dependency profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.filemode false
+          find scripts -type f -name '*.sh' -exec chmod +x {} +
+          METIS_ROOT="${RUNNER_TEMP}/metis-shim"
+          mkdir -p "${METIS_ROOT}/include" "${METIS_ROOT}/install/lib"
+          ln -sf /usr/include/metis.h "${METIS_ROOT}/include/metis.h"
+          METIS_LIB="$(ldconfig -p | awk '/libmetis\.so/{print $NF; exit}')"
+          test -n "${METIS_LIB}"
+          ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
+          DQ_MESH_DIR="${RUNNER_TEMP}/DQ_data"
+          mkdir -p "${DQ_MESH_DIR}"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_DIR}
+          PETSC_ARCH := ${PETSC_ARCH}
+          FMT_DIR := /usr
+          METIS_DIR := ${METIS_ROOT}
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          DQ_MESH_DIR := ${DQ_MESH_DIR}
+          EOF
+          make doctor-local
+
+      - name: Full unit regression
+        run: make unit-gcc
+
+      - name: Build H2O-CO2-nC10 benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
+          make case CASE=h2o_co2_nc10_2d_benchmark -j2
+
+      - name: Run New-SW short step
+        run: |
+          make run CASE=h2o_co2_nc10_2d_benchmark NP=1 EOS=sw \
+            RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
+            RUN_ARGS='-numSteps 1 -dt 0.01 -adaptive_dt false'
+
+      - name: Show SW numerical summaries
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in \
+            runner-results/new-sw/nonlinear_solve_history.csv \
+            runner-results/new-sw/time_step_history.csv \
+            runner-results/new-sw/component_mass_balance.csv \
+            runner-results/new-sw/simulation_summary.csv; do
+            if [[ -f "$f" ]]; then
+              echo "===== $f ====="
+              cat "$f"
+            fi
+          done
