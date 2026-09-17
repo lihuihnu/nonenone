@@ -91,6 +91,21 @@ squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在
 
 当前总状态：`RESERVOIR_GATE_BLOCKED`。
 
+## PR baseline v1 已建立
+
+当前零流动回归使用的 PR 起始参数已经固定为一套有 provenance 的 baseline，而不再使用任意 BIP seed。纯 pseudo-component 参数见 `06_PR_PARAMETER_BASELINE.md` 和 `pr_parameters/pr_pure_parameters_380c.csv`。
+
+当前 H2O–lump optimizer seeds 为：
+
+- Gasoline: `kref=0.5000, b=0`，仅为 Søreide–Whitson C5+ 非水相 screening prior；
+- Diesel: `kref=0.6662345, b=-1274.90 K`，来自 dodecane published-PR prior；
+- Middle: `kref=0.2398346, b=-477.41 K`，来自 squalane 等效碳数饱和烃 benchmark prior；
+- Heavy: 保留同一 squalane 数值只作 benchmark diagnostic，`fit_enabled=0`，禁止作为生产 Heavy BIP。
+
+所有 hydrocarbon–hydrocarbon BIP 暂取 0，直到同油样 multicomponent PVT/phase-behavior 数据证明需要非零项。
+
+此外，Middle/Heavy 的高 `omega` 使 PR alpha-model 本身成为显著不确定性来源。PR76 仍作为统一回归基线，但最终接受前必须进行 PR78 高-omega sensitivity，避免让 `kij` 补偿纯组分 alpha 模型误差。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
