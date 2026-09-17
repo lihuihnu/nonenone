@@ -106,6 +106,21 @@ squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在
 
 此外，Middle/Heavy 的高 `omega` 使 PR alpha-model 本身成为显著不确定性来源。PR76 仍作为统一回归基线，但最终接受前必须进行 PR78 高-omega sensitivity，避免让 `kij` 补偿纯组分 alpha 模型误差。
 
+## CPA 独立参数体系已建立
+
+CPA 不复用 PR 的 `a/b/alpha/kij`。当前单独维护：
+
+- `cpa_parameters/cpa_pure_parameters_380c.csv`：CPA/SRK physical `a0/b/c1`；
+- `cpa_parameters/cpa_association_scheme.csv`：4C water 与各 oil lump 的 association policy；
+- `cpa_parameters/cpa_binary_matrix_screening.csv`：CPA-specific BIP；
+- `cpa_parameters/cpa_entry_gate.csv`：CPA 自己的物理验收门禁；
+- `cpa_parameters/source_manifest.csv`：参数来源；
+- `07_CPA_PARAMETER_BASELINE.md`：完整方法与边界。
+
+水使用仓库公开 VLLE benchmark 已验证的 Folas 4C 参数。四个油 pseudo-component 的 baseline physical term 统一使用 SRK critical mapping；Gasoline/Diesel/Middle 暂按 non-associating petroleum fractions，Heavy 也不凭 SARA 猜 association site/epsilon/beta。Heavy association 保持 `UNRESOLVED`。
+
+CPA 的水–烃 BIP 与 PR 完全独立：Gasoline 以 water+n-hexane CPA `kij=0.044` 为 proxy prior；Diesel 暂以 water+n-decane `kij=-0.054` 为直接表格 anchor；Middle 采用 neutral prior 等待可接受数据；Heavy 为 diagnostic zero 且禁止为了 flash 收敛回归。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
