@@ -1,0 +1,32 @@
+sample_id,category,quantity,value,unit,data_status,evidence_level,source_doi,source_location,notes
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,temperature,380,degC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,653.15 K
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,pressure,25,MPa,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,Experimental pressure precision reported as +/-0.05 MPa
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,reaction_time,4,h,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,water_to_shale_mass_ratio,1:1,,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Fig2 caption,Main temperature-series condition
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_min,75,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Hydrocarbon-generation characterization sample
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_max,106,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Hydrocarbon-generation characterization sample
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,batch_reactor_volume,80,mL,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,reactor_inner_diameter,40,mm,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,reactor_height,65,mm,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,temperature_precision,0.5,degC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,+/- value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,pressure_precision,0.05,MPa,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,+/- value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,oil_yield,352.1,mg/g_TO C,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Abstract/Results,Reported peak oil yield at 380 degC
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,total_gas_yield_380C,,,PENDING_PRIMARY_ESI,A,10.1039/D2SE01361D,Fig2a/Table S2,Exact 380 degC gas yield not stated numerically in accessible main text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,H2_fraction,26.9,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Results,Maximum H2 proportion occurs at 380 degC
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,CH4_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,C2_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,C3plus_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,CO2_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_saturates_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_aromatics_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_resins_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_asphaltenes_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,carbon_number_distribution_380C,,,NOT_MEASURED_OR_NOT_REPORTED,A,10.1039/D2SE01361D,Main article,No machine-readable Cn distribution located for this exact raw-shale experiment
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,simulated_distillation_380C,,,NOT_MEASURED_OR_NOT_REPORTED,A,10.1039/D2SE01361D,Main article,Not reported in accessible main article for raw-shale series
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_range_min,90,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Range over conversion experiments; not a 380 degC replicate-specific value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_range_max,95,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Range over conversion experiments; not a 380 degC replicate-specific value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,gas_measurement_method,Agilent_7890A_GC_TCD_FID,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,Gas collected in bag and quantified by wet flowmeter
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,oil_SARA_method,IATROSCAN_MK6_TLC,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,oil_elemental_method,Elementar_Vario_Macro_cube_CHNS,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,oil_recovery_method,CS2_wash_then_46C_solvent_evaporation,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,Authors explicitly note loss of hydrocarbons with boiling point below about 46 degC
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,low_boiling_HC_recovery_bias,bp_below_46C_lost,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,Critical limitation for reconstructing full C1+ product composition
