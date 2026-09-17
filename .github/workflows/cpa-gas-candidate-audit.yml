@@ -1,0 +1,96 @@
+name: Audit CPA missing-Gas candidate identity
+
+on:
+  push:
+    branches:
+      - audit/cpa-gas-candidate-20260917
+    paths:
+      - .github/workflows/cpa-gas-candidate-audit.yml
+      - tools/inject_cpa_gas_candidate_audit.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gfortran python3 curl ca-certificates \
+            openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev
+      - name: Set PETSc environment
+        run: |
+          echo "PETSC_DIR=${RUNNER_TEMP}/petsc-3.22.2" >> "${GITHUB_ENV}"
+          echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
+      - name: Restore PETSc cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/petsc-3.22.2
+          key: petsc-3.22.2-ubuntu24-openmpi4-gcc13-v1
+      - name: Configure runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config core.filemode false
+          find scripts -type f -name '*.sh' -exec chmod +x {} +
+          METIS_ROOT="${RUNNER_TEMP}/metis-shim"
+          mkdir -p "${METIS_ROOT}/include" "${METIS_ROOT}/install/lib"
+          ln -sf /usr/include/metis.h "${METIS_ROOT}/include/metis.h"
+          METIS_LIB="$(ldconfig -p | awk '/libmetis\.so/{print $NF; exit}')"
+          ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
+          DQ_MESH_DIR="${RUNNER_TEMP}/DQ_data"; mkdir -p "${DQ_MESH_DIR}"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_DIR}
+          PETSC_ARCH := ${PETSC_ARCH}
+          FMT_DIR := /usr
+          METIS_DIR := ${METIS_ROOT}
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          DQ_MESH_DIR := ${DQ_MESH_DIR}
+          EOF
+          make doctor-local
+      - name: Inject read-only audit
+        run: python3 tools/inject_cpa_gas_candidate_audit.py
+      - name: Build case
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
+          make case CASE=scw_kerogen_lmh_2d -j2
+      - name: Run to CPA barrier
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p runner-results/cpa-gas-candidate
+          set +e
+          timeout --signal=TERM --kill-after=20s 360s \
+            make run CASE=scw_kerogen_lmh_2d NP=1 EOS=cpa \
+              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cpa-gas-candidate" \
+              RUN_ARGS='-ksp_type preonly -pc_type lu' \
+            2>&1 | tee runner-results/cpa-gas-candidate/console.log
+          set -e
+          grep '^\[CPA-GAS-CAND\]' runner-results/cpa-gas-candidate/console.log \
+            > runner-results/cpa-gas-candidate/candidate.log || true
+          tail -n 100 runner-results/cpa-gas-candidate/candidate.log || true
+          exit 0
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpa-gas-candidate-audit
+          path: runner-results/cpa-gas-candidate
+          if-no-files-found: warn
