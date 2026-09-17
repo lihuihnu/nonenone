@@ -1,0 +1,5 @@
+source_id,temperature_degC,Xoxid,Xali,Xbrn,data_status,evidence_level,source_doi,source_location,notes
+ACS_ZHAO_2023,380,0.41,0.46,0.60,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 4,"Generated-oil FT-IR indices; Xoxid=A1710/A1465; Xali=(A720+A1380)/A1630; Xbrn=A2960/A2930."
+ACS_ZHAO_2023,400,0.33,0.64,0.66,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 4,"Generated-oil FT-IR indices."
+ACS_ZHAO_2023,450,0.60,1.39,1.13,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 4,"Generated-oil FT-IR indices."
+ACS_ZHAO_2023,500,1.00,1.98,1.16,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 4,"Generated-oil FT-IR indices."
