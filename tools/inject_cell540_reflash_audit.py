@@ -20,11 +20,8 @@ probe = r'''    [[nodiscard]] StabilityResult auditStability(
         const Composition overall = transitionOverallComposition_(primary, phaseState);
         const auto compositions = normalizedPhaseCompositions_(primary);
         return flash_.stabilityTest(
-            primary[Indices::Primary::pressure],
-            fluid_.temperature,
-            overall,
-            phaseState.phasePresence,
-            compositions);
+            primary[Indices::Primary::pressure], fluid_.temperature,
+            overall, phaseState.phasePresence, compositions);
     }
 
     [[nodiscard]] Composition auditTransitionOverall(
@@ -39,9 +36,29 @@ probe = r'''    [[nodiscard]] StabilityResult auditStability(
         const PhaseStateData<Indices> &phaseState) const
     {
         return flash_.flash(
-            primary[Indices::Primary::pressure],
-            fluid_.temperature,
+            primary[Indices::Primary::pressure], fluid_.temperature,
             transitionOverallComposition_(primary, phaseState));
+    }
+
+    [[nodiscard]] FlashResult auditRestrictedFlash(
+        const PrimaryArray &primary,
+        const PhaseStateData<Indices> &phaseState,
+        PhasePresence allowed) const
+    {
+        return flash_.flashRestricted(
+            primary[Indices::Primary::pressure], fluid_.temperature,
+            transitionOverallComposition_(primary, phaseState), allowed);
+    }
+
+    [[nodiscard]] StabilityResult auditFlashStability(
+        const PrimaryArray &primary,
+        const PhaseStateData<Indices> &phaseState,
+        const FlashResult &result) const
+    {
+        return flash_.stabilityTest(
+            primary[Indices::Primary::pressure], fluid_.temperature,
+            transitionOverallComposition_(primary, phaseState),
+            result.presence, result.composition);
     }
 
 '''
@@ -59,6 +76,7 @@ state_repl = r'''                const bool auditCell540 =
                 const auto auditBeforeBits = pending.phaseState.phasePresence.bits();
                 if (auditCell540)
                 {
+                    std::cerr << std::setprecision(17);
                     const auto stability = kernel_.phaseEquilibrium().auditStability(
                         pending.primary, pending.phaseState);
                     const double gasMargin =
@@ -83,8 +101,7 @@ state_repl = r'''                const bool auditCell540 =
                               << " water_unstable=" << stability.missingPhaseUnstable[2]
                               << " gas_sum=" << stability.trialSum[1]
                               << " water_sum=" << stability.trialSum[2]
-                              << " strong_gas=" << strongGas
-                              << '\n';
+                              << " strong_gas=" << strongGas << '\n';
 
                     if (strongGas)
                     {
@@ -103,16 +120,42 @@ state_repl = r'''                const bool auditCell540 =
                         std::cerr << " beta=" << raw.phaseMoleFraction[0] << ','
                                   << raw.phaseMoleFraction[1] << ',' << raw.phaseMoleFraction[2]
                                   << " sat=" << raw.saturation[0] << ','
-                                  << raw.saturation[1] << ',' << raw.saturation[2];
-                        for (int p = 0; p < 3; ++p)
+                                  << raw.saturation[1] << ',' << raw.saturation[2] << '\n';
+
+                        const std::array<PhasePresence, 3> pairs{{
+                            PhasePresence(PhasePresence::bit(CompositionalPhase::Oil) |
+                                          PhasePresence::bit(CompositionalPhase::Gas)),
+                            PhasePresence(PhasePresence::bit(CompositionalPhase::Oil) |
+                                          PhasePresence::bit(CompositionalPhase::Water)),
+                            PhasePresence(PhasePresence::bit(CompositionalPhase::Gas) |
+                                          PhasePresence::bit(CompositionalPhase::Water))}};
+                        for (const auto allowed : pairs)
                         {
-                            std::cerr << " x" << p << '=';
-                            for (int c = 0; c < Indices::numComponents; ++c)
-                                std::cerr << (c == 0 ? "" : ",")
-                                          << raw.composition[static_cast<std::size_t>(p)]
-                                                            [static_cast<std::size_t>(c)];
+                            const auto restricted =
+                                kernel_.phaseEquilibrium().auditRestrictedFlash(
+                                    pending.primary, pending.phaseState, allowed);
+                            std::cerr << "[CELL540-RESTRICTED] allowed="
+                                      << static_cast<int>(allowed.bits())
+                                      << " converged=" << restricted.converged
+                                      << " presence=" << static_cast<int>(restricted.presence.bits())
+                                      << " beta=" << restricted.phaseMoleFraction[0] << ','
+                                      << restricted.phaseMoleFraction[1] << ','
+                                      << restricted.phaseMoleFraction[2]
+                                      << " sat=" << restricted.saturation[0] << ','
+                                      << restricted.saturation[1] << ','
+                                      << restricted.saturation[2];
+                            if (restricted.converged && !restricted.presence.empty())
+                            {
+                                const auto cert =
+                                    kernel_.phaseEquilibrium().auditFlashStability(
+                                        pending.primary, pending.phaseState, restricted);
+                                std::cerr << " cert_valid=" << cert.valid
+                                          << " cert_stable=" << cert.stable
+                                          << " trial_sum=" << cert.trialSum[0] << ','
+                                          << cert.trialSum[1] << ',' << cert.trialSum[2];
+                            }
+                            std::cerr << '\n';
                         }
-                        std::cerr << '\n';
                     }
                 }
 
@@ -122,7 +165,8 @@ state_repl = r'''                const bool auditCell540 =
 
                 if (auditCell540)
                 {
-                    std::cerr << "[CELL540-ACTIVE] t_day=" << currentTime_ / 86400.0
+                    std::cerr << std::setprecision(17)
+                              << "[CELL540-ACTIVE] t_day=" << currentTime_ / 86400.0
                               << " dt_day=" << options_.timeStep / 86400.0
                               << " before_bits=" << static_cast<int>(auditBeforeBits)
                               << " after_bits=" << static_cast<int>(pending.phaseState.phasePresence.bits())
@@ -139,6 +183,6 @@ state_repl = r'''                const bool auditCell540 =
 replace_once(state, state_anchor, state_repl)
 
 runtime = "models/include/natural/petsc/natural_petsc_runtime.hpp"
-replace_once(runtime, "#include <functional>\n", "#include <functional>\n#include <iostream>\n")
+replace_once(runtime, "#include <functional>\n", "#include <functional>\n#include <iostream>\n#include <iomanip>\n")
 
-print("cell 540 raw reflash audit instrumentation injected")
+print("cell 540 high-precision raw/restricted flash audit instrumentation injected")
