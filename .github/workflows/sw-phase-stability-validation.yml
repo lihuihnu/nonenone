@@ -89,6 +89,131 @@ jobs:
           EOF
           make doctor-local
 
+      - name: Inject read-only dominant-residual diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          diagnostics = Path('models/include/natural/petsc/natural_runtime_diagnostics.hpp')
+          text = diagnostics.read_text()
+          old = '''    double maximumAbsoluteMassResidual{0.0};
+              PetscInt currentCellId{-1};'''
+          new = '''    double maximumAbsoluteMassResidual{0.0};
+              // Raw PETSc residual as seen by SNES, including configured row scaling.
+              double maximumAbsoluteResidual{0.0};
+              double maximumResidualValue{0.0};
+              PetscInt maximumResidualCellId{-1};
+              PetscInt maximumResidualInputCellId{-1};
+              int maximumResidualEquation{-1};
+              PetscInt currentCellId{-1};'''
+          if old not in text:
+              raise SystemExit('diagnostic struct anchor not found')
+          diagnostics.write_text(text.replace(old, new, 1))
+
+          implementation = Path('models/include/natural/petsc/detail/natural_petsc_runtime_failure_diagnostics.inc')
+          text = implementation.read_text()
+          old = '''        PetscOwnedReadView residualView(residual);
+
+              // 只在组分质量守恒行中寻找全局最大值；这是本诊断的唯一目标。'''
+          new = '''        PetscOwnedReadView residualView(residual);
+
+              // Diagnostic-only: identify the largest raw PETSc residual over every
+              // equation row.  This is the same scaled residual vector used by SNES.
+              double localAllMaximum = -1.0;
+              double localAllValue = 0.0;
+              Cell localAllCell = Cell(-1);
+              int localAllEquation = -1;
+              for (const Cell cell : ownedCells_)
+              {
+                  for (int equation = 0; equation < Indices::numEquations; ++equation)
+                  {
+                      const PetscInt global = map.globalIndex(cell, equation);
+                      if (global < residualView.begin() || global >= residualView.end())
+                          throw std::runtime_error(
+                              "Owned Natural residual row is outside PETSc ownership range.");
+                      const double value = PetscRealPart(
+                          residualView.data()[global - residualView.begin()]);
+                      const double magnitude = std::abs(value);
+                      if (magnitude > localAllMaximum)
+                      {
+                          localAllMaximum = magnitude;
+                          localAllValue = value;
+                          localAllCell = cell;
+                          localAllEquation = equation;
+                      }
+                  }
+              }
+
+              double globalAllMaximum = -1.0;
+              PetscCallMPIAbort(
+                  comm,
+                  MPI_Allreduce(&localAllMaximum, &globalAllMaximum, 1,
+                                MPI_DOUBLE, MPI_MAX, comm));
+              int allCandidateRank = localAllMaximum == globalAllMaximum
+                  ? static_cast<int>(rank)
+                  : std::numeric_limits<int>::max();
+              int allWinningRank = 0;
+              PetscCallMPIAbort(
+                  comm,
+                  MPI_Allreduce(&allCandidateRank, &allWinningRank, 1,
+                                MPI_INT, MPI_MIN, comm));
+              PetscInt allWinningCell = -1;
+              PetscInt allWinningInputCell = -1;
+              int allWinningEquation = -1;
+              double allWinningValue = 0.0;
+              if (static_cast<int>(rank) == allWinningRank)
+              {
+                  allWinningCell = static_cast<PetscInt>(localAllCell);
+                  allWinningInputCell = backend_.inputCellIndex(localAllCell);
+                  allWinningEquation = localAllEquation;
+                  allWinningValue = localAllValue;
+              }
+              PetscCallMPIAbort(comm, MPI_Bcast(
+                  &allWinningCell, 1, MPIU_INT, allWinningRank, comm));
+              PetscCallMPIAbort(comm, MPI_Bcast(
+                  &allWinningInputCell, 1, MPIU_INT, allWinningRank, comm));
+              PetscCallMPIAbort(comm, MPI_Bcast(
+                  &allWinningEquation, 1, MPI_INT, allWinningRank, comm));
+              PetscCallMPIAbort(comm, MPI_Bcast(
+                  &allWinningValue, 1, MPI_DOUBLE, allWinningRank, comm));
+              diagnostic.maximumAbsoluteResidual = globalAllMaximum;
+              diagnostic.maximumResidualValue = allWinningValue;
+              diagnostic.maximumResidualCellId = allWinningCell;
+              diagnostic.maximumResidualInputCellId = allWinningInputCell;
+              diagnostic.maximumResidualEquation = allWinningEquation;
+
+              // 只在组分质量守恒行中寻找全局最大值；这是本诊断的唯一目标。'''
+          if old not in text:
+              raise SystemExit('failure diagnostic implementation anchor not found')
+          implementation.write_text(text.replace(old, new, 1))
+
+          output = Path('case/include/case/failure_diagnostics.hpp')
+          text = output.read_text()
+          old = '''        PetscPrintf(PETSC_COMM_SELF,
+                          "  SNES reason                  : %s\\n",
+                          result.reason.empty() ? "unknown" : result.reason.c_str());
+              PetscPrintf(PETSC_COMM_SELF,
+                          "  max component |R|           : %.12e  component=%s\\n",'''
+          new = '''        PetscPrintf(PETSC_COMM_SELF,
+                          "  SNES reason                  : %s\\n",
+                          result.reason.empty() ? "unknown" : result.reason.c_str());
+              PetscPrintf(PETSC_COMM_SELF,
+                          "  max all-equation |R|         : %.12e  raw=% .12e  cell=%lld/%lld  equation=%d\\n",
+                          d.maximumAbsoluteResidual,
+                          d.maximumResidualValue,
+                          static_cast<long long>(d.maximumResidualCellId),
+                          static_cast<long long>(d.maximumResidualInputCellId),
+                          d.maximumResidualEquation);
+              PetscPrintf(PETSC_COMM_SELF,
+                          "  max component |R|           : %.12e  component=%s\\n",'''
+          if old not in text:
+              raise SystemExit('failure diagnostic output anchor not found')
+          output.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+
       - name: Full unit regression
         run: make unit-gcc
 
