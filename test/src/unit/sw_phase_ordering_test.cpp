@@ -6,6 +6,7 @@
 #include <indices/model_config.hpp>
 #include <natural/compositional_mixture.hpp>
 #include <natural/fluid_system.hpp>
+#include <natural/state/state_codec.hpp>
 #include <natural/state/three_phase_equilibrium.hpp>
 #include <natural/thermo/cubic_eos.hpp>
 #include <natural/thermo/soreide_whitson.hpp>
@@ -125,6 +126,26 @@ void checkBenchmarkFrontState()
             "SW benchmark-front gas must be richer in CO2 than oil");
     require(result.composition[0][2] > result.composition[1][2],
             "SW benchmark-front oil must be richer in nC10 than gas");
+
+    // Removing the physical gas produces a metastable O+W restricted
+    // equilibrium.  The stability test must still recover the true missing
+    // gas; the reference-equilibrium certification must not suppress a real
+    // phase transition.
+    MPMC::PhasePresence oilWater(
+        MPMC::PhasePresence::oilBit | MPMC::PhasePresence::waterBit);
+    const auto reduced = flash.flashRestricted(
+        4.813700167512818e6, 333.15, overall, oilWater, result.composition);
+    require(reduced.converged && reduced.presence.bits() == oilWater.bits(),
+            "SW benchmark-front restricted O+W state must converge");
+    const auto stability = flash.stabilityTest(
+        4.813700167512818e6, 333.15, overall,
+        reduced.presence, reduced.composition);
+    require(stability.valid && stability.missingPhaseUnstable[1],
+            "SW benchmark-front TPD must recover the true missing gas");
+    require(stability.trialSum[1] > 1.1,
+            "SW benchmark-front missing gas must have a strong TPD signal");
+    require(stability.incipientComposition[1][1] > 0.9,
+            "SW benchmark-front incipient gas must be CO2-rich, not aqueous");
 }
 
 void checkNewtonStateCanonicalization()
@@ -169,6 +190,132 @@ void checkNewtonStateCanonicalization()
             "SW Newton phase relabeling must preserve overall composition");
     }
 }
+
+void checkTransientNewtonStabilityUsesRestrictedEquilibriumReference()
+{
+    const auto fluid = makeFluid();
+    const Equilibrium equilibrium(fluid);
+    std::array<double, Indices::numPrimaryVariables> primary{};
+    primary[Indices::Primary::pressure] = 5.2e6;
+    primary[Indices::Primary::liquidSaturation] = 0.8;
+    primary[Indices::Primary::vaporSaturation] = 0.0;
+    primary[Indices::Primary::waterSaturation] = 0.2;
+
+    // A reproducible OW Newton intermediate state.  Its phase records are
+    // deliberately not yet at interphase fugacity equilibrium, but their
+    // beta-weighted overall composition has a stable physical O+W flash.
+    // The old SW TPD path used the raw oil record as the reference chemical
+    // potential and reported a false missing Gas with trialSum=1.0012749;
+    // that "incipient gas" was 99.9962 mol% H2O (the aqueous basin).
+    constexpr Composition oilIterate{
+        0.001780516781684561,
+        0.034561874244895971,
+        0.96365760897341946};
+    constexpr Composition waterIterate{
+        0.99904170781500368,
+        0.00095829218399018942,
+        1.0061779184449603e-12};
+    constexpr double betaOil = 0.26023139184001487;
+    constexpr double betaWater = 0.73976860815998513;
+    Composition overall{};
+    for (std::size_t component = 0; component < overall.size(); ++component)
+        overall[component] =
+            betaOil * oilIterate[component] +
+            betaWater * waterIterate[component];
+
+    writeComposition(primary, Indices::Primary::liquidComposition, oilIterate);
+    writeComposition(primary, Indices::Primary::vaporComposition, overall);
+    writeComposition(primary, Indices::Primary::waterComposition, waterIterate);
+
+    MPMC::ThreePhaseFlashOptions options;
+    options.waterComponent = 0;
+    const Flash flash(fluid.eos, options);
+    const std::array<Composition, 3> transientCompositions{
+        oilIterate, overall, waterIterate};
+    const MPMC::PhasePresence oilWater(
+        MPMC::PhasePresence::oilBit | MPMC::PhasePresence::waterBit);
+    const auto stability = flash.stabilityTest(
+        5.2e6, 333.15, overall, oilWater, transientCompositions);
+    require(stability.valid,
+            "SW transient OW stability certification must be valid");
+    require(!stability.missingPhaseUnstable[1],
+            "SW transient OW TPD must reject the aqueous false-gas basin");
+
+    MPMC::PhaseStateData<Indices> phaseState;
+    phaseState.phasePresence = oilWater;
+    phaseState.phaseMoleFraction = {betaOil, 0.0, betaWater};
+    phaseState.overallComposition = overall;
+
+    const auto result = equilibrium.updatePhaseState(primary, phaseState);
+    require(!result.missingPhaseUnstable,
+            "SW transient OW iterate must not create a false missing gas");
+    require(phaseState.phasePresence.bits() ==
+                (MPMC::PhasePresence::oilBit | MPMC::PhasePresence::waterBit),
+            "SW transient OW iterate must remain O+W");
+
+    // No phase transition was certified, so the Newton unknowns for the active
+    // phases must remain untouched; only secondary state may be refreshed.
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        const std::size_t c = static_cast<std::size_t>(component);
+        require(std::abs(
+                    primary[static_cast<std::size_t>(
+                        Indices::Primary::liquidComposition[c])] -
+                    oilIterate[c]) < 1.0e-14,
+                "SW stability check must not overwrite oil Newton iterate");
+        require(std::abs(
+                    primary[static_cast<std::size_t>(
+                        Indices::Primary::waterComposition[c])] -
+                    waterIterate[c]) < 1.0e-14,
+                "SW stability check must not overwrite water Newton iterate");
+    }
+}
+
+void checkDependentCompositionCancellationBoundary()
+{
+    using AdIndices = MPMC::ADIndices<Config>;
+    using Codec = MPMC::CellStateCodec<AdIndices>;
+
+    typename Codec::PrimaryArray primary{};
+    primary[AdIndices::Primary::pressure] = 5.16e6;
+    primary[AdIndices::Primary::liquidSaturation] = 0.8;
+    primary[AdIndices::Primary::vaporSaturation] = 0.0;
+    primary[AdIndices::Primary::waterSaturation] = 0.2;
+
+    constexpr double stalledWaterNc10 = 9.7810648469476291e-14;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[0])] =
+        0.999;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[1])] =
+        0.001 - stalledWaterNc10;
+
+    MPMC::PhaseStateData<AdIndices> phaseState;
+    phaseState.phasePresence = MPMC::PhasePresence(
+        MPMC::PhasePresence::oilBit | MPMC::PhasePresence::waterBit);
+
+    const auto boundaryState = Codec::decode(primary, phaseState);
+    const auto &dependent = boundaryState.aqueousMoleFraction[2];
+    require(std::abs(dependent.value()) < 1.0e-30,
+            "dependent SW trace composition must snap to zero boundary");
+    require(dependent.derivative(AdIndices::Primary::waterComposition[0]) == -1.0,
+            "dependent boundary must retain first composition derivative");
+    require(dependent.derivative(AdIndices::Primary::waterComposition[1]) == -1.0,
+            "dependent boundary must retain second composition derivative");
+
+    // The cancellation treatment is not a global 1e-13 trace threshold: a
+    // clearly resolvable dependent value above the measured boundary remains a
+    // normal positive composition and therefore continues to use thermodynamic
+    // equilibrium equations.
+    constexpr double resolvableWaterNc10 = 2.0e-13;
+    primary[static_cast<std::size_t>(AdIndices::Primary::waterComposition[1])] =
+        0.001 - resolvableWaterNc10;
+    const auto resolvedState = Codec::decode(primary, phaseState);
+    require(resolvedState.aqueousMoleFraction[2].value() >
+                MPMC::NaturalNumerics::dependentCompositionCancellationBoundary,
+            "resolvable dependent composition must not be snapped to zero");
+}
+
 } // namespace
 
 int main()
@@ -176,6 +323,8 @@ int main()
     try {
         checkBenchmarkFrontState();
         checkNewtonStateCanonicalization();
+        checkTransientNewtonStabilityUsesRestrictedEquilibriumReference();
+        checkDependentCompositionCancellationBoundary();
         std::cout << "SW benchmark-front phase ordering: ALL PASS\n";
         return 0;
     } catch (const std::exception& error) {

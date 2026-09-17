@@ -12,6 +12,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cmath>
 
 namespace MPMC
 {
@@ -155,15 +156,17 @@ private:
                 composition[component];
         }
 
-        // 数值：当真实 dependent component 位于 trace 边界（例如 PTz flash
-        // 给出的 1e-30）时，浮点消去可能产生极小负值。这里保留 AD 导数，仅把
-        // 标量值平移回物理边界 x=0，避免把舍入伪影送入 cubic EOS；明显的负值
-        // 则保留给上层 nonlinear sanitizer 识别和修正。
+        // 数值：最后一个组分由 x_N=1-sum(x_i) 构造，在接近零时其标量值受
+        // 1 与独立组分和之间的浮点消去限制。若该 dependent 值落在专用的
+        // cancellation boundary 内，将标量值平移到物理边界 x_N=0，同时保留
+        // AD 导数（仍为各独立组分的 -1）。这样相平衡装配会使用边界方程，
+        // 不再追逐双精度无法表示的 fugacity-equality 根。明显越界的负值以及
+        // 可分辨的正值继续原样交给 nonlinear sanitizer / 物理方程处理。
         if constexpr (Indices::fullyCompositionalThreePhase)
         {
             const double dependentValue = scalarValue(dependent);
-            if (dependentValue < 0.0 &&
-                dependentValue >= -NaturalNumerics::phaseEquilibriumTraceComposition)
+            if (std::abs(dependentValue) <=
+                NaturalNumerics::dependentCompositionCancellationBoundary)
             {
                 dependent += -dependentValue;
             }

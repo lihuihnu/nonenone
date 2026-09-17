@@ -66,6 +66,18 @@ struct NaturalNumerics final
      */
     static constexpr double phaseEquilibriumTraceComposition = 1.0e-14;
 
+    /**
+     * @brief N-1 参数化最后一个 dependent composition 的浮点消去边界。
+     *
+     * 独立组分由主变量直接存储，继续使用严格的 1e-14 相平衡 trace 判据；只有
+     * `x_N = 1 - sum(x_1..x_{N-1})` 会因接近 1 的减法消去而失去绝对精度。
+     * GitHub-runner 上真实 H2O-CO2-nC10 SW 首步在水相 nC10≈9.78e-14 时已进入
+     * 不可分辨区：继续强制 O-W fugacity equality 会产生无可表示 Newton 根。
+     * 1e-13 是实测恢复收敛的最小扫描值，因此仅用于 dependent 组分值的零边界
+     * 规范化，不改变独立组分、相出现 TPD 判据或 EOS 参数。
+     */
+    static constexpr double dependentCompositionCancellationBoundary = 1.0e-13;
+
     static constexpr double maximumSaturationNewtonChange = 0.1;
     static constexpr double maximumCompositionNewtonChange = 0.1;
     static constexpr double maximumAqueousCO2NewtonChange = 0.02;
