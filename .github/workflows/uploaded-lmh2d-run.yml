@@ -97,7 +97,7 @@ jobs:
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
           make case CASE=scw_kerogen_lmh_2d -j2
 
-      - name: Run SW with 10-minute numerical cap
+      - name: Run SW with direct LU and 10-minute numerical cap
         id: run-sw
         shell: bash
         run: |
@@ -107,6 +107,7 @@ jobs:
           timeout --signal=TERM --kill-after=30s 600s \
             make run CASE=scw_kerogen_lmh_2d NP=1 EOS=sw \
               RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/new-sw" \
+              RUN_ARGS='-ksp_type preonly -pc_type lu' \
             2>&1 | tee runner-results/new-sw/console.log
           rc=${PIPESTATUS[0]}
           set -e
@@ -132,16 +133,16 @@ jobs:
             runner-results/new-sw/simulation_summary.csv; do
             if [[ -f "$f" ]]; then
               echo "===== $f ====="
-              tail -n 80 "$f"
+              tail -n 120 "$f"
             fi
           done
           echo '===== CONSOLE TAIL ====='
-          tail -n 160 runner-results/new-sw/console.log 2>/dev/null || true
+          tail -n 220 runner-results/new-sw/console.log 2>/dev/null || true
 
       - name: Upload run results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: uploaded-lmh2d-sw-run
+          name: uploaded-lmh2d-sw-run-lu
           path: runner-results/new-sw
           if-no-files-found: warn
