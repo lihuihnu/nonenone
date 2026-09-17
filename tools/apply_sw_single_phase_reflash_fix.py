@@ -145,13 +145,13 @@ Eos makeLmhBoundarySw()
     sw.aqueousWaterBip[0] = [](double, double) { return 0.0; };
     for (int component = 1; component < 4; ++component)
     {
-        sw.aqueousWaterBip[static_cast<std::size_t>(component)] =
-            [component](double temperature, double salinity) {
+        const std::size_t c = static_cast<std::size_t>(component);
+        const double componentTc = lmhTc[c];
+        const double componentOmega = lmhOmega[c];
+        sw.aqueousWaterBip[c] =
+            [componentTc, componentOmega](double temperature, double salinity) {
                 return MPMC::SoreideWhitsonCorrelations::hydrocarbonAqueousBip(
-                    temperature,
-                    lmhTc[static_cast<std::size_t>(component)],
-                    lmhOmega[static_cast<std::size_t>(component)],
-                    salinity);
+                    temperature, componentTc, componentOmega, salinity);
             };
     }
     eos.configureSoreideWhitson(std::move(sw));
