@@ -1,4 +1,4 @@
-name: Audit cell 540 SW O+G barrier
+name: Validate SW suppressed-phase trial rejection
 
 on:
   push:
@@ -6,30 +6,27 @@ on:
       - fix/sw-single-phase-reflash-canonicalization
     paths:
       - .github/workflows/cell540-sw-tpd-role-audit.yml
-      - tools/inject_cell540_tpd_role_audit.py
+      - tools/apply_sw_suppressed_phase_trial_fix.py
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
-
     steps:
       - name: Checkout fix branch
         uses: actions/checkout@v4
         with:
           ref: fix/sw-single-phase-reflash-canonicalization
+          fetch-depth: 0
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential gfortran python3 curl ca-certificates \
-            openmpi-bin libopenmpi-dev \
-            libblas-dev liblapack-dev libmetis-dev libfmt-dev
+          sudo apt-get install -y build-essential gfortran python3 curl ca-certificates openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev
 
       - name: Set PETSc environment
         run: |
@@ -37,7 +34,6 @@ jobs:
           echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
 
       - name: Restore PETSc cache
-        id: petsc-cache
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/petsc-3.22.2
@@ -77,39 +73,68 @@ jobs:
           EOF
           make doctor-local
 
-      - name: Inject read-only O+G barrier audit
-        run: python3 tools/inject_cell540_tpd_role_audit.py
+      - name: Apply candidate production fix
+        run: |
+          set -euo pipefail
+          python3 tools/apply_sw_suppressed_phase_trial_fix.py
+          git diff --check
+          git diff --name-only
 
-      - name: Build case
-        shell: bash
+      - name: Run targeted regression
+        run: |
+          set -euo pipefail
+          make -C test bin/sw_flash_recovery_test -j2
+          test/bin/sw_flash_recovery_test
+
+      - name: Build LMH 2D case
         run: |
           set -euo pipefail
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
           make case CASE=scw_kerogen_lmh_2d -j2
 
-      - name: Run through second cell 540 barrier
+      - name: Run unchanged SW case beyond second barrier
         shell: bash
         run: |
           set -o pipefail
-          mkdir -p runner-results/cell540-og-role
+          mkdir -p runner-results/sw-suppressed-phase-fix
           set +e
-          timeout --signal=TERM --kill-after=20s 280s \
+          timeout --signal=TERM --kill-after=20s 300s \
             make run CASE=scw_kerogen_lmh_2d NP=1 EOS=sw \
-              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cell540-og-role" \
+              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/sw-suppressed-phase-fix" \
               RUN_ARGS='-ksp_type preonly -pc_type lu' \
-            2>&1 | tee runner-results/cell540-og-role/console.log
+            2>&1 | tee runner-results/sw-suppressed-phase-fix/console.log
           rc=${PIPESTATUS[0]}
           set -e
-          echo "exit_code=${rc}" > runner-results/cell540-og-role/run_status.txt
-          grep -E '^\[CELL540-OG-' runner-results/cell540-og-role/console.log \
-            > runner-results/cell540-og-role/role_audit.log || true
-          tail -n 160 runner-results/cell540-og-role/role_audit.log || true
-          exit 0
+          echo "exit_code=${rc}" > runner-results/sw-suppressed-phase-fix/run_status.txt
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          p=Path('runner-results/sw-suppressed-phase-fix/time_step_history.csv')
+          if not p.exists(): raise SystemExit('missing time_step_history.csv')
+          accepted=[]
+          with p.open(newline='') as f:
+              for r in csv.DictReader(f):
+                  if r.get('status')=='ACCEPT': accepted.append(float(r['time']))
+          m=max(accepted, default=0.0)
+          print(f'maximum accepted time = {m:.15g} day')
+          if m < 0.006:
+              raise SystemExit('candidate did not clear the second cell-540 barrier')
+          PY
 
-      - name: Upload role audit
+      - name: Commit validated production changes
+        run: |
+          set -euo pipefail
+          git add models/include/natural/state/three_phase_equilibrium.hpp test/src/unit/sw_flash_recovery_test.cpp
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: reject unstable suppressed-phase deletion trials'
+          git push origin HEAD:fix/sw-single-phase-reflash-canonicalization
+
+      - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cell540-sw-og-barrier-audit
-          path: runner-results/cell540-og-role
+          name: sw-suppressed-phase-trial-validation
+          path: runner-results/sw-suppressed-phase-fix
           if-no-files-found: warn
