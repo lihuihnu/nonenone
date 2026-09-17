@@ -11,449 +11,197 @@ def replace_once(path: Path, old: str, new: str) -> None:
 
 
 root = Path(__file__).resolve().parents[1]
-equilibrium = root / "models/include/natural/state/three_phase_equilibrium.hpp"
-test = root / "test/src/unit/sw_phase_ordering_test.cpp"
+flash = root / "models/include/natural/thermo/three_phase_flash.hpp"
+test = root / "test/src/unit/sw_flash_recovery_test.cpp"
 
-old_transition = r'''        else if (active.count() < 3)
-        {
-            const auto stability = flash_.stabilityTest(
-                primary[Indices::Primary::pressure],
-                fluid_.temperature,
-                transitionOverall,
-                active,
-                compositions);
-            const bool stabilityInvalid = !stability.valid;
-            const bool missingPhaseUnstable =
-                !stabilityInvalid &&
-                hasStrongMissingPhaseInstability_(
-                    stability, active, phaseState.phaseSuppression);
-            if (stabilityInvalid || missingPhaseUnstable)
+old_selection = r'''            const int p = phaseIndex(candidate);
+            Trial best;
+            best.sum = -std::numeric_limits<double>::infinity();
+
+            const auto seeds = stabilitySeeds_(
+                candidate, pressure, temperature, z, referenceComposition);
+            for (std::size_t seedIndex = 0; seedIndex < seeds.size; ++seedIndex)
             {
-                updateResult.stabilityInvalid = stabilityInvalid;
-                updateResult.missingPhaseUnstable = missingPhaseUnstable;
-                const auto reflashed = flash_.flash(
-                    primary[Indices::Primary::pressure],
-                    fluid_.temperature,
-                    transitionOverall);
-                if (reflashed.converged)
+                const auto &seed = seeds.values[seedIndex];
+                const Trial trial = stabilityTrial_(
+                    candidate, pressure, temperature, logReference,
+                    referenceComposition, seed);
+                if (trial.valid && (!best.valid || trial.sum > best.sum))
+                    best = trial;
+            }
+
+            if (!best.valid)
+            {
+                result.valid = false;
+                result.stable = false; // 数值：试探失败时按“不稳定”保守处理，避免错误抑制新相出现。
+                continue;
+            }
+'''
+
+new_selection = r'''            const int p = phaseIndex(candidate);
+            Trial best;
+            best.sum = -std::numeric_limits<double>::infinity();
+            Trial bestWrongSwRole;
+            bestWrongSwRole.sum = -std::numeric_limits<double>::infinity();
+
+            const auto seeds = stabilitySeeds_(
+                candidate, pressure, temperature, z, referenceComposition);
+            for (std::size_t seedIndex = 0; seedIndex < seeds.size; ++seedIndex)
+            {
+                const auto &seed = seeds.values[seedIndex];
+                const Trial trial = stabilityTrial_(
+                    candidate, pressure, temperature, logReference,
+                    referenceComposition, seed);
+                if (!trial.valid)
+                    continue;
+
+                // SW fixes the thermodynamic role (including the aqueous BIP
+                // matrix) for the duration of each TPD solve. A non-aqueous
+                // Oil/Gas trial can nevertheless converge to a strongly
+                // H2O-rich stationary composition that the public phase model
+                // assigns to Water. That stationary point was evaluated with
+                // the wrong SW role and therefore cannot certify appearance of
+                // a non-aqueous phase. Ignore it for this candidate and let the
+                // independently solved Water candidate decide aqueous
+                // stability with the proper aqueous BIP model. Filter before
+                // selecting the strongest multi-start stationary point so a
+                // wrong-role basin cannot mask a weaker, genuine Gas/Oil one.
+                const bool wrongSwRole =
+                    eos_.usesSoreideWhitson() &&
+                    candidate != CompositionalPhase::Water &&
+                    waterIsDominant_(trial.composition);
+                if (wrongSwRole)
                 {
-                    assignFlashResult(primary, phaseState, reflashed);
-                    return updateResult;
+                    if (!bestWrongSwRole.valid ||
+                        trial.sum > bestWrongSwRole.sum)
+                    {
+                        bestWrongSwRole = trial;
+                    }
+                    continue;
                 }
 
-                updateResult.unrestrictedFlashFailed = true;
-                primary = originalPrimary;
-                phaseState = originalPhaseState;
-                updateResult.status = PhaseUpdateStatus::RecoverableThermodynamicFailure;
-                return updateResult;
+                if (!best.valid || trial.sum > best.sum)
+                    best = trial;
             }
-        }
-'''
 
-new_transition = r'''        else if (active.count() < 3)
-        {
-            const auto stability = flash_.stabilityTest(
-                primary[Indices::Primary::pressure],
-                fluid_.temperature,
-                transitionOverall,
-                active,
-                compositions);
-            const bool stabilityInvalid = !stability.valid;
-            const PhasePresence stronglyUnstableMissing =
-                stabilityInvalid
-                    ? emptyPhasePresence_()
-                    : stronglyUnstableMissingPhases_(
-                          stability, active, phaseState.phaseSuppression);
-            const bool missingPhaseUnstable = !stronglyUnstableMissing.empty();
-            if (stabilityInvalid || missingPhaseUnstable)
+            if (!best.valid)
             {
-                updateResult.stabilityInvalid = stabilityInvalid;
-                updateResult.missingPhaseUnstable = missingPhaseUnstable;
-
-                // SW uses different thermodynamic roles for the aqueous and
-                // non-aqueous phase models.  Near a single-phase boundary an
-                // unrestricted flash can therefore converge to a different
-                // single-role basin than the missing phase that TPD actually
-                // certified.  First expand only the certified active set and
-                // seed the new phase with the TPD stationary composition.  The
-                // expanded state must itself pass a fresh stability certificate.
-                if (!stabilityInvalid &&
-                    tryAssignSwTriggeredExpandedSet_(
-                        primary,
-                        phaseState,
-                        transitionOverall,
-                        active,
-                        stability,
-                        phaseState.phaseSuppression,
-                        compositions))
+                if (bestWrongSwRole.valid)
                 {
-                    return updateResult;
+                    // A stationary solve did converge, but only in a physical
+                    // role excluded from this candidate. Preserve it for
+                    // diagnostics without turning a role-classification issue
+                    // into an invalid stability calculation.
+                    result.trialSum[static_cast<std::size_t>(p)] =
+                        bestWrongSwRole.sum;
+                    result.incipientComposition[static_cast<std::size_t>(p)] =
+                        bestWrongSwRole.composition;
+                    result.missingPhaseUnstable[static_cast<std::size_t>(p)] = false;
+                    continue;
                 }
 
-                const auto reflashed = flash_.flash(
-                    primary[Indices::Primary::pressure],
-                    fluid_.temperature,
-                    transitionOverall);
-                if (reflashed.converged &&
-                    swUnrestrictedSinglePhaseConsistentWithTrigger_(
-                        reflashed, active, stronglyUnstableMissing))
-                {
-                    assignFlashResult(primary, phaseState, reflashed);
-                    return updateResult;
-                }
-
-                updateResult.unrestrictedFlashFailed = true;
-                primary = originalPrimary;
-                phaseState = originalPhaseState;
-                updateResult.status = PhaseUpdateStatus::RecoverableThermodynamicFailure;
-                return updateResult;
-            }
-        }
-'''
-replace_once(equilibrium, old_transition, new_transition)
-
-old_helper = r'''    /** @brief 缺失相只有明显越过稳定性边界时才重新生成，避免边界 active-set 抖动。 */
-    [[nodiscard]] static bool hasStrongMissingPhaseInstability_(
-        const StabilityResult &stability,
-        PhasePresence present,
-        PhasePresence suppression)
-    {
-        // invalid stability is handled explicitly by the caller so diagnostics can
-        // distinguish "unknown" from a certified unstable missing phase.
-        if (!stability.valid)
-            return false;
-
-        for (CompositionalPhase phase : phases_)
-        {
-            if (present.contains(phase))
+                result.valid = false;
+                result.stable = false; // 数值：试探失败时按“不稳定”保守处理，避免错误抑制新相出现。
                 continue;
-            const std::size_t p = static_cast<std::size_t>(phaseIndex(phase));
-            const double stabilityMargin = suppression.contains(phase)
-                ? NaturalNumerics::phaseHysteresisReappearanceMargin
-                : NaturalNumerics::phaseAppearanceStabilityMargin;
-            if (stability.missingPhaseUnstable[p] &&
-                stability.trialSum[p] >
-                    1.0 + stabilityMargin)
-                return true;
-        }
-        return false;
-    }
-'''
-
-new_helper = r'''    [[nodiscard]] static PhasePresence emptyPhasePresence_()
-    {
-        PhasePresence empty = PhasePresence::all();
-        for (CompositionalPhase phase : phases_)
-            empty.remove(phase);
-        return empty;
-    }
-
-    /** @brief 返回真正越过 appearance/hysteresis margin 的缺失相集合。 */
-    [[nodiscard]] static PhasePresence stronglyUnstableMissingPhases_(
-        const StabilityResult &stability,
-        PhasePresence present,
-        PhasePresence suppression)
-    {
-        PhasePresence unstable = emptyPhasePresence_();
-        if (!stability.valid)
-            return unstable;
-
-        for (CompositionalPhase phase : phases_)
-        {
-            if (present.contains(phase))
-                continue;
-            const std::size_t p = static_cast<std::size_t>(phaseIndex(phase));
-            const double stabilityMargin = suppression.contains(phase)
-                ? NaturalNumerics::phaseHysteresisReappearanceMargin
-                : NaturalNumerics::phaseAppearanceStabilityMargin;
-            if (stability.missingPhaseUnstable[p] &&
-                stability.trialSum[p] > 1.0 + stabilityMargin)
-            {
-                unstable.add(phase);
             }
-        }
-        return unstable;
-    }
-
-    /** @brief 缺失相只有明显越过稳定性边界时才重新生成，避免边界 active-set 抖动。 */
-    [[nodiscard]] static bool hasStrongMissingPhaseInstability_(
-        const StabilityResult &stability,
-        PhasePresence present,
-        PhasePresence suppression)
-    {
-        return !stronglyUnstableMissingPhases_(
-                    stability, present, suppression)
-                    .empty();
-    }
-
-    /**
-     * @brief SW phase appearance 先沿 TPD 证书扩展 active set，再决定是否需要全局 reflash。
-     *
-     * A single-phase SW state can have several algebraic single-role basins
-     * because the Aqueous role changes the H2O BIP model.  Once TPD has certified
-     * a particular missing phase, replacing the cell by an unrelated one-phase
-     * role is not a continuous phase-appearance operation.  Seed only the
-     * certified missing phase(s), solve that restricted set, and require the
-     * resulting equilibrium to be stable before committing it.
-     */
-    [[nodiscard]] bool tryAssignSwTriggeredExpandedSet_(
-        PrimaryArray &primary,
-        PhaseStateData<Indices> &phaseState,
-        const Composition &overallComposition,
-        PhasePresence active,
-        const StabilityResult &stability,
-        PhasePresence suppression,
-        std::array<Composition, 3> phaseCompositionSeed) const
-    {
-        if (!fluid_.eos.usesSoreideWhitson() || !stability.valid)
-            return false;
-
-        const PhasePresence triggered = stronglyUnstableMissingPhases_(
-            stability, active, suppression);
-        if (triggered.empty())
-            return false;
-
-        PhasePresence expanded = active;
-        for (CompositionalPhase phase : phases_)
-        {
-            if (!triggered.contains(phase))
-                continue;
-            expanded.add(phase);
-            const std::size_t p = static_cast<std::size_t>(phaseIndex(phase));
-            phaseCompositionSeed[p] = stability.incipientComposition[p];
-        }
-
-        // Three certified phases already mean a genuine unrestricted problem.
-        if (expanded.count() >= 3)
-            return false;
-
-        const auto candidate = flash_.flashRestricted(
-            primary[Indices::Primary::pressure],
-            fluid_.temperature,
-            overallComposition,
-            expanded,
-            phaseCompositionSeed);
-        if (!candidate.converged)
-            return false;
-
-        bool carriesTriggeredPhase = false;
-        for (CompositionalPhase phase : phases_)
-        {
-            carriesTriggeredPhase = carriesTriggeredPhase ||
-                (triggered.contains(phase) && candidate.presence.contains(phase));
-        }
-        if (!carriesTriggeredPhase)
-            return false;
-
-        if (candidate.presence.count() < 3)
-        {
-            const auto certificate = flash_.stabilityTest(
-                primary[Indices::Primary::pressure],
-                fluid_.temperature,
-                overallComposition,
-                candidate.presence,
-                candidate.composition);
-            if (!certificate.valid ||
-                hasStrongMissingPhaseInstability_(
-                    certificate, candidate.presence, suppression))
-            {
-                return false;
-            }
-        }
-
-        assignFlashResult(primary, phaseState, candidate);
-        return true;
-    }
-
-    /**
-     * @brief 拒绝与当前 TPD 证书无关的 SW 单相 reflash 角色跳变。
-     *
-     * A valid one-phase replacement must either retain the current active role
-     * or be one of the missing roles that actually crossed the appearance
-     * margin.  Multiphase results remain unrestricted and invalid-stability
-     * recovery keeps the historical behavior.
-     */
-    [[nodiscard]] bool swUnrestrictedSinglePhaseConsistentWithTrigger_(
-        const FlashResult &reflashed,
-        PhasePresence active,
-        PhasePresence stronglyUnstableMissing) const
-    {
-        if (!fluid_.eos.usesSoreideWhitson() ||
-            reflashed.presence.count() != 1 ||
-            stronglyUnstableMissing.empty())
-        {
-            return true;
-        }
-
-        const CompositionalPhase returned = firstActive_(reflashed.presence);
-        return active.contains(returned) ||
-            stronglyUnstableMissing.contains(returned);
-    }
 '''
-replace_once(equilibrium, old_helper, new_helper)
+replace_once(flash, old_selection, new_selection)
 
-fake_flash = r'''
-class TriggeredSwFlashStub
+insert_anchor = r'''
+} // namespace
+
+int main()
+'''
+new_regression = r'''
+Eos makeLmhBoundarySw()
 {
-public:
-    using Result = MPMC::ThreePhaseFlashResult<Indices>;
-    using StabilityResult = MPMC::ThreePhaseStabilityResult<Indices>;
+    constexpr std::array<double, 4> lmhTc{
+        647.30, 354.1916431226766, 605.78, 751.00};
+    constexpr std::array<double, 4> lmhPc{
+        22.048e6, 4.065799256505576e6, 2.175e6, 1.654e6};
+    constexpr std::array<double, 4> lmhVc{
+        5.594803743e-5, 1.95564637471291e-4,
+        6.252498825299838e-4, 1.0193008374141067e-3};
+    constexpr std::array<double, 4> lmhOmega{
+        0.344, 0.1498936802973978, 0.618, 0.957};
+    constexpr std::array<double, 4> lmhMw{
+        0.018015, 0.04606110037174722, 0.140960, 0.280990};
+    constexpr std::array<std::array<double, 4>, 4> lmhKij{{
+        {{0.0, 0.5, 0.5, 0.5}},
+        {{0.5, 0.0, 0.0, 0.0}},
+        {{0.5, 0.0, 0.0, 0.0}},
+        {{0.5, 0.0, 0.0, 0.0}}
+    }};
 
-    TriggeredSwFlashStub(const Eos &, MPMC::ThreePhaseFlashOptions options)
-        : options_(std::move(options))
-    {}
+    MPMC::CompositionalMixture<Indices> mixture(
+        lmhTc, lmhPc, lmhVc, lmhOmega, lmhMw, lmhKij);
+    Eos eos(
+        0.45724, 0.07780, std::move(mixture), 1,
+        2.4142135623730951, -0.4142135623730951, 1.0e-30);
 
-    [[nodiscard]] const MPMC::ThreePhaseFlashOptions &options() const noexcept
+    Eos::SoreideWhitsonOptions sw;
+    sw.waterComponent = 0;
+    sw.salinityMolality = 0.0;
+    sw.aqueousWaterBip[0] = [](double, double) { return 0.0; };
+    for (int component = 1; component < 4; ++component)
     {
-        return options_;
+        sw.aqueousWaterBip[static_cast<std::size_t>(component)] =
+            [component](double temperature, double salinity) {
+                return MPMC::SoreideWhitsonCorrelations::hydrocarbonAqueousBip(
+                    temperature,
+                    lmhTc[static_cast<std::size_t>(component)],
+                    lmhOmega[static_cast<std::size_t>(component)],
+                    salinity);
+            };
     }
+    eos.configureSoreideWhitson(std::move(sw));
+    eos.configureAqueousCompositionDomain(0, 0.02);
+    return eos;
+}
 
-    static void resetCounters()
-    {
-        restrictedCalls = 0;
-        unrestrictedCalls = 0;
-    }
-
-    [[nodiscard]] Result flash(
-        double,
-        double,
-        Composition z) const
-    {
-        ++unrestrictedCalls;
-        return makeResult_(MPMC::PhasePresence::waterOnly(), z);
-    }
-
-    [[nodiscard]] Result flashRestricted(
-        double,
-        double,
-        Composition z,
-        MPMC::PhasePresence allowed) const
-    {
-        ++restrictedCalls;
-        return makeResult_(allowed, z);
-    }
-
-    [[nodiscard]] Result flashRestricted(
-        double,
-        double,
-        Composition z,
-        MPMC::PhasePresence allowed,
-        const std::array<Composition, 3> &) const
-    {
-        ++restrictedCalls;
-        return makeResult_(allowed, z);
-    }
-
-    [[nodiscard]] StabilityResult stabilityTest(
-        double,
-        double,
-        const Composition &,
-        MPMC::PhasePresence active,
-        const std::array<Composition, 3> &) const
-    {
-        StabilityResult result;
-        result.testedPresence = active;
-        if (active.bits() == MPMC::PhasePresence::oilBit)
-        {
-            result.stable = false;
-            result.missingPhaseUnstable[1] = true;
-            result.trialSum[1] = 1.0 + 1.0e-4;
-            result.incipientComposition[1] = {0.10, 0.80, 0.10};
-        }
-        return result;
-    }
-
-    inline static int restrictedCalls{0};
-    inline static int unrestrictedCalls{0};
-
-private:
-    [[nodiscard]] static Result makeResult_(
-        MPMC::PhasePresence presence,
-        const Composition &z)
-    {
-        Result result;
-        result.converged = true;
-        result.presence = presence;
-        result.phaseMoleFraction = {0.0, 0.0, 0.0};
-        result.saturation = {0.0, 0.0, 0.0};
-        result.composition = {z, z, z};
-        const double share = 1.0 / static_cast<double>(presence.count());
-        for (MPMC::CompositionalPhase phase : {
-                 MPMC::CompositionalPhase::Oil,
-                 MPMC::CompositionalPhase::Gas,
-                 MPMC::CompositionalPhase::Water})
-        {
-            if (!presence.contains(phase))
-                continue;
-            const std::size_t p = static_cast<std::size_t>(MPMC::phaseIndex(phase));
-            result.phaseMoleFraction[p] = share;
-            result.saturation[p] = share;
-        }
-        result.compressibility = {1.0, 1.0, 1.0};
-        result.vaporOilK.fill(1.0);
-        result.waterOilK.fill(1.0);
-        return result;
-    }
-
-    MPMC::ThreePhaseFlashOptions options_;
-};
-'''
-replace_once(
-    test,
-    "\nvoid writeComposition(\n",
-    fake_flash + "\nvoid writeComposition(\n")
-
-new_test = r'''
-void checkSwTriggeredReflashPreservesTpdPhaseIdentity()
+void checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin()
 {
-    using StubEquilibrium =
-        MPMC::FullyCompositionalThreePhaseEquilibrium<Indices, TriggeredSwFlashStub>;
+    // Real cell-540 boundary state from the 60x20 LMH SW displacement. The
+    // pre-fix Gas multi-start search selected a 99.48 mol% H2O stationary point
+    // (trialSum > 1) even though that composition belongs to the explicit
+    // aqueous physical-property domain. The independently solved Water trial
+    // lies outside that domain, so the physical state is still Oil-only.
+    constexpr double pressure = 278.772e5;
+    constexpr double temperature = 653.2;
+    constexpr Composition z{
+        0.91456, 0.0385195, 0.0315411, 0.0153792};
 
-    auto fluid = makeFluid();
-    StubEquilibrium equilibrium(fluid);
-    TriggeredSwFlashStub::resetCounters();
+    const auto eos = makeLmhBoundarySw();
+    MPMC::ThreePhaseFlashOptions options;
+    options.waterComponent = 0;
+    const Flash flash(eos, options);
+    const std::array<Composition, 3> compositions{z, z, z};
+    const auto stability = flash.stabilityTest(
+        pressure,
+        temperature,
+        z,
+        MPMC::PhasePresence::oilOnly(),
+        compositions);
 
-    constexpr Composition overall{0.20, 0.35, 0.45};
-    std::array<double, Indices::numPrimaryVariables> primary{};
-    primary[Indices::Primary::pressure] = 5.2e6;
-    primary[Indices::Primary::liquidSaturation] = 1.0;
-    primary[Indices::Primary::vaporSaturation] = 0.0;
-    primary[Indices::Primary::waterSaturation] = 0.0;
-    writeComposition(primary, Indices::Primary::liquidComposition, overall);
-    writeComposition(primary, Indices::Primary::vaporComposition, overall);
-    writeComposition(primary, Indices::Primary::waterComposition, overall);
-
-    MPMC::PhaseStateData<Indices> phaseState;
-    phaseState.phasePresence = MPMC::PhasePresence::oilOnly();
-    phaseState.phaseMoleFraction = {1.0, 0.0, 0.0};
-    phaseState.overallComposition = overall;
-
-    const auto update = equilibrium.updatePhaseState(primary, phaseState);
-    const auto expected = MPMC::PhasePresence(
-        MPMC::PhasePresence::oilBit | MPMC::PhasePresence::gasBit);
-
-    require(update.missingPhaseUnstable,
-            "SW test stub must certify the missing gas instability");
-    require(phaseState.phasePresence.bits() == expected.bits(),
-            "SW TPD-triggered reflash must expand O-only to O+G, not unrelated W-only");
-    require(primary[Indices::Primary::vaporSaturation] > 0.0,
-            "SW TPD-triggered reflash must activate the certified gas phase");
-    require(primary[Indices::Primary::waterSaturation] == 0.0,
-            "SW TPD-triggered reflash must not manufacture an untriggered water phase");
-    require(TriggeredSwFlashStub::restrictedCalls == 1,
-            "SW TPD-triggered reflash must first solve exactly one restricted expanded set");
-    require(TriggeredSwFlashStub::unrestrictedCalls == 0,
-            "stable SW TPD-expanded set must avoid unrelated unrestricted single-role reflash");
+    require(stability.valid,
+            "LMH SW Oil-only boundary stability must remain numerically valid");
+    require(stability.stable,
+            "LMH SW Oil-only boundary must not create a wrong-role phase");
+    require(!stability.missingPhaseUnstable[1],
+            "water-like nonaqueous TPD basin must not appear as Gas");
+    require(!stability.missingPhaseUnstable[2],
+            "unsupported aqueous TPD basin must not appear as Water");
+    require(!eos.aqueousVolumeCompositionSupported(
+                stability.incipientComposition[1]),
+            "selected Gas TPD stationary point must remain outside Water role domain");
 }
 
 '''
+replace_once(test, insert_anchor, new_regression + insert_anchor)
 replace_once(
     test,
-    "void checkDependentCompositionCancellationBoundary()\n",
-    new_test + "void checkDependentCompositionCancellationBoundary()\n")
-replace_once(
-    test,
-    "        checkTransientNewtonStabilityUsesRestrictedEquilibriumReference();\n        checkDependentCompositionCancellationBoundary();",
-    "        checkTransientNewtonStabilityUsesRestrictedEquilibriumReference();\n        checkSwTriggeredReflashPreservesTpdPhaseIdentity();\n        checkDependentCompositionCancellationBoundary();")
+    "        checkPressureContinuationThreePhase(eos);\n",
+    "        checkPressureContinuationThreePhase(eos);\n"
+    "        checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin();\n")
 
-print("SW single-phase reflash/canonicalization patch applied")
+print("SW role-aware TPD candidate patch applied")
