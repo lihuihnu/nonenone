@@ -1,0 +1,23 @@
+field,value,unit,evidence_level,source,notes
+formation,Yanchang Formation Chang 7 Member,,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Primary geological precursor
+provenance,Tongchuan southern Ordos Basin China,,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Outcrop sample
+sedimentary_environment,lacustrine shale,,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+kerogen_type,Type II,,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+Ro_min,0.36,%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Low maturity
+Ro_max,0.38,%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Low maturity
+TOC,15.11,wt%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+S1,4.31,mg/g rock,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+S2,76.35,mg/g rock,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+Tmax,443,degC,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+HI,505.29,mg HC/g TOC,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+bulk_C,15.84,wt%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Reported elemental analysis
+bulk_H,2.33,wt%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Reported elemental analysis
+bulk_N,2.71,wt%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Reported elemental analysis
+bulk_S,3.80,wt%,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Reported elemental analysis
+reference_temperature,380,degC,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,SCW product reference state
+reference_pressure,25,MPa,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Direct experiment; not 28 MPa
+reference_duration,4,h,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,
+reference_water_shale_mass_ratio,1:1,,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Main temperature-series condition
+reference_oil_yield,352.1,mg/g TOC,A,Zhao et al. 2023 DOI 10.1039/D2SE01361D,Peak oil yield reported at 380 degC
+numerical_target_temperature,380,degC,DESIGN,this study,Application state
+numerical_target_pressure,28,MPa,DESIGN,this study,Pressure extension from 25 MPa reference
