@@ -1,0 +1,3 @@
+source_id,sample,C_wt_percent,H_wt_percent,N_wt_percent,S_wt_percent,O_wt_percent,moisture_wt_percent,ash_wt_percent,volatile_matter_wt_percent,fixed_carbon_wt_percent,data_status,evidence_level,source_doi,source_location,notes
+ACS_ZHAO_2023,shale,15.84,2.33,2.71,3.80,,,,,,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 2,"Original Chang 7 shale before acid-pickling; oxygen/proximate fields are not reported for the shale row."
+ACS_ZHAO_2023,kerogen,69.46,6.01,5.58,2.39,11.94,2.71,1.91,49.16,46.22,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 2,"Acid-pickled material treated by the authors as approximately pure Type II kerogen. O = 100-(C+H+N+S+ash+moisture) per article note."
