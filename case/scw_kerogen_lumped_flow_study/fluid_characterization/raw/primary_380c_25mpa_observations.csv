@@ -1,30 +1,38 @@
 sample_id,category,quantity,value,unit,data_status,evidence_level,source_doi,source_location,notes
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,temperature,380,degC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,653.15 K
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,pressure,25,MPa,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,Experimental pressure precision reported as +/-0.05 MPa
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,reaction_time,4,h,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/Fig2 caption,
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,water_to_shale_mass_ratio,1:1,,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Fig2 caption,Main temperature-series condition
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_min,75,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Hydrocarbon-generation characterization sample
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_max,106,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Hydrocarbon-generation characterization sample
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,temperature,380,degC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/ESI Table S1,653.15 K
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,pressure,25,MPa,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/ESI Table S1,Experimental pressure precision reported as +/-0.05 MPa
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,reaction_time,4,h,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/ESI Table S1,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,water_to_shale_mass_ratio,1:1,,DIRECT_NUMERIC,A,10.1039/D2SE01361D,ESI Table S1,"Exact charges for 380C replicates are 21.99/22.01 g shale and 22.01/22.03 g water; see replicate file."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_min,75,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/ESI Table S1,
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,condition,particle_size_max,106,um,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods/ESI Table S1,
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,batch_reactor_volume,80,mL,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,reactor_inner_diameter,40,mm,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,reactor_height,65,mm,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,temperature_precision,0.5,degC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,+/- value
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,apparatus,pressure_precision,0.05,MPa,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,+/- value
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,oil_yield,352.1,mg/g_TOC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Abstract/Results,Reported peak oil yield at 380 degC
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,total_gas_yield_380C,,,PENDING_PRIMARY_ESI,A,10.1039/D2SE01361D,Fig2a/Table S2,Exact 380 degC gas yield not stated numerically in accessible main text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,H2_fraction,26.9,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Results,Maximum H2 proportion occurs at 380 degC
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,CH4_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,C2_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,C3plus_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,CO2_fraction_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2c,Exact 380 degC value not stated in text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_saturates_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_aromatics_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_resins_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_asphaltenes_380C,,,FIGURE_ONLY,A,10.1039/D2SE01361D,Fig2b,Exact 380 degC percentage not stated numerically in accessible main text
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,carbon_number_distribution_380C,,,NOT_MEASURED_OR_NOT_REPORTED,A,10.1039/D2SE01361D,Main article,No machine-readable Cn distribution located for this exact raw-shale experiment
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,simulated_distillation_380C,,,NOT_MEASURED_OR_NOT_REPORTED,A,10.1039/D2SE01361D,Main article,Not reported in accessible main article for raw-shale series
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_range_min,90,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Range over conversion experiments; not a 380 degC replicate-specific value
-C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_range_max,95,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Methods,Range over conversion experiments; not a 380 degC replicate-specific value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,oil_yield_reported,352.1,mg/g_TOC,DIRECT_NUMERIC,A,10.1039/D2SE01361D,Abstract/Results,Main-paper rounded/summary value
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,oil_yield_duplicate_mean,351.995,mg/g_TOC,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S2,"Mean of experiment 5 = 346.05 and experiment 6 = 357.94 mg/g TOC; raw values preserved separately."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,total_gas_yield_duplicate_mean,6.005,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Mean of 5.80 and 6.21 mL/g shale."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,total_gas_yield_duplicate_mean_per_TOC,39.7419,mL/g_TOC,DERIVED,A_DERIVED,10.1039/D2SE01361D,ESI Table S3 + primary TOC,"6.005 mL/g shale divided by TOC mass fraction 0.1511; derived normalization, not an original table entry."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,product_yield,gas_mass_yield_duplicate_mean,6.46,mg/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Mean of 5.58 and 7.34 mg/g shale."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_composition,H2_fraction_reported,26.9,percent,DIRECT_NUMERIC_CONSISTENCY_CHECK_REQUIRED,A,10.1039/D2SE01361D,Main-text Results,"Retained exactly as reported. Direct normalization of ESI Table S3 H2 mL/g by total-gas mL/g does not reproduce 26.9%; do not infer other gas fractions until reporting basis is reconciled."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,H2_yield_duplicate_mean,1.225,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 1.15 and 1.30."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,CO_yield_duplicate_mean,0,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Both replicates reported zero."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,CH4_yield_duplicate_mean,1.175,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 1.15 and 1.20."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,CO2_yield_duplicate_mean,2.20,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 1.90 and 2.50."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,C2_yield_duplicate_mean,0.50,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 0.41 and 0.59."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,C3_yield_duplicate_mean,0.31,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 0.26 and 0.36."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,C4_yield_duplicate_mean,0.16,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 0.12 and 0.20."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,C5_yield_duplicate_mean,0.04,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Raw replicates 0.03 and 0.05."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,gas_yield,C6_yield_duplicate_mean,0,mL/g_shale,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S3,"Both replicates reported zero."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_saturates_duplicate_mean,13.2,percent,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S2,"Raw duplicate range 12.5-13.9%; this is replicate spread, not measurement uncertainty."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_aromatics_duplicate_mean,37.2,percent,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S2,"Raw duplicate range 36.2-38.2%."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_resins_duplicate_mean,24.1,percent,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S2,"Raw duplicate range 23.7-24.5%."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,SARA_asphaltenes_duplicate_mean,25.55,percent,DERIVED_FROM_ESI_DUPLICATES,A_DERIVED,10.1039/D2SE01361D,ESI Table S2,"Raw duplicate range 24.8-26.3%."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,carbon_number_distribution_380C,,,NOT_LOCATED_FOR_EXACT_SAMPLE,A,10.1039/D2SE01361D,Main article + ESI audit,"No same-physical-sample machine-readable carbon-number distribution located."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,oil_composition,simulated_distillation_380C,,,NOT_LOCATED_FOR_EXACT_SAMPLE,A,10.1039/D2SE01361D,Main article + ESI audit,"No same-physical-sample simulated-distillation table located."
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_exp5,90,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,ESI Table S2,380C experiment 5
+C7_TONGCHUAN_ZHAO2023_RAW_SHALE,quality,mass_balance_exp6,91,percent,DIRECT_NUMERIC,A,10.1039/D2SE01361D,ESI Table S2,380C experiment 6
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,gas_measurement_method,Agilent_7890A_GC_TCD_FID,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,Gas collected in bag and quantified by wet flowmeter
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,oil_SARA_method,IATROSCAN_MK6_TLC,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,
 C7_TONGCHUAN_ZHAO2023_RAW_SHALE,measurement,oil_elemental_method,Elementar_Vario_Macro_cube_CHNS,,DIRECT_QUALITATIVE,A,10.1039/D2SE01361D,Methods,
