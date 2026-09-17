@@ -9,6 +9,7 @@
 #include <natural/primary_variables.hpp>
 #include <natural/state/cell_state.hpp>
 #include <natural/state/phase_equilibrium.hpp>
+#include <natural/state/phase_amount_coordinate.hpp>
 
 #include <array>
 #include <cstddef>
@@ -122,7 +123,9 @@ public:
                 state.wellPressure = PrimaryVariables<Indices>::make(
                     primary[Indices::Primary::wellPressure], Indices::Primary::wellPressure);
             }
-            decodeComposition_(primary, Indices::Primary::liquidComposition, state.liquidMoleFraction);
+            decodeOilAmountComposition_(
+                primary, phaseState, state.liquidSaturation,
+                state.liquidComponentAmount, state.liquidMoleFraction);
             decodeComposition_(primary, Indices::Primary::vaporComposition, state.vaporMoleFraction);
             decodeComposition_(primary, Indices::Primary::waterComposition, state.aqueousMoleFraction);
             return state;
@@ -130,6 +133,41 @@ public:
     }
 
 private:
+    static void decodeOilAmountComposition_(
+        const PrimaryArray &primary,
+        const PhaseStateData<Indices> &phaseState,
+        const Scalar &oilSaturation,
+        std::array<Scalar, Indices::numComponents> &amount,
+        std::array<Scalar, Indices::numComponents> &composition)
+    {
+        static_assert(Indices::fullyCompositionalThreePhase,
+                      "Oil phase-amount coordinates are only used by the full three-phase formulation.");
+
+        for (int component = 0;
+             component < Indices::numIndependentCompositionsPerPhase;
+             ++component)
+        {
+            const auto c = static_cast<std::size_t>(component);
+            const int primaryIndex = Indices::Primary::liquidComposition[c];
+            amount[c] = PrimaryVariables<Indices>::make(
+                primary[static_cast<std::size_t>(primaryIndex)],
+                primaryIndex);
+        }
+        completeOilPhaseAmount(oilSaturation, amount);
+
+        std::array<double, Indices::numComponents> fallback =
+            phaseState.overallComposition;
+        double fallbackSum = 0.0;
+        for (double value : fallback) fallbackSum += value;
+        if (!(fallbackSum > NaturalNumerics::minimumNormalizationDenominator))
+        {
+            fallback.fill(1.0 / static_cast<double>(Indices::numComponents));
+        }
+
+        composition = oilMoleFractionFromAmount(
+            oilSaturation, amount, fallback);
+    }
+
     template <std::size_t Size>
     static void decodeComposition_(
         const PrimaryArray &primary,

@@ -130,6 +130,12 @@ void limitNaturalNewtonIncrement(
     static_assert(Indices::fullyCompositionalThreePhase,
                   "PhasePresence limiter is only for the full three-phase formulation.");
 
+    // Saturations keep one common scale so the Newton direction of the volume
+    // closure is preserved. Oil composition is stored as q_i=S_o x_i; apply the
+    // same first scale to q so the phase-amount direction follows S_o, then use
+    // only an additional q-only scale if the complete amount vector would move
+    // by more than one saturation-sized Newton step. A large minority-phase q
+    // correction therefore cannot freeze the three saturation updates.
     const double maximumSaturationDelta = std::max({
         std::abs(delta[Indices::Primary::liquidSaturation]),
         std::abs(delta[Indices::Primary::vaporSaturation]),
@@ -140,6 +146,41 @@ void limitNaturalNewtonIncrement(
     delta[Indices::Primary::liquidSaturation] *= saturationScale;
     delta[Indices::Primary::vaporSaturation] *= saturationScale;
     delta[Indices::Primary::waterSaturation] *= saturationScale;
+
+    double maximumOilIndependentAmountDelta = 0.0;
+    double oilIndependentAmountSumDelta = 0.0;
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        const auto primary = static_cast<std::size_t>(
+            Indices::Primary::liquidComposition[static_cast<std::size_t>(component)]);
+        delta[primary] *= saturationScale;
+        maximumOilIndependentAmountDelta = std::max(
+            maximumOilIndependentAmountDelta, std::abs(delta[primary]));
+        oilIndependentAmountSumDelta += delta[primary];
+    }
+
+    // q_N=S_o-sum(q_i).  Reserve enough of the 0.1 amount-step budget for the
+    // already-limited dS_o so both independent q_i and dependent q_N remain
+    // bounded without feeding the q pathology back into the saturation scale.
+    const double oilSaturationDelta =
+        delta[Indices::Primary::liquidSaturation];
+    const double remainingOilAmountBudget = std::max(
+        0.0, NaturalNumerics::maximumSaturationNewtonChange -
+                 std::abs(oilSaturationDelta));
+    const double oilAmountScale = detail::limiterScale(
+        std::max(maximumOilIndependentAmountDelta,
+                 std::abs(oilIndependentAmountSumDelta)),
+        remainingOilAmountBudget);
+    for (int component = 0;
+         component < Indices::numIndependentCompositionsPerPhase;
+         ++component)
+    {
+        delta[static_cast<std::size_t>(
+            Indices::Primary::liquidComposition[static_cast<std::size_t>(component)])] *=
+            oilAmountScale;
+    }
 
     const auto limitCompositionBlock = [&](const auto &indices)
     {
@@ -167,7 +208,8 @@ void limitNaturalNewtonIncrement(
         }
     };
 
-    limitCompositionBlock(Indices::Primary::liquidComposition);
+    // Gas and water stay ordinary mole-fraction coordinates and keep their own
+    // phase-local scales.
     limitCompositionBlock(Indices::Primary::vaporComposition);
     limitCompositionBlock(Indices::Primary::waterComposition);
 
