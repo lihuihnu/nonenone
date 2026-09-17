@@ -1,4 +1,4 @@
-name: Audit cell 540 SW TPD role identity
+name: Audit cell 540 SW O+G barrier
 
 on:
   push:
@@ -15,7 +15,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 8
 
     steps:
       - name: Checkout fix branch
@@ -77,7 +77,7 @@ jobs:
           EOF
           make doctor-local
 
-      - name: Inject read-only role audit
+      - name: Inject read-only O+G barrier audit
         run: python3 tools/inject_cell540_tpd_role_audit.py
 
       - name: Build case
@@ -87,29 +87,29 @@ jobs:
           sed -i 's/^clean::$/mpmc-ci-clean:/' case/Makefile
           make case CASE=scw_kerogen_lmh_2d -j2
 
-      - name: Run to cell 540 boundary
+      - name: Run through second cell 540 barrier
         shell: bash
         run: |
           set -o pipefail
-          mkdir -p runner-results/cell540-role
+          mkdir -p runner-results/cell540-og-role
           set +e
-          timeout --signal=TERM --kill-after=20s 180s \
+          timeout --signal=TERM --kill-after=20s 280s \
             make run CASE=scw_kerogen_lmh_2d NP=1 EOS=sw \
-              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cell540-role" \
+              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cell540-og-role" \
               RUN_ARGS='-ksp_type preonly -pc_type lu' \
-            2>&1 | tee runner-results/cell540-role/console.log
+            2>&1 | tee runner-results/cell540-og-role/console.log
           rc=${PIPESTATUS[0]}
           set -e
-          echo "exit_code=${rc}" > runner-results/cell540-role/run_status.txt
-          grep -E '^\[CELL540-SWROLE' runner-results/cell540-role/console.log \
-            > runner-results/cell540-role/role_audit.log || true
-          tail -n 120 runner-results/cell540-role/role_audit.log || true
+          echo "exit_code=${rc}" > runner-results/cell540-og-role/run_status.txt
+          grep -E '^\[CELL540-OG-' runner-results/cell540-og-role/console.log \
+            > runner-results/cell540-og-role/role_audit.log || true
+          tail -n 160 runner-results/cell540-og-role/role_audit.log || true
           exit 0
 
       - name: Upload role audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cell540-sw-tpd-role-audit
-          path: runner-results/cell540-role
+          name: cell540-sw-og-barrier-audit
+          path: runner-results/cell540-og-role
           if-no-files-found: warn
