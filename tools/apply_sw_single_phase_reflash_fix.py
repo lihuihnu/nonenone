@@ -43,6 +43,8 @@ new_selection = r'''            const int p = phaseIndex(candidate);
             best.sum = -std::numeric_limits<double>::infinity();
             Trial bestWrongSwRole;
             bestWrongSwRole.sum = -std::numeric_limits<double>::infinity();
+            const bool referenceSupportsAqueousRole =
+                eos_.aqueousVolumeCompositionSupported(referenceComposition);
 
             const auto seeds = stabilitySeeds_(
                 candidate, pressure, temperature, z, referenceComposition);
@@ -55,20 +57,22 @@ new_selection = r'''            const int p = phaseIndex(candidate);
                 if (!trial.valid)
                     continue;
 
-                // SW fixes the thermodynamic role (including the aqueous BIP
-                // matrix) for the duration of each TPD solve. A non-aqueous
-                // Oil/Gas trial can nevertheless converge to a strongly
-                // H2O-rich stationary composition that the public phase model
-                // assigns to Water. That stationary point was evaluated with
-                // the wrong SW role and therefore cannot certify appearance of
-                // a non-aqueous phase. Ignore it for this candidate and let the
-                // independently solved Water candidate decide aqueous
-                // stability with the proper aqueous BIP model. Filter before
-                // selecting the strongest multi-start stationary point so a
-                // wrong-role basin cannot mask a weaker, genuine Gas/Oil one.
+                // Some flow configurations attach an explicit composition
+                // validity domain to the public Water role (for example the
+                // IAPWS aqueous viscosity/volume closures).  If the current
+                // non-aqueous reference lies outside that domain, an SW
+                // Oil/Gas TPD search must not use a stationary point that
+                // crosses into the Water domain as evidence for a new
+                // non-aqueous phase: that point was evaluated with the
+                // non-aqueous SW BIP/root model.  Let the independent Water
+                // candidate, evaluated with the aqueous SW model, decide the
+                // phase appearance instead.  When no restricted aqueous domain
+                // is configured, both reference and trial are supported and
+                // the historical pure-thermodynamic SW topology is unchanged.
                 const bool wrongSwRole =
                     eos_.usesSoreideWhitson() &&
                     candidate != CompositionalPhase::Water &&
+                    !referenceSupportsAqueousRole &&
                     waterIsDominant_(trial.composition);
                 if (wrongSwRole)
                 {
@@ -163,9 +167,10 @@ void checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin()
 {
     // Real cell-540 boundary state from the 60x20 LMH SW displacement. The
     // pre-fix Gas multi-start search selected a 99.48 mol% H2O stationary point
-    // (trialSum > 1) even though that composition belongs to the explicit
-    // aqueous physical-property domain. The independently solved Water trial
-    // lies outside that domain, so the physical state is still Oil-only.
+    // (trialSum > 1) even though that composition crosses from the current
+    // non-aqueous reference into the explicit <=2 mol% solute Water domain.
+    // The independently solved Water trial lies outside that domain, so the
+    // physical state is still Oil-only.
     constexpr double pressure = 278.772e5;
     constexpr double temperature = 653.2;
     constexpr Composition z{
@@ -176,6 +181,8 @@ void checkLmhSinglePhaseRejectsWrongRoleGasTpdBasin()
     options.waterComponent = 0;
     const Flash flash(eos, options);
     const std::array<Composition, 3> compositions{z, z, z};
+    require(!eos.aqueousVolumeCompositionSupported(z),
+            "LMH boundary reference must remain outside the Water property domain");
     const auto stability = flash.stabilityTest(
         pressure,
         temperature,
