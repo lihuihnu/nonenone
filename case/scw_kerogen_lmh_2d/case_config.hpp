@@ -9,7 +9,7 @@
 
 /**
  * @file case_config.hpp
- * @brief 60x20x1 水–轻中重烃 PR/SW/CPA 二维对比配置。
+ * @brief 60x20x1 水–BSB轻中重拟组分 PR/SW/CPA 二维对比配置。
  */
 namespace ScwKerogenLmh2D
 {
@@ -46,11 +46,8 @@ struct CommonFluid : CaseConfig::Fluid
         if (other < 0)
             return 0.0;
 
-        if (other == lightComponent)
-            return ScwKerogenCalibration::nonAqueousNc4Kij(temperatureK);
-        if (other == middleComponent)
-            return ScwKerogenCalibration::extrapolatedPrNc10Kij(temperatureK);
-        return ScwKerogenCalibration::prSqualaneKij(temperatureK);
+        (void)temperatureK;
+        return BsbReference::waterHydrocarbonKij;
     }
 };
 
