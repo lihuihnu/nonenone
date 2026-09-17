@@ -1,9 +1,9 @@
-name: Audit cell 540 water transition
+name: Audit cell 540 raw SW reflash
 
 on:
   push:
     branches:
-      - run/uploaded-lmh2d-20260917
+      - run/minority-amount-lmh2d-20260917
     paths:
       - .github/workflows/cell540-water-audit.yml
   workflow_dispatch:
@@ -90,8 +90,8 @@ jobs:
           EOF
           make doctor-local
 
-      - name: Inject read-only cell 540 diagnostics
-        run: python3 tools/inject_cell540_audit.py
+      - name: Inject read-only raw reflash diagnostics
+        run: python3 tools/inject_cell540_reflash_audit.py
 
       - name: Build instrumented LMH 2D case
         shell: bash
@@ -104,20 +104,20 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          mkdir -p runner-results/cell540
+          mkdir -p runner-results/cell540-reflash
           set +e
           timeout --signal=TERM --kill-after=30s 600s \
             make run CASE=scw_kerogen_lmh_2d NP=1 EOS=sw \
-              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cell540" \
+              RESULT_DIR="${GITHUB_WORKSPACE}/runner-results/cell540-reflash" \
               RUN_ARGS='-ksp_type preonly -pc_type lu' \
-            2>&1 | tee runner-results/cell540/console.log
+            2>&1 | tee runner-results/cell540-reflash/console.log
           rc=${PIPESTATUS[0]}
           set -e
-          echo "exit_code=${rc}" | tee runner-results/cell540/run_status.txt
+          echo "exit_code=${rc}" | tee runner-results/cell540-reflash/run_status.txt
           if [[ ${rc} -eq 124 || ${rc} -eq 137 || ${rc} -eq 143 ]]; then
-            echo "timed_out=true" | tee -a runner-results/cell540/run_status.txt
+            echo "timed_out=true" | tee -a runner-results/cell540-reflash/run_status.txt
           else
-            echo "timed_out=false" | tee -a runner-results/cell540/run_status.txt
+            echo "timed_out=false" | tee -a runner-results/cell540-reflash/run_status.txt
           fi
           exit ${rc}
 
@@ -126,20 +126,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -E '^\[CELL540-(TPD|ACTIVE|WELLJAC)\]' \
-            runner-results/cell540/console.log \
-            > runner-results/cell540/cell540_audit.log || true
-          echo '===== CELL540 AUDIT ====='
-          tail -n 300 runner-results/cell540/cell540_audit.log || true
+          grep -E '^\[CELL540-(TPD|REFLASH|ACTIVE)\]' \
+            runner-results/cell540-reflash/console.log \
+            > runner-results/cell540-reflash/cell540_reflash_audit.log || true
+          echo '===== CELL540 RAW REFLASH AUDIT ====='
+          tail -n 400 runner-results/cell540-reflash/cell540_reflash_audit.log || true
           echo '===== STEP HISTORY ====='
-          tail -n 80 runner-results/cell540/time_step_history.csv 2>/dev/null || true
+          tail -n 80 runner-results/cell540-reflash/time_step_history.csv 2>/dev/null || true
           echo '===== STATUS ====='
-          cat runner-results/cell540/run_status.txt 2>/dev/null || true
+          cat runner-results/cell540-reflash/run_status.txt 2>/dev/null || true
 
       - name: Upload focused audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cell540-water-transition-audit
-          path: runner-results/cell540
+          name: cell540-raw-reflash-audit
+          path: runner-results/cell540-reflash
           if-no-files-found: warn
