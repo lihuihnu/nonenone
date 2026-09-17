@@ -121,6 +121,18 @@ CPA 不复用 PR 的 `a/b/alpha/kij`。当前单独维护：
 
 CPA 的水–烃 BIP 与 PR 完全独立：Gasoline 以 water+n-hexane CPA `kij=0.044` 为 proxy prior；Diesel 暂以 water+n-decane `kij=-0.054` 为直接表格 anchor；Middle 采用 neutral prior 等待可接受数据；Heavy 为 diagnostic zero 且禁止为了 flash 收敛回归。
 
+## 密度与黏度独立验证集已建立
+
+相平衡标定、密度验证和黏度验证现在是三个互相隔离的证据层。验证集位于 `property_validation/`，详细规则见 `08_DENSITY_VISCOSITY_VALIDATION.md`。
+
+- density validation：15 条已录入行，包括 3 条 IAPWS-IF97 Region-3 官方验证状态和 12 条历史未参与拟合的 squalane hold-out density 行；
+- viscosity validation：34 条已录入行，包括 11 条 IAPWS-2008 官方验证点、6 条 n-hexane reference-correlation 验证点、5 条 n-undecane reference-correlation/diagnostic 点和 12 条 squalane hold-out viscosity 行；
+- 所有这些行均为 `VALIDATION_ONLY` 或 implementation/diagnostic evidence，不允许用于回归 PR/CPA BIP、volume translation 或 transport 参数；
+- 黏度首先使用 reference density 验证 intrinsic transport closure；只有该层通过后才允许做 EOS-density + viscosity 的 coupled validation；
+- squalane 对 Middle/Heavy 仍然只是 saturated-heavy benchmark，不能让 Heavy 因此通过验证。
+
+当前总状态仍为 `DENSITY_GATE_BLOCKED` 与 `VISCOSITY_GATE_BLOCKED`，主要缺口是 target-window 的真实油馏分/长链代理高温高压 density/viscosity 数据，尤其是 Heavy。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
