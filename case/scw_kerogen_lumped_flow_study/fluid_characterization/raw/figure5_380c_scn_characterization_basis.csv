@@ -1,0 +1,67 @@
+lump_id,carbon_label,equivalent_carbon_number,pixel_height,within_lump_mass_share,scn_MW_g_mol,scn_avg_boiling_point_degC,scn_specific_gravity,property_basis
+OIL_GASOLINE,<C7,6,9,0.81818182,80.1614,63.9000,0.685000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_GASOLINE,C7,7,2,0.18181818,94.1883,91.9000,0.722000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C11,11,2,0.00396825,150.2959,187.2000,0.789000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C12,12,3,0.00595238,164.3228,208.3000,0.800000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C13,13,30,0.05952381,178.3497,227.2000,0.811000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C14,14,126,0.25000000,192.3766,246.4000,0.822000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C15,15,87,0.17261905,206.4035,266.0000,0.832000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C16,16,94,0.18650794,220.4304,283.0000,0.839000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C17,17,38,0.07539683,234.4573,300.0000,0.847000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C18,18,42,0.08333333,248.4842,313.0000,0.852000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C19,19,39,0.07738095,262.5111,325.0000,0.857000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_DIESEL,C20,20,43,0.08531746,276.5380,338.0000,0.862000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C21,21,35,0.05409583,290.5649,351.0000,0.867000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C22,22,39,0.06027821,304.5918,363.0000,0.872000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C23,23,38,0.05873261,318.6187,375.0000,0.877000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C24,24,44,0.06800618,332.6456,386.0000,0.881000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C25,25,43,0.06646059,346.6725,397.0000,0.885000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C26,26,42,0.06491499,360.6994,408.0000,0.889000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C27,27,40,0.06182380,374.7263,419.0000,0.893000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C28,28,41,0.06336940,388.7532,429.0000,0.896000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C29,29,39,0.06027821,402.7801,438.0000,0.899000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C30,30,40,0.06182380,416.8070,446.0000,0.902000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C31,31,38,0.05873261,430.8339,455.0000,0.906000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C32,32,39,0.06027821,444.8608,463.0000,0.909000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C33,33,38,0.05873261,458.8877,471.0000,0.912000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C34,34,36,0.05564142,472.9146,478.0000,0.914000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C35,35,34,0.05255023,486.9415,486.0000,0.917000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C36,36,32,0.04945904,500.9684,493.0000,0.919000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_MIDDLE,C37,37,29,0.04482226,514.9953,500.0000,0.922000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C38,38,27,0.06178490,529.0222,508.0000,0.924000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C39,39,26,0.05949657,543.0491,515.0000,0.926000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C40,40,27,0.06178490,557.0760,522.0000,0.928000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C41,41,25,0.05720824,571.1029,528.0000,0.930000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C42,42,23,0.05263158,585.1298,534.0000,0.931000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C43,43,22,0.05034325,599.1567,540.0000,0.933000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C44,44,21,0.04805492,613.1836,547.0000,0.935000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C45,45,19,0.04347826,627.2105,553.0000,0.937000,Katz-Firoozabadi SCN Tb/SG; Pedersen MW
+OIL_HEAVY,C46,46,19,0.04347826,641.2374,553.3152,0.939289,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C47,47,18,0.04118993,655.2643,558.3719,0.941086,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C48,48,17,0.03890160,669.2912,563.3042,0.942845,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C49,49,17,0.03890160,683.3181,568.1177,0.944567,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C50,50,16,0.03661327,697.3450,572.8180,0.946254,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C51,51,15,0.03432494,711.3719,577.4100,0.947908,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C52,52,14,0.03203661,725.3988,581.8986,0.949529,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C53,53,13,0.02974828,739.4257,586.2883,0.951119,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C54,54,13,0.02974828,753.4526,590.5834,0.952680,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C55,55,12,0.02745995,767.4795,594.7878,0.954211,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C56,56,11,0.02517162,781.5064,598.9054,0.955715,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C57,57,10,0.02288330,795.5333,602.9397,0.957192,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C58,58,10,0.02288330,809.5602,606.8942,0.958644,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C59,59,9,0.02059497,823.5871,610.7720,0.960070,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C60,60,8,0.01830664,837.6140,614.5762,0.961472,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C61,61,7,0.01601831,851.6409,618.3097,0.962851,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C62,62,6,0.01372998,865.6678,621.9751,0.964208,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C63,63,5,0.01144165,879.6947,625.5752,0.965542,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C64,64,5,0.01144165,893.7216,629.1123,0.966856,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C65,65,4,0.00915332,907.7485,632.5888,0.968149,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C66,66,4,0.00915332,921.7754,636.0068,0.969422,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C67,67,3,0.00686499,935.8023,639.3686,0.970676,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C68,68,3,0.00686499,949.8292,642.6761,0.971911,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C69,69,2,0.00457666,963.8561,645.9312,0.973129,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C70,70,2,0.00457666,977.8830,649.1358,0.974328,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C71,71,1,0.00228833,991.9099,652.2915,0.975511,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C72,72,1,0.00228833,1005.9368,655.4000,0.976677,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C73,73,1,0.00228833,1019.9637,658.4630,0.977827,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
+OIL_HEAVY,C74,74,1,0.00228833,1033.9906,661.4818,0.978961,C46+ extension: Twu paraffin Tb; SG log-extrapolated from C30-C45; Pedersen MW
