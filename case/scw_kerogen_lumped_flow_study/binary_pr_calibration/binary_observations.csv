@@ -1,0 +1,5 @@
+system_id,id,split,observable_type,temperature_K,pressure_MPa,feed_x_water,target_phase_count,target_x_water_rich,target_x_hydrocarbon_rich,tolerance_x_water_rich,tolerance_x_hydrocarbon_rich,target_density_water_rich_kg_m3,target_density_hydrocarbon_rich_kg_m3,density_relative_tolerance,source_id
+OIL_MIDDLE,SQ6372P2688,calibration,coexistence,637.2,26.88,0.96,2,0.9997,0.809,0.0005,0.002,nan,nan,nan,STEVENSON1994_TABLE3
+OIL_MIDDLE,SQ6532P2705,validation,coexistence,653.2,27.05,0.96,2,0.9938,0.932,0.0005,0.002,nan,nan,nan,STEVENSON1994_TABLE5
+OIL_MIDDLE,SQ6532P2774,calibration,coexistence,653.2,27.74,0.96,2,0.9966,0.911,0.0005,0.002,nan,nan,nan,STEVENSON1994_TABLE5
+OIL_MIDDLE,SQ6532P2947,validation,coexistence,653.2,29.47,0.96,2,0.9983,0.885,0.0005,0.002,nan,nan,nan,STEVENSON1994_TABLE5
