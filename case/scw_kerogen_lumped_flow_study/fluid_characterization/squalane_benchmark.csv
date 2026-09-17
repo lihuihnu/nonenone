@@ -1,0 +1,2 @@
+role,name,formula,MW_g_mol,normal_boiling_point_degC,density_value,density_temperature_degC,Tc_K,Pc_MPa,source,notes
+BENCHMARK_ONLY,squalane,C30H62,422.8133,350,0.8115,15,822,0.700,"NIST Chemistry WebBook SRD 69; PubChem/PAC physical properties; Nikitin & Popov 2005 DOI 10.1016/j.fluid.2005.06.026 via NIST ThermoML","Heavy saturated-hydrocarbon benchmark only. Do not copy these properties into OIL_HEAVY; the experiment-driven >500 C pseudo-component is materially heavier and denser and contains resin/asphaltene character."
