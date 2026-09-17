@@ -9,7 +9,7 @@ def replace_once(path: str, old: str, new: str) -> None:
         raise SystemExit(f"{path}: expected one anchor, found {count}")
     p.write_text(text.replace(old, new, 1))
 
-# Expose a read-only SW role/stability probe.
+# Expose a read-only SW role/stability probe around the second cell-540 barrier.
 eq = "models/include/natural/state/three_phase_equilibrium.hpp"
 replace_once(eq, "#include <stdexcept>\n", "#include <stdexcept>\n#include <iostream>\n")
 anchor = "    /** @brief 将独立 P–T–z flash 结果写入 Natural 主变量和 secondary phase-state。 */\n"
@@ -17,14 +17,13 @@ probe = r'''    struct SwTpdRoleAudit final
     {
         StabilityResult stability{};
         Composition overall{};
-        double overallOilZ{0.0};
-        double overallGasZ{0.0};
-        double incipientGasOilZ{0.0};
-        double incipientGasGasZ{0.0};
-        double gasCompositionDistance{0.0};
-        double waterCompositionDistance{0.0};
-        bool incipientGasAqueousSupported{false};
-        bool incipientWaterAqueousSupported{false};
+        std::array<Composition, 3> compositions{};
+        std::array<bool, 3> aqueousSupported{false, false, false};
+        double oilGasLogFugacityMismatch{0.0};
+        double oilZ{0.0};
+        double gasZ{0.0};
+        double waterTrialOilZ{0.0};
+        double waterTrialGasZ{0.0};
     };
 
     [[nodiscard]] SwTpdRoleAudit auditSwTpdRole(
@@ -33,47 +32,51 @@ probe = r'''    struct SwTpdRoleAudit final
     {
         SwTpdRoleAudit audit;
         audit.overall = transitionOverallComposition_(primary, phaseState);
-        const auto compositions = normalizedPhaseCompositions_(primary);
+        audit.compositions = normalizedPhaseCompositions_(primary);
         audit.stability = flash_.stabilityTest(
             primary[Indices::Primary::pressure],
             fluid_.temperature,
             audit.overall,
             phaseState.phasePresence,
-            compositions);
+            audit.compositions);
         if (!fluid_.eos.usesSoreideWhitson())
             return audit;
 
         const double p = primary[Indices::Primary::pressure];
-        const auto overallOil = fluid_.eos.phaseResult(
-            p, fluid_.temperature, audit.overall, CompositionalPhase::Oil);
-        const auto overallGas = fluid_.eos.phaseResult(
-            p, fluid_.temperature, audit.overall, CompositionalPhase::Gas);
-        audit.overallOilZ = overallOil.compressibility;
-        audit.overallGasZ = overallGas.compressibility;
-
-        const auto &incipientGas = audit.stability.incipientComposition[1];
-        const auto incOil = fluid_.eos.phaseResult(
-            p, fluid_.temperature, incipientGas, CompositionalPhase::Oil);
-        const auto incGas = fluid_.eos.phaseResult(
-            p, fluid_.temperature, incipientGas, CompositionalPhase::Gas);
-        audit.incipientGasOilZ = incOil.compressibility;
-        audit.incipientGasGasZ = incGas.compressibility;
-        audit.incipientGasAqueousSupported =
-            fluid_.eos.aqueousVolumeCompositionSupported(incipientGas);
-
-        const auto &incipientWater = audit.stability.incipientComposition[2];
-        audit.incipientWaterAqueousSupported =
-            fluid_.eos.aqueousVolumeCompositionSupported(incipientWater);
-        for (int i = 0; i < N; ++i)
+        for (int phase = 0; phase < 3; ++phase)
         {
-            const std::size_t c = static_cast<std::size_t>(i);
-            audit.gasCompositionDistance = std::max(
-                audit.gasCompositionDistance,
-                std::abs(incipientGas[c] - audit.overall[c]));
-            audit.waterCompositionDistance = std::max(
-                audit.waterCompositionDistance,
-                std::abs(incipientWater[c] - audit.overall[c]));
+            audit.aqueousSupported[static_cast<std::size_t>(phase)] =
+                fluid_.eos.aqueousVolumeCompositionSupported(
+                    audit.compositions[static_cast<std::size_t>(phase)]);
         }
+
+        const auto oil = fluid_.eos.phaseResult(
+            p, fluid_.temperature, audit.compositions[0], CompositionalPhase::Oil);
+        const auto gas = fluid_.eos.phaseResult(
+            p, fluid_.temperature, audit.compositions[1], CompositionalPhase::Gas);
+        audit.oilZ = oil.compressibility;
+        audit.gasZ = gas.compressibility;
+        if (phaseState.phasePresence.contains(CompositionalPhase::Oil) &&
+            phaseState.phasePresence.contains(CompositionalPhase::Gas))
+        {
+            for (int i = 0; i < N; ++i)
+            {
+                const std::size_t c = static_cast<std::size_t>(i);
+                const double fo = std::max(oil.fugacity[c], 1.0e-300);
+                const double fg = std::max(gas.fugacity[c], 1.0e-300);
+                audit.oilGasLogFugacityMismatch = std::max(
+                    audit.oilGasLogFugacityMismatch,
+                    std::abs(std::log(fo) - std::log(fg)));
+            }
+        }
+
+        const auto &waterTrial = audit.stability.incipientComposition[2];
+        const auto trialOil = fluid_.eos.phaseResult(
+            p, fluid_.temperature, waterTrial, CompositionalPhase::Oil);
+        const auto trialGas = fluid_.eos.phaseResult(
+            p, fluid_.temperature, waterTrial, CompositionalPhase::Gas);
+        audit.waterTrialOilZ = trialOil.compressibility;
+        audit.waterTrialGasZ = trialGas.compressibility;
         return audit;
     }
 
@@ -87,45 +90,47 @@ state_anchor = r'''                const PhaseUpdateResult update =
 '''
 state_repl = r'''                const bool auditCell540 =
                     static_cast<long long>(cell) == 540 &&
-                    currentTime_ / 86400.0 >= 0.00395 &&
-                    currentTime_ / 86400.0 <= 0.00405;
+                    currentTime_ / 86400.0 >= 0.00550 &&
+                    currentTime_ / 86400.0 <= 0.00558;
                 if (auditCell540)
                 {
                     const auto audit =
                         kernel_.phaseEquilibrium().auditSwTpdRole(
                             pending.primary, pending.phaseState);
                     const auto &stability = audit.stability;
-                    std::cerr << "[CELL540-SWROLE] t_day=" << currentTime_ / 86400.0
+                    std::cerr << "[CELL540-OG-AUDIT] t_day=" << currentTime_ / 86400.0
                               << " dt_day=" << options_.timeStep / 86400.0
                               << " bits=" << static_cast<int>(pending.phaseState.phasePresence.bits())
                               << " p_bar=" << pending.primary[Indices::Primary::pressure] / 1.0e5
-                              << " gas_unstable=" << stability.missingPhaseUnstable[1]
-                              << " gas_sum=" << stability.trialSum[1]
-                              << " gas_excess=" << stability.trialSum[1] - 1.0
-                              << " gas_dxinf=" << audit.gasCompositionDistance
-                              << " gas_aq_supported=" << audit.incipientGasAqueousSupported
+                              << " So=" << pending.primary[Indices::Primary::liquidSaturation]
+                              << " Sg=" << pending.primary[Indices::Primary::vaporSaturation]
+                              << " Sw=" << pending.primary[Indices::Primary::waterSaturation]
+                              << " og_logf_inf=" << audit.oilGasLogFugacityMismatch
+                              << " O_aq=" << audit.aqueousSupported[0]
+                              << " G_aq=" << audit.aqueousSupported[1]
+                              << " Wslot_aq=" << audit.aqueousSupported[2]
                               << " water_unstable=" << stability.missingPhaseUnstable[2]
                               << " water_sum=" << stability.trialSum[2]
                               << " water_excess=" << stability.trialSum[2] - 1.0
-                              << " water_dxinf=" << audit.waterCompositionDistance
-                              << " water_aq_supported=" << audit.incipientWaterAqueousSupported
-                              << " z_ref=";
+                              << " water_trial_aq="
+                              << kernel_.fluid().eos.aqueousVolumeCompositionSupported(
+                                     stability.incipientComposition[2])
+                              << " zroot_O/G=" << audit.oilZ << "/" << audit.gasZ
+                              << " water_trial_zroot_O/G="
+                              << audit.waterTrialOilZ << "/" << audit.waterTrialGasZ
+                              << " xO=";
                     for (int c = 0; c < Indices::numComponents; ++c)
                         std::cerr << (c == 0 ? "" : ",")
-                                  << audit.overall[static_cast<std::size_t>(c)];
-                    std::cerr << " gas_x=";
+                                  << audit.compositions[0][static_cast<std::size_t>(c)];
+                    std::cerr << " xG=";
                     for (int c = 0; c < Indices::numComponents; ++c)
                         std::cerr << (c == 0 ? "" : ",")
-                                  << stability.incipientComposition[1][static_cast<std::size_t>(c)];
-                    std::cerr << " water_x=";
+                                  << audit.compositions[1][static_cast<std::size_t>(c)];
+                    std::cerr << " water_trial_x=";
                     for (int c = 0; c < Indices::numComponents; ++c)
                         std::cerr << (c == 0 ? "" : ",")
                                   << stability.incipientComposition[2][static_cast<std::size_t>(c)];
-                    std::cerr << " zroot_ref_O/G="
-                              << audit.overallOilZ << "/" << audit.overallGasZ
-                              << " zroot_inc_O/G="
-                              << audit.incipientGasOilZ << "/" << audit.incipientGasGasZ
-                              << '\n';
+                    std::cerr << '\n';
                 }
 
                 const PhaseUpdateResult update =
@@ -134,11 +139,13 @@ state_repl = r'''                const bool auditCell540 =
 
                 if (auditCell540)
                 {
-                    std::cerr << "[CELL540-SWROLE-ACTIVE] t_day=" << currentTime_ / 86400.0
+                    std::cerr << "[CELL540-OG-ACTIVE] t_day=" << currentTime_ / 86400.0
                               << " dt_day=" << options_.timeStep / 86400.0
                               << " after_bits=" << static_cast<int>(pending.phaseState.phasePresence.bits())
                               << " status=" << static_cast<int>(update.status)
+                              << " removed=" << update.phaseRemoved
                               << " missing_unstable=" << update.missingPhaseUnstable
+                              << " stability_invalid=" << update.stabilityInvalid
                               << " unrestricted_fail=" << update.unrestrictedFlashFailed
                               << " So=" << pending.primary[Indices::Primary::liquidSaturation]
                               << " Sg=" << pending.primary[Indices::Primary::vaporSaturation]
@@ -151,4 +158,4 @@ replace_once(state, state_anchor, state_repl)
 runtime = "models/include/natural/petsc/natural_petsc_runtime.hpp"
 replace_once(runtime, "#include <functional>\n", "#include <functional>\n#include <iostream>\n")
 
-print("cell 540 SW TPD role audit injected")
+print("cell 540 O+G SW barrier audit injected")
