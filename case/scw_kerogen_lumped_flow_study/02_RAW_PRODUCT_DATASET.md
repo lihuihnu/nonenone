@@ -2,7 +2,7 @@
 
 ## 目的
 
-本阶段只建立可追溯的实验原始数据层，不进行 Light/Middle/Heavy 拟组分化，不生成 PR/CPA 参数，也不把图上目测值伪装成实验表格数据。
+本阶段只建立可追溯的实验原始数据层，不进行 Light/Middle/Heavy 最终拟组分化，不生成 PR/CPA 参数，也不把跨样品数据或图上目测值伪装成主样品实验数据。
 
 主样品继续使用 `01_RESEARCH_OBJECT.md` 锁定的 Zhao et al. (2023) 铜川 Chang 7 低成熟富有机质湖相页岩。
 
@@ -11,48 +11,99 @@
 - 温度：`380 °C` (`653.15 K`)
 - 压力：`25 MPa`
 - 反应时间：`4 h`
-- 主温度序列水/页岩质量比：`1:1`
-- 生烃/矿物效应实验粒径：`75–106 μm`
+- 粒径：`75–106 μm`
+- 两个 380 °C 重复实验：ESI experiments `5` and `6`
+- Exp. 5：`21.99 g` shale + `22.01 g` water
+- Exp. 6：`22.01 g` shale + `22.03 g` water
 
-## 当前已取得的 A 级直接数据
+## RSC ESI 已追回：380 °C 精确重复实验数据
 
-### 产率
+原论文 ESI Tables S1-S3 已解决此前“只能读图”的大部分缺口。原始重复值完整保存在：
 
-- 380 °C 油产率：`352.1 mg/g TOC`
-- 这是该研究温度序列中的最高油产率。
+`fluid_characterization/raw/rsc_esi_380c_replicates.csv`
 
-380 °C 的精确总产气量在正文中没有逐项给数，论文明确将详细实验数据放在 ESI Table S2 / Fig. S1；在取得 ESI 数字前保持为空。
+### 油产率
 
-### 气体
+Exp. 5：
 
-主论文说明生成气主要包括：
+- `52.27 mg/g shale`
+- `346.05 mg/g TOC`
 
-- `H2`
-- `CO2`
-- `CH4`
-- `C2`
-- `C3+`
+Exp. 6：
 
-其中正文明确给出：
+- `54.07 mg/g shale`
+- `357.94 mg/g TOC`
 
-- `H2 = 26.9%` at 380 °C，且为 300–650 °C 序列中的局部最大值。
+两次重复的简单平均：
 
-380 °C 下 `CH4 / C2 / C3+ / CO2` 的精确比例当前只在 Fig. 2c 图中存在，正文没有逐项数值，因此原始表保持空值并标记 `FIGURE_ONLY`。
+- `351.995 mg/g TOC`
 
-### 液体油
+这与正文汇总值 `352.1 mg/g TOC` 一致到其报告精度。后续数据库同时保留正文值和重复实验原值，不能用平均值覆盖原始重复。
 
-论文对回收油进行了 SARA：
+### 380 °C SARA
 
-- Saturates
-- Aromatics
-- Resins
-- Asphaltenes
+Exp. 5：
 
-Fig. 2b 给出温度序列，正文给出的可靠趋势是：350 °C 后随着温度继续升高，saturates 比例逐渐提高，而 asphaltenes / resins / aromatics 比例下降；但 380 °C 四项精确百分比当前未从机器可读表/ESI 取得，因此不得填入猜测值。
+- Saturates `13.9%`
+- Aromatics `36.2%`
+- Resins `23.7%`
+- Asphaltenes `26.3%`
 
-主论文未提供足以直接建立 `C6–C14 / C15–C20 / C21+` 的目标样品机器可读碳数分布或模拟蒸馏表。因此当前**不能**据此宣称 Light/Middle/Heavy 的最终切割范围与质量分数已经确定。
+Exp. 6：
 
-## 测量和回收边界
+- Saturates `12.5%`
+- Aromatics `38.2%`
+- Resins `24.5%`
+- Asphaltenes `24.8%`
+
+简单重复平均：
+
+- Saturates `13.2%`
+- Aromatics `37.2%`
+- Resins `24.1%`
+- Asphaltenes `25.55%`
+
+这些区间是两个重复实验之间的 spread，不应被描述为仪器测量不确定度。
+
+这一结果对后续模型非常关键：目标油在 380 °C SCW 转化后依然含有约一半的 `resins + asphaltenes`。因此最终 Heavy 绝不能在没有论证的情况下直接等同于一个非极性的单一正构烷烃或 squalane。
+
+### 380 °C 产气
+
+ESI Table S3 给出的原始体积产率为：
+
+| component | Exp. 5 | Exp. 6 | unit |
+|---|---:|---:|---|
+| total gas | 5.80 | 6.21 | mL/g shale |
+| H2 | 1.15 | 1.30 | mL/g shale |
+| CO | 0 | 0 | mL/g shale |
+| CH4 | 1.15 | 1.20 | mL/g shale |
+| CO2 | 1.90 | 2.50 | mL/g shale |
+| C2 | 0.41 | 0.59 | mL/g shale |
+| C3 | 0.26 | 0.36 | mL/g shale |
+| C4 | 0.12 | 0.20 | mL/g shale |
+| C5 | 0.03 | 0.05 | mL/g shale |
+| C6 | 0 | 0 | mL/g shale |
+
+总气简单平均为 `6.005 mL/g shale`。以主样品 TOC `15.11 wt%` 进行派生归一化约为 `39.74 mL/g TOC`，但该 TOC 归一值是计算值而不是 ESI 原始字段。
+
+两次实验给出的气体质量产率分别为 `5.58` 和 `7.34 mg/g shale`，简单平均 `6.46 mg/g shale`。
+
+## 气体数据存在一个必须保留的统计口径问题
+
+主论文正文报告：
+
+- `H2 = 26.9%` at 380 °C.
+
+但直接把 ESI Table S3 的 `H2 mL/g shale` 除以同表的 `total gas mL/g shale`，两个 380 °C 重复实验都不能复现 `26.9%`。
+
+因此本数据集采取以下规则：
+
+1. `26.9%` 作为正文直接报告的 H2 composition statement 原样保存；
+2. Table S3 的各气体 `mL/g shale` 作为原始 component-yield 数据原样保存；
+3. 在弄清正文 Fig. 2c 的归一化/统计基准之前，不人为生成 CH4 / CO2 / C2 / C3+ 的百分比；
+4. 后续若保留 Gas pseudo-component，优先从可追溯的 component yields 建立统一摩尔基准，而不是从图上读取百分比。
+
+## 测量与回收边界
 
 实验采用约 `80 mL` batch reactor（内径 `40 mm`、高度 `65 mm`），温度精度约 `±0.5 °C`，压力精度约 `±0.05 MPa`。
 
@@ -60,7 +111,7 @@ Fig. 2b 给出温度序列，正文给出的可靠趋势是：350 °C 后随着�
 
 - gas bag 收集；
 - wet flowmeter 定量；
-- Agilent 7890a GC，TCD + FID 分析。
+- Agilent 7890A GC，TCD + FID 分析。
 
 生成油：
 
@@ -73,64 +124,86 @@ Fig. 2b 给出温度序列，正文给出的可靠趋势是：350 °C 后随着�
 
 > 回收液态油组成不是完整 C1+ 总产物组成。
 
-后续若建立完整 Gas/Light/Middle/Heavy 初始流体，必须在同一质量基准上联合气体与液体信息，并把这部分轻烃损失作为实验不确定性处理。
+后续若建立完整 Gas/Light/Middle/Heavy 初始流体，必须在同一质量/摩尔基准上联合气体与回收液体，并把低沸点损失作为实验不确定性和质量闭合问题处理。
 
 ## 另一个必须保持的物理边界
 
-论文测得的 SARA 和气体组成是 batch conversion 完成后**淬冷、降压和回收后的产品分析**。
+SARA 和气体数据来自 batch conversion 后的淬冷、降压和产品回收；它们不是：
 
-它不是：
+`380 °C / 25 MPa 下 H2O + 裂解产物的原位平衡 tie-line`。
 
-`380 °C / 25 MPa 下 H2O + 裂解油的原位平衡相组成`。
+因此：
 
-因此以后：
+- 本数据集用于定义预生成裂解产物的总体表征；
+- PR/CPA 相平衡参数必须另用高温高压 H2O-hydrocarbon VLE/LLE/PVT 数据标定；
+- 不允许直接用 post-quench SARA 去回归 380 °C / 25 MPa EOS 平衡组成。
 
-- 本数据集用于定义“预生成裂解产物的总体组成/表征”；
-- PR/CPA 相平衡参数必须另用高温高压 H2O–hydrocarbon VLE/LLE/PVT 数据标定；
-- 不允许直接把 post-quench SARA 当成 380 °C / 25 MPa tie-line 去回归 EOS。
+## ACS 2023 Supporting Information 审计
 
-## 配对辅助数据
+ACS DOI `10.1021/acs.iecr.3c02759` 的出版页面明确确认 Supporting Information 包括 detailed generated-oil data、gas data 等，并且正文使用了 generated-oil distillation characterization。
 
-ACS 2023 `10.1021/acs.iecr.3c02759` 对酸洗去矿物的 Type-II kerogen 进行了 300–700 °C SCW 实验，并报告：
+但是当前连接研究环境只能确认 SI PDF/figshare 条目存在，未能可靠取得其中完整数值表。因而：
 
-- 380 °C 纯干酪根油产率峰值 `0.19 g/g TOC`；
-- 500 °C light distillates 约 `70%`；
-- 500 °C asphaltene 约 `5%`；
-- 600 °C CH4 比例峰值约 `51%`；
-- 700 °C H2 约 `30%`；
-- 700 °C gas yield `0.88 g/g TOC`；
-- 对生成油使用了 SARA 和 simulated distillation。
+- 不填任何猜测的 380 °C simulated-distillation 百分比；
+- 后续取得 SI 后再单独录入；
+- 即使取得，它仍是 acid-pickled pure kerogen 配对数据，不是完整 raw-shale 主样品数据。
 
-这些数据被放入 `raw/related_pure_kerogen_acs2023.csv`，证据级别为配对辅助数据，不与主样品 raw-shale 380 °C 数据直接合并。
+完整审计记录见：
+
+`fluid_characterization/raw/SUPPORTING_INFORMATION_AUDIT.md`
+
+## 同团队/同地层进一步搜索结果
+
+### Xie et al. 2022, Oil Shale
+
+DOI `10.3176/oil.2022.3.02` 使用 Ordos Basin `F317-181` 井样，油分析采用 Agilent 7890B chromatograph。论文指出生成油主要分布约 `C8-C56`，并在 380–450 °C 区间观察到低于 C16 的比例随温度升高下降、C16 以上比例增加。
+
+这是非常有价值的候选 lump 边界证据，但它不是锁定的 Tongchuan outcrop 主样品：其样品来源和 TOC (`~16.25 wt%`) 均不同。因此它只能约束“怎样切”而不能决定“主样品各 lump 有多少”。
+
+### 2023 Geoenergy Science and Engineering
+
+DOI `10.1016/j.geoen.2023.211553` 属于同一研究方向，包含 360 °C/21 MPa 与 400 °C/25 MPa 等条件，可用于反应时间/温度趋势和未来对照工况设计。物理样品身份尚未与主样品逐项匹配，不并入主表。
+
+### Lu et al. 2026
+
+DOI `10.1016/j.jaap.2026.107757` 含 Chang-7 Type-II1 source-rock 样品，但其 380 °C 油产率为 `234.1 mg/g TOC`，与主样品 `~352 mg/g TOC` 差异明显。在拿到并逐项匹配样品表之前，不能认定为同一物理样品。
+
+相关研究统一隔离存入：
+
+`fluid_characterization/raw/related_same_team_characterization.csv`
 
 ## 当前文件
 
 - `fluid_characterization/raw/README.md`
 - `fluid_characterization/raw/primary_380c_25mpa_observations.csv`
+- `fluid_characterization/raw/rsc_esi_380c_replicates.csv`
+- `fluid_characterization/raw/SUPPORTING_INFORMATION_AUDIT.md`
 - `fluid_characterization/raw/source_manifest.csv`
 - `fluid_characterization/raw/data_gaps.csv`
 - `fluid_characterization/raw/related_pure_kerogen_acs2023.csv`
+- `fluid_characterization/raw/related_same_team_characterization.csv`
 
-## 本阶段验收结论
+## 本阶段当前验收结论
 
-### 已完成
+### 已解决
 
-- 锁定目标状态和实验协议；
-- 建立带证据等级/数据状态的主样品原始观测表；
-- 建立文献来源隔离规则；
-- 建立关键缺口清单；
-- 单独保存纯干酪根配对研究，而不混入主样品；
-- 明确轻烃回收损失和 post-quench / in-situ composition 的物理区别。
+- 380 °C 两次重复实验的精确油产率；
+- 380 °C 精确 SARA；
+- 380 °C 精确总产气量；
+- 380 °C H2 / CH4 / CO2 / C2 / C3 / C4 / C5 / C6 原始体积产率；
+- 380 °C 两次重复实验 mass balance (`90%`, `91%`)；
+- RSC ESI 的原始实验条件；
+- 主样品与同团队其他 Chang-7 / Ordos 数据之间的样品隔离规则。
 
-### 尚未达到“可直接 lumping”状态
+### 仍未达到最终 pseudo-component 定值状态
 
-至少需要继续解决：
+剩余核心缺口按优先级为：
 
-1. 380 °C 精确 SARA 四项数值；
-2. 380 °C 精确总产气量；
-3. 380 °C CH4 / CO2 / C2 / C3+ 精确比例；
-4. 最关键：同一主样品 380 °C 生成油的碳数分布或模拟蒸馏数据；
-5. 生成油平均分子量与 density/specific gravity；
-6. 能够在统一质量基准上重建的 gas + recovered liquid composition。
+1. **同一 Tongchuan 主样品 380 °C 生成油的 carbon-number distribution 或 simulated distillation**；
+2. 回收油 density / specific gravity；
+3. 回收油 average molecular weight；
+4. full C1+ product mass/mole-basis reconstruction，包括低沸点液态烃回收损失；
+5. RSC 正文 H2 26.9% 与 ESI Table S3 component yields 的归一化口径核对；
+6. 高温高压油相黏度实验数据。
 
-在上述关键数据补齐之前，不进入最终 Light/Middle/Heavy 组成定值。
+因此下一阶段可以开始设计“候选 lumping 方案”，但在没有同主样品碳数/馏程数据前，不应把候选切分和代表组分写成最终实验事实。
