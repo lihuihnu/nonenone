@@ -138,15 +138,40 @@ SARA 和气体数据来自 batch conversion 后的淬冷、降压和产品回收
 - PR/CPA 相平衡参数必须另用高温高压 H2O-hydrocarbon VLE/LLE/PVT 数据标定；
 - 不允许直接用 post-quench SARA 去回归 380 °C / 25 MPa EOS 平衡组成。
 
-## ACS 2023 Supporting Information 审计
+## ACS 2023 配对纯干酪根正文已审计
 
-ACS DOI `10.1021/acs.iecr.3c02759` 的出版页面明确确认 Supporting Information 包括 detailed generated-oil data、gas data 等，并且正文使用了 generated-oil distillation characterization。
+ACS DOI `10.1021/acs.iecr.3c02759` 研究的是由铜川 Chang 7 页岩酸洗并去除矿物后得到的 Type-II 干酪根。它与主样品具有很强的地质/材料配对意义，但处理状态不同，因此所有数据仍隔离保存在：
 
-但是当前连接研究环境只能确认 SI PDF/figshare 条目存在，未能可靠取得其中完整数值表。因而：
+`fluid_characterization/raw/related_pure_kerogen_acs2023.csv`
 
-- 不填任何猜测的 380 °C simulated-distillation 百分比；
-- 后续取得 SI 后再单独录入；
-- 即使取得，它仍是 acid-pickled pure kerogen 配对数据，不是完整 raw-shale 主样品数据。
+正文直接锁定的实验协议包括：
+
+- `25 MPa`；
+- `300–700 °C` 温度系列；
+- `2 h` 保温；
+- 去离子水 : 干酪根质量比 `1:3`；
+- `80 cm3` batch reactor；
+- 温度精度 `±0.5 °C`；
+- 压力精度 `±0.05 MPa`；
+- 酸洗前页岩粒径 `120–180 μm`。
+
+与当前 380 °C 流体表征最相关的正文数值是：
+
+- `380 °C / 25 MPa`：纯干酪根产油峰值 `0.19 g/g TOC`；
+- `500 °C / 25 MPa`：light distillates `70%`，asphaltene `5%`；
+- `600 °C / 25 MPa`：CH4 fraction peak `51%`；
+- `700 °C / 25 MPa`：H2 fraction `30%`，gas yield `0.88 g/g TOC`。
+
+正文还明确使用 SARA 与 simulated distillation 表征生成油，并指出汽油/柴油等轻质馏分随温度提高而增加。这些是有用的趋势约束，但不能反推出主样品 380 °C 的 Light/Middle/Heavy 比例。
+
+### ACS Supporting Information 仍未追回
+
+出版页面确认 SI 包含 detailed SCW kerogen data、gas-production data、syngas-component data 和 generated-oil data。当前已经完成**主文**审计，但尚未取得完整 SI 数值表，因此：
+
+- 不填任何未直接报告的 380 °C simulated-distillation 百分比；
+- 不从图上目测并伪装成精确值；
+- 后续取得 SI 后单独录入，并继续保持 `SECONDARY_PAIRED` 身份；
+- 即使取得，它也不能替代完整 raw-shale 主样品数据。
 
 完整审计记录见：
 
@@ -193,7 +218,8 @@ DOI `10.1016/j.jaap.2026.107757` 含 Chang-7 Type-II1 source-rock 样品，但�
 - 380 °C H2 / CH4 / CO2 / C2 / C3 / C4 / C5 / C6 原始体积产率；
 - 380 °C 两次重复实验 mass balance (`90%`, `91%`)；
 - RSC ESI 的原始实验条件；
-- 主样品与同团队其他 Chang-7 / Ordos 数据之间的样品隔离规则。
+- ACS 纯干酪根研究的主文实验协议与直接数值锚点；
+- 主样品与酸洗纯干酪根、同团队其他 Chang-7 / Ordos 数据之间的样品隔离规则。
 
 ### 仍未达到最终 pseudo-component 定值状态
 
@@ -204,6 +230,7 @@ DOI `10.1016/j.jaap.2026.107757` 含 Chang-7 Type-II1 source-rock 样品，但�
 3. 回收油 average molecular weight；
 4. full C1+ product mass/mole-basis reconstruction，包括低沸点液态烃回收损失；
 5. RSC 正文 H2 26.9% 与 ESI Table S3 component yields 的归一化口径核对；
-6. 高温高压油相黏度实验数据。
+6. 高温高压油相黏度实验数据；
+7. ACS 2023 detailed SI 数值表（仅作为 secondary paired constraint）。
 
 因此下一阶段可以开始设计“候选 lumping 方案”，但在没有同主样品碳数/馏程数据前，不应把候选切分和代表组分写成最终实验事实。
