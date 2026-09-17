@@ -1,0 +1,9 @@
+item,status,validation_rows,fit_on_validation_allowed,acceptance_rule
+water_viscosity_formulation,PASS_IMPLEMENTATION,11,no,"IAPWS-2008 Table-4 verification rows must reproduce tabulated values to numerical precision."
+gasoline_viscosity_proxy,PARTIAL_BELOW_TARGET_T,6,no,"n-hexane reference rows validate light-hydrocarbon transport behavior only to 600 K; target 653 K remains outside source range."
+diesel_viscosity_proxy,PARTIAL_LOWER_ECN,5,no,"n-undecane provides a lower-EACN bracket; ingest n-C16/n-C18/n-C20 experimental rows before acceptance."
+middle_viscosity_proxy,PARTIAL_SQUALANE_BENCHMARK,12,no,"Squalane holdout is a saturated-heavy benchmark, not a mixed aromatic/resin Middle validation."
+heavy_viscosity_proxy,BLOCKED_TARGET_DATA,12,no,"Squalane cannot validate real >500 C Heavy viscosity; require heavy-cut or reconstructed-oil high-T/P data."
+intrinsic_transport_policy,VALIDATION_ONLY,n/a,no,"Primary transport check feeds reference density directly to viscosity closure, isolating viscosity-model error from EOS-density error."
+coupled_transport_policy,PENDING_AFTER_INTRINSIC_PASS,n/a,no,"Only after intrinsic transport passes may EOS-predicted density be coupled to viscosity for end-to-end validation."
+ALL_VISCOSITY,VISCOSITY_GATE_BLOCKED,n/a,no,"Reservoir transport validation remains blocked until oil pseudo-component coverage is adequate."
