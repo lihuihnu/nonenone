@@ -356,6 +356,7 @@ class NaturalSolver final
 {
 public:
     NaturalSolver(Runtime &runtime, DM dm)
+        : runtime_(runtime)
     {
         residual_ = runtime.createResidualVector();
         jacobian_ = runtime.createJacobian();
@@ -388,8 +389,10 @@ public:
 private:
     struct MeshNormalizedConvergenceContext final
     {
+        Runtime *runtime{nullptr};
         PetscReal rmsAbsoluteTolerance{0.0};
         PetscReal infinityAbsoluteTolerance{0.0};
+        PetscReal globalSignedMassAbsoluteTolerance{0.0};
         PetscInt globalEquationCount{0};
     };
 
@@ -423,20 +426,48 @@ private:
             nullptr));
 
         *reason = defaultReason;
-        if (defaultReason == SNES_CONVERGED_FNORM_ABS)
+        if (defaultReason > 0)
         {
+            const PetscReal rms =
+                cfg.globalEquationCount > 0
+                    ? functionNorm /
+                        std::sqrt(static_cast<PetscReal>(cfg.globalEquationCount))
+                    : PETSC_INFINITY;
+            if (rms > cfg.rmsAbsoluteTolerance)
+            {
+                *reason = SNES_CONVERGED_ITERATING;
+                PetscFunctionReturn(PETSC_SUCCESS);
+            }
+
             Vec residual = nullptr;
             PetscCall(SNESGetFunction(snes, &residual, nullptr, nullptr));
             PetscCheck(
                 residual != nullptr,
                 PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
                 PETSC_ERR_ARG_NULL,
-                "SNES residual is unavailable for infinity-norm convergence gate.");
+                "SNES residual is unavailable for mesh-normalized convergence gates.");
+            PetscCheck(
+                cfg.runtime != nullptr,
+                PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
+                PETSC_ERR_ARG_NULL,
+                "Natural runtime is unavailable for global mass-residual convergence gate.");
 
             PetscReal infinityNorm = 0.0;
             PetscCall(VecNorm(residual, NORM_INFINITY, &infinityNorm));
             if (infinityNorm > cfg.infinityAbsoluteTolerance)
+            {
                 *reason = SNES_CONVERGED_ITERATING;
+                PetscFunctionReturn(PETSC_SUCCESS);
+            }
+
+            const auto massResidual =
+                cfg.runtime->evaluateGlobalSignedMassResidual(residual);
+            if (massResidual.maximumAbsolute() >
+                cfg.globalSignedMassAbsoluteTolerance)
+            {
+                *reason = SNES_CONVERGED_ITERATING;
+                PetscFunctionReturn(PETSC_SUCCESS);
+            }
         }
 
         PetscFunctionReturn(PETSC_SUCCESS);
@@ -446,8 +477,10 @@ private:
     {
         PetscReal rmsTolerance = 0.0;
         PetscReal infinityTolerance = 0.0;
+        PetscReal massSumTolerance = 0.0;
         PetscBool rmsSet = PETSC_FALSE;
         PetscBool infinitySet = PETSC_FALSE;
+        PetscBool massSumSet = PETSC_FALSE;
         PetscCallAbort(
             PETSC_COMM_WORLD,
             PetscOptionsGetReal(
@@ -458,17 +491,31 @@ private:
             PetscOptionsGetReal(
                 nullptr, nullptr, "-snes_linf_atol",
                 &infinityTolerance, &infinitySet));
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_global_mass_atol",
+                &massSumTolerance, &massSumSet));
 
-        if (rmsSet != infinitySet)
-            throw std::invalid_argument(
-                "-snes_rms_atol and -snes_linf_atol must be supplied together.");
-        if (rmsSet != PETSC_TRUE)
-            return;
-        if (!(rmsTolerance > 0.0) || !std::isfinite(rmsTolerance) ||
-            !(infinityTolerance > 0.0) || !std::isfinite(infinityTolerance))
+        const int requestedCount =
+            (rmsSet == PETSC_TRUE ? 1 : 0) +
+            (infinitySet == PETSC_TRUE ? 1 : 0) +
+            (massSumSet == PETSC_TRUE ? 1 : 0);
+        if (requestedCount != 0 && requestedCount != 3)
         {
             throw std::invalid_argument(
-                "Mesh-normalized SNES tolerances must be finite and positive.");
+                "-snes_rms_atol, -snes_linf_atol and -snes_global_mass_atol "
+                "must be supplied together.");
+        }
+        if (requestedCount == 0)
+            return;
+        if (!(rmsTolerance > 0.0) || !std::isfinite(rmsTolerance) ||
+            !(infinityTolerance > 0.0) || !std::isfinite(infinityTolerance) ||
+            !(massSumTolerance > 0.0) || !std::isfinite(massSumTolerance))
+        {
+            throw std::invalid_argument(
+                "Mesh-normalized SNES RMS/Linf/global-mass tolerances "
+                "must be finite and positive.");
         }
 
         PetscInt globalRows = 0;
@@ -507,9 +554,12 @@ private:
                 maxIterations,
                 maxFunctions));
 
+        meshNormalizedContext_.runtime = &runtime_;
         meshNormalizedContext_.rmsAbsoluteTolerance = rmsTolerance;
         meshNormalizedContext_.infinityAbsoluteTolerance =
             infinityTolerance;
+        meshNormalizedContext_.globalSignedMassAbsoluteTolerance =
+            massSumTolerance;
         meshNormalizedContext_.globalEquationCount = globalRows;
 
         PetscCallAbort(
@@ -522,13 +572,16 @@ private:
 
         PetscPrintf(
             PETSC_COMM_WORLD,
-            "[SNES][MESH-NORM] N=%lld RMS_ATOL=%.12e L2_ATOL=%.12e LINF_ATOL=%.12e\n",
+            "[SNES][MESH-NORM] N=%lld RMS_ATOL=%.12e L2_ATOL=%.12e "
+            "LINF_ATOL=%.12e GLOBAL_MASS_ATOL=%.12e kg/s\n",
             static_cast<long long>(globalRows),
             static_cast<double>(rmsTolerance),
             static_cast<double>(l2Tolerance),
-            static_cast<double>(infinityTolerance));
+            static_cast<double>(infinityTolerance),
+            static_cast<double>(massSumTolerance));
     }
 
+    Runtime &runtime_;
     SNES snes_{nullptr};
     Vec residual_{nullptr};
     Mat jacobian_{nullptr};
