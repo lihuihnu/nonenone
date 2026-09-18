@@ -98,10 +98,9 @@ jobs:
             name=$1; mode=$2; extra=$3
             make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/first60/$name" RUN_ARGS="-h02_mode $mode $BASE $extra" > "h02-results/first60/$name.log" 2>&1
           }
-          run_diag B_base B ""
-          run_diag C_base C ""
-          run_diag B_dt1 B "-dt_max 0.000011574074074074073"
-          run_diag C_dt1 C "-dt_max 0.000011574074074074073"
+          # Production-policy controls only. Historical loose-SNORM runs were
+          # diagnostic evidence for the old defect; after strict H02 defaults
+          # became persistent they are no longer a valid prerequisite.
           run_diag B_guard B "-snes_stol 1e-100 -snes_atol 1e-6"
           run_diag C_guard C "-snes_stol 1e-100 -snes_atol 1e-6"
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
