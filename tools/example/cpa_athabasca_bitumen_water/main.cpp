@@ -717,6 +717,10 @@ int run(
     options.waterComponent = static_cast<int>(water);
     options.maximumIterations = 240;
     options.maximumStabilityIterations = 160;
+    // Jia & Okuno (2018), Eq. 12 discussion: when multiple CPA roots exist,
+    // select the root with the lowest Gibbs free energy.  This is deliberately
+    // benchmark-local; Natural's production default remains role-based.
+    options.cpaSelectGibbsMinimumRoot = true;
     Flash flash(eos, options);
     const Composition z = experimentalFeed();
 
