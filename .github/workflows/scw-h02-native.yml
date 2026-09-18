@@ -2,7 +2,7 @@ name: SCW H02 native 2D runner
 on:
   push:
     branches: [docs/scw-kerogen-acs2023-data]
-    paths: ['case/scw_h02_2d/**', 'models/include/natural/fluid_system.hpp', 'models/include/natural/petsc/**', '.github/workflows/scw-h02-native.yml']
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/fluid_system.hpp', 'models/include/natural/petsc/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -52,12 +52,19 @@ jobs:
           set -euo pipefail
           g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -Iad/include -Icommon/include -Iindices/include -Imodels/include -Icase/include case/scw_h02_2d/test_closure.cpp -o /tmp/h02_test
           /tmp/h02_test | tee h02-results/closure.log
-          make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/build.log
+          make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/build_BC.log
           test -x case/scw_h02_2d/bin/scw_h02_2d
-      - name: Run B and C on the full 60x20 mesh through native runner
+          make case CASE=scw_h02_2d_a -j2 2>&1 | tee h02-results/build_A.log
+          test -x case/scw_h02_2d_a/bin/scw_h02_2d_a
+      - name: Run A B C two-step smoke on the full 60x20 mesh
         run: |
           set +e
           rc=0
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/A" RUN_ARGS="-numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu" > "h02-results/A.log" 2>&1
+          code=$?
+          echo "A $code" | tee -a h02-results/exit_codes.txt
+          tail -50 h02-results/A.log
+          if [ "$code" != 0 ]; then rc=1; fi
           for mode in B C; do
             make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/$mode" RUN_ARGS="-h02_mode $mode -numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu" > "h02-results/$mode.log" 2>&1
             code=$?
