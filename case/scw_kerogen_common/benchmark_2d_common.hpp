@@ -6,7 +6,11 @@
 
 /**
  * @file benchmark_2d_common.hpp
- * @brief 60x20x1 均质二维超临界水驱共用网格、岩石与井控。
+ * @brief 60x20x1 旧数值 benchmark 的均质二维网格、岩石与井控。
+ *
+ * @warning 本文件的 1.20m x 0.10m x 0.10m、phi=0.35 与 1500/150 mD
+ *          仅为历史 numerical benchmark。新的实验可复现 slab 只复用
+ *          60x20x1 拓扑，物理尺寸/岩石参数必须来自实际装置和试件。
  *
  * The physical dimensions and pore volume are identical to the 60x1x1
  * control.  Refining only y therefore isolates transverse flow and the
