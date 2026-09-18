@@ -45,7 +45,7 @@ using Matrix = std::array<std::array<double, 2>, 2>;
 
 constexpr double waterTc = 647.096;
 constexpr double waterPc = 22.064e6;
-constexpr double waterVc = 7.49587808839913e-5;
+constexpr double waterVc = 5.5948074534e-5;
 constexpr double waterOmega = 0.3443;
 constexpr double waterMw = 0.01801528;
 constexpr double missing = std::numeric_limits<double>::quiet_NaN();
@@ -314,9 +314,10 @@ bool hasCompositionTargets(const Observation &row)
 
 double normalizedResidual(double predicted, double target, double tolerance)
 {
-    const double scale = std::isfinite(tolerance) && tolerance > 0.0
-        ? tolerance : 0.01;
-    return (predicted - target) / scale;
+    if (!(std::isfinite(tolerance) && tolerance > 0.0))
+        throw std::runtime_error(
+            "Experimental composition tolerance must be explicit and positive.");
+    return (predicted - target) / tolerance;
 }
 
 double compositionObjective(
@@ -357,19 +358,6 @@ double compositionObjective(
         return 1.0e12;
     }
     return count > 0 ? sum / count : 1.0e12;
-}
-
-std::vector<const Observation *> observationsFor(
-    const std::vector<Observation> &rows,
-    const std::string &systemId)
-{
-    std::vector<const Observation *> selected;
-    for (const auto &row : rows)
-    {
-        if (row.systemId == systemId)
-            selected.push_back(&row);
-    }
-    return selected;
 }
 
 struct FitState
@@ -476,10 +464,9 @@ bool densityWithin(double predicted, double target, double relativeTolerance)
         return true;
     if (!std::isfinite(predicted) || target <= 0.0)
         return false;
-    const double tolerance =
-        std::isfinite(relativeTolerance) && relativeTolerance > 0.0
-        ? relativeTolerance : 0.02;
-    return std::abs(predicted / target - 1.0) <= tolerance;
+    if (!(std::isfinite(relativeTolerance) && relativeTolerance > 0.0))
+        return false;
+    return std::abs(predicted / target - 1.0) <= relativeTolerance;
 }
 
 GateState evaluateGates(
