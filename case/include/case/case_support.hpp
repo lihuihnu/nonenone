@@ -821,7 +821,7 @@ private:
     {
         MPMC::ProducerCompositionOutputOptions options;
         options.resultDirectory = run.resultDirectory;
-        if constexpr (detail::HasProducerCompositionOutput<
+        if constexpr (HasProducerCompositionOutput<
                           typename Config::Output>::value)
         {
             options.enabled =
@@ -839,7 +839,7 @@ private:
                     static_cast<std::size_t>(component)]);
         }
 
-        if constexpr (detail::HasExplicitProducerLightHeavyGroups<
+        if constexpr (HasExplicitProducerLightHeavyGroups<
                           typename Config::Fluid>::value)
         {
             options.lightComponents.assign(
@@ -849,7 +849,7 @@ private:
                 Config::Fluid::producerLighteningHeavyComponents.begin(),
                 Config::Fluid::producerLighteningHeavyComponents.end());
         }
-        else if constexpr (detail::HasSingleLightHeavyComponents<
+        else if constexpr (HasSingleLightHeavyComponents<
                                typename Config::Fluid>::value)
         {
             options.lightComponents = {
@@ -858,7 +858,7 @@ private:
                 Config::Fluid::heavyComponent};
         }
 
-        if constexpr (detail::HasProducerEffectivePoreVolume<
+        if constexpr (HasProducerEffectivePoreVolume<
                           typename Config::Output>::value)
         {
             options.effectivePoreVolumeM3 =
