@@ -102,6 +102,7 @@ UNIT_TEST_NAMES := \
 	sw_heringer_temperature_transition_test \
 	thermodynamic_failure_modes_test \
 	lab_pseudo3d_geometry_test \
+	lab_flow_control_contract_test \
 	three_phase_ad_test \
 	three_phase_reservoir_case_test \
 	three_eos_3d_case_test \
