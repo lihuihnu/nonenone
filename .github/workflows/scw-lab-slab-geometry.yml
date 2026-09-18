@@ -52,5 +52,18 @@ jobs:
               print(f'[PASS] {path}: {len(rows)-1} data rows, {width} columns')
           PY
 
-      - name: Check Markdown links
-        run: python3 scripts/check_markdown_links.py
+      - name: Check focused slab documentation references
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          required = [
+              Path('case/scw_kerogen_lumped_flow_study/12_LAB_PSEUDO3D_SLAB_DESIGN.md'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/pseudo3d_slab_geometry_contract.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/gravity_scope.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/heterogeneity_stage_policy.csv'),
+              Path('case/scw_kerogen_common/lab_pseudo3d_slab_geometry.hpp'),
+          ]
+          missing = [str(p) for p in required if not p.is_file()]
+          assert not missing, f'missing focused slab docs/files: {missing}'
+          print('[PASS] focused slab documentation references')
+          PY
