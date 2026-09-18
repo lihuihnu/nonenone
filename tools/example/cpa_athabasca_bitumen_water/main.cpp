@@ -70,6 +70,7 @@ struct OwStabilityState
     bool gasUnstable{false};
     double gasTrialSum{std::numeric_limits<double>::quiet_NaN()};
     double materialClosure{std::numeric_limits<double>::quiet_NaN()};
+    std::array<Composition, 3> phaseComposition{};
 };
 
 struct BoundaryPrediction
@@ -340,15 +341,20 @@ OwStabilityState evaluateOwStability(
     const Flash &flash,
     double pressureMPa,
     double temperatureK,
-    const Composition &z)
+    const Composition &z,
+    const std::array<Composition, 3> *phaseCompositionSeed = nullptr)
 {
     const auto oilWater = MPMC::PhasePresence(
         static_cast<std::uint8_t>(
             MPMC::PhasePresence::oilBit |
             MPMC::PhasePresence::waterBit));
     OwStabilityState state;
-    const auto restricted = flash.flashRestricted(
-        pressureMPa * 1.0e6, temperatureK, z, oilWater);
+    const auto restricted = phaseCompositionSeed
+        ? flash.flashRestricted(
+            pressureMPa * 1.0e6, temperatureK, z, oilWater,
+            *phaseCompositionSeed)
+        : flash.flashRestricted(
+            pressureMPa * 1.0e6, temperatureK, z, oilWater);
     if (!restricted.converged ||
         restricted.presence.bits() != oilWater.bits())
         return state;
@@ -369,6 +375,7 @@ OwStabilityState evaluateOwStability(
     state.valid = true;
     state.gasUnstable = stability.missingPhaseUnstable[gasSlot];
     state.gasTrialSum = stability.trialSum[gasSlot];
+    state.phaseComposition = restricted.composition;
     return state;
 }
 
@@ -476,15 +483,124 @@ BoundaryPrediction findWlvWlBoundary(
     return result;
 }
 
+BoundaryPrediction findWlvWlBoundaryContinuation(
+    const Flash &flash,
+    double temperatureK,
+    const Composition &z)
+{
+    constexpr double pMinMPa = 2.0;
+    constexpr double pMaxMPa = 30.0;
+    constexpr double scanStepMPa = 0.05;
+    constexpr int bisectionIterations = 30;
+
+    BoundaryPrediction result;
+
+    // Start on the high-pressure O+W branch and walk DOWN in pressure.  The
+    // first stable -> gas-unstable change encountered is the high-pressure
+    // WLV -> WL boundary by construction.  Each solve is seeded with the
+    // previous O+W phase compositions, so this diagnostic follows one liquid
+    // branch instead of independently rediscovering a branch at every P.
+    double highPressure = pMaxMPa;
+    OwStabilityState highState =
+        evaluateOwStability(flash, highPressure, temperatureK, z);
+    ++result.evaluations;
+    if (!highState.valid)
+        return result;
+
+    double selectedLow = std::numeric_limits<double>::quiet_NaN();
+    double selectedHigh = std::numeric_limits<double>::quiet_NaN();
+    OwStabilityState selectedLowState;
+    OwStabilityState selectedHighState;
+
+    const int scanCount = static_cast<int>(
+        std::llround((pMaxMPa - pMinMPa) / scanStepMPa));
+    for (int k = 1; k <= scanCount; ++k)
+    {
+        const double pressure = pMaxMPa - scanStepMPa * k;
+        const auto state = evaluateOwStability(
+            flash, pressure, temperatureK, z,
+            &highState.phaseComposition);
+        ++result.evaluations;
+        if (!state.valid)
+            return result;
+
+        if (!highState.gasUnstable && state.gasUnstable)
+        {
+            selectedLow = pressure;
+            selectedHigh = highPressure;
+            selectedLowState = state;
+            selectedHighState = highState;
+            result.transitionCount = 1;
+            break;
+        }
+
+        highPressure = pressure;
+        highState = state;
+    }
+
+    if (!std::isfinite(selectedLow) || !std::isfinite(selectedHigh))
+        return result;
+
+    double low = selectedLow;
+    double high = selectedHigh;
+    OwStabilityState lowState = selectedLowState;
+    OwStabilityState highBracketState = selectedHighState;
+
+    for (int iteration = 0; iteration < bisectionIterations; ++iteration)
+    {
+        const double mid = 0.5 * (low + high);
+        // Seed from the closer endpoint to preserve the locally continued
+        // liquid branch on both sides of the incipient-gas boundary.
+        const bool closerToHigh = (high - mid) <= (mid - low);
+        const auto &seed = closerToHigh
+            ? highBracketState.phaseComposition
+            : lowState.phaseComposition;
+        const auto midState = evaluateOwStability(
+            flash, mid, temperatureK, z, &seed);
+        ++result.evaluations;
+        if (!midState.valid)
+            return result;
+
+        if (midState.gasUnstable)
+        {
+            low = mid;
+            lowState = midState;
+        }
+        else
+        {
+            high = mid;
+            highBracketState = midState;
+        }
+    }
+
+    result.found = true;
+    result.bracketLowMPa = low;
+    result.bracketHighMPa = high;
+    result.pressureMPa = 0.5 * (low + high);
+    return result;
+}
+
 struct BoundaryMetrics
 {
     std::string convention;
     double waterMassFraction{};
     double waterMoleFraction{};
     std::size_t found{};
+    std::size_t continuationFound{};
     double aadMPa{std::numeric_limits<double>::quiet_NaN()};
+    double continuationAadMPa{std::numeric_limits<double>::quiet_NaN()};
     double maxAbsErrorMPa{std::numeric_limits<double>::quiet_NaN()};
+    double continuationMaxAbsErrorMPa{
+        std::numeric_limits<double>::quiet_NaN()};
     double publishedAadDifferenceMPa{std::numeric_limits<double>::quiet_NaN()};
+    double continuationPublishedAadDifferenceMPa{
+        std::numeric_limits<double>::quiet_NaN()};
+    double calibrationExperimentalPressureMPa{
+        std::numeric_limits<double>::quiet_NaN()};
+    double calibrationPredictedPressureMPa{
+        std::numeric_limits<double>::quiet_NaN()};
+    double calibrationContinuationPressureMPa{
+        std::numeric_limits<double>::quiet_NaN()};
 };
 
 BoundaryMetrics evaluateBoundaryConvention(
@@ -503,20 +619,47 @@ BoundaryMetrics evaluateBoundaryConvention(
     metrics.waterMoleFraction = z[water];
 
     double sumAbs = 0.0;
+    double continuationSumAbs = 0.0;
     double maxAbs = 0.0;
+    double continuationMaxAbs = 0.0;
     for (const auto &point : points)
     {
         const auto predicted =
             findWlvWlBoundary(flash, point.temperatureK, z);
+        const auto continued =
+            findWlvWlBoundaryContinuation(flash, point.temperatureK, z);
         const double error = predicted.found ?
             std::abs(predicted.pressureMPa - point.pressureMPa) :
             std::numeric_limits<double>::quiet_NaN();
+        const double continuationError = continued.found ?
+            std::abs(continued.pressureMPa - point.pressureMPa) :
+            std::numeric_limits<double>::quiet_NaN();
+
         if (predicted.found)
         {
             ++metrics.found;
             sumAbs += error;
             maxAbs = std::max(maxAbs, error);
         }
+        if (continued.found)
+        {
+            ++metrics.continuationFound;
+            continuationSumAbs += continuationError;
+            continuationMaxAbs =
+                std::max(continuationMaxAbs, continuationError);
+        }
+
+        if (std::abs(point.temperatureK - 593.0) <= 0.2)
+        {
+            metrics.calibrationExperimentalPressureMPa = point.pressureMPa;
+            if (predicted.found)
+                metrics.calibrationPredictedPressureMPa =
+                    predicted.pressureMPa;
+            if (continued.found)
+                metrics.calibrationContinuationPressureMPa =
+                    continued.pressureMPa;
+        }
+
         rows << convention << ',' << waterMassFraction << ',' << z[water]
              << ',' << point.temperatureK << ',' << point.pressureMPa
              << ',' << point.temperatureUncertaintyK << ','
@@ -526,7 +669,14 @@ BoundaryMetrics evaluateBoundaryConvention(
              << error << ',' << predicted.bracketLowMPa << ','
              << predicted.bracketHighMPa << ','
              << predicted.transitionCount << ','
-             << predicted.evaluations << '\n';
+             << predicted.evaluations << ','
+             << (continued.found ? 1 : 0) << ','
+             << continued.pressureMPa << ','
+             << continuationError << ','
+             << continued.bracketLowMPa << ','
+             << continued.bracketHighMPa << ','
+             << continued.transitionCount << ','
+             << continued.evaluations << '\n';
     }
 
     if (metrics.found == points.size() && !points.empty())
@@ -536,6 +686,14 @@ BoundaryMetrics evaluateBoundaryConvention(
         metrics.maxAbsErrorMPa = maxAbs;
         metrics.publishedAadDifferenceMPa =
             std::abs(metrics.aadMPa - publishedAadMPa);
+    }
+    if (metrics.continuationFound == points.size() && !points.empty())
+    {
+        metrics.continuationAadMPa =
+            continuationSumAbs / static_cast<double>(points.size());
+        metrics.continuationMaxAbsErrorMPa = continuationMaxAbs;
+        metrics.continuationPublishedAadDifferenceMPa =
+            std::abs(metrics.continuationAadMPa - publishedAadMPa);
     }
     return metrics;
 }
@@ -576,7 +734,11 @@ int run(
         << "feed_convention,water_mass_fraction,water_mole_fraction,"
            "T_K,experimental_P_MPa,T_uncertainty_K,P_uncertainty_MPa,"
            "boundary_found,predicted_P_MPa,abs_error_MPa,"
-           "bracket_low_MPa,bracket_high_MPa,transition_count,evaluations\n";
+           "bracket_low_MPa,bracket_high_MPa,transition_count,evaluations,"
+           "continuation_found,continuation_P_MPa,"
+           "continuation_abs_error_MPa,continuation_bracket_low_MPa,"
+           "continuation_bracket_high_MPa,continuation_transition_count,"
+           "continuation_evaluations\n";
 
     rows << std::scientific << std::setprecision(12);
     rows << "T_K,P_MPa,zH2O_feed,converged,phase_code,phase_count,"
@@ -782,21 +944,35 @@ int run(
         boundaryMetrics << std::scientific << std::setprecision(12)
             << m.convention << ',' << m.waterMassFraction << ','
             << m.waterMoleFraction << ',' << m.found << ','
-            << boundaryPoints.size() << ',' << m.aadMPa << ','
-            << m.maxAbsErrorMPa << ',' << publishedBoundaryAadMPa << ','
-            << m.publishedAadDifferenceMPa << '\n';
+            << m.continuationFound << ',' << boundaryPoints.size() << ','
+            << m.aadMPa << ',' << m.continuationAadMPa << ','
+            << m.maxAbsErrorMPa << ','
+            << m.continuationMaxAbsErrorMPa << ','
+            << publishedBoundaryAadMPa << ','
+            << m.publishedAadDifferenceMPa << ','
+            << m.continuationPublishedAadDifferenceMPa << ','
+            << m.calibrationExperimentalPressureMPa << ','
+            << m.calibrationPredictedPressureMPa << ','
+            << m.calibrationContinuationPressureMPa << '\n';
     };
     boundaryMetrics
         << "feed_convention,water_mass_fraction,water_mole_fraction,"
-           "boundary_points_found,boundary_points_total,aad_MPa,"
-           "max_abs_error_MPa,published_Jia_aad_MPa,"
-           "abs_difference_from_published_aad_MPa\n";
+           "independent_points_found,continuation_points_found,"
+           "boundary_points_total,independent_aad_MPa,continuation_aad_MPa,"
+           "independent_max_abs_error_MPa,continuation_max_abs_error_MPa,"
+           "published_Jia_aad_MPa,independent_abs_difference_from_published_aad_MPa,"
+           "continuation_abs_difference_from_published_aad_MPa,"
+           "calibration_experimental_P_MPa,calibration_independent_P_MPa,"
+           "calibration_continuation_P_MPa\n";
     writeBoundaryMetric(jiaCaptionBoundary);
     writeBoundaryMetric(amaniTableBoundary);
 
     const bool boundaryRowsComplete =
         jiaCaptionBoundary.found == boundaryPoints.size() &&
         amaniTableBoundary.found == boundaryPoints.size();
+    const bool continuationRowsComplete =
+        jiaCaptionBoundary.continuationFound == boundaryPoints.size() &&
+        amaniTableBoundary.continuationFound == boundaryPoints.size();
 
     // Table 5 is a branch-composition benchmark at experimental WLV-WL
     // transition points.  Therefore Stage 1 hard-gates reproducibility of the
@@ -819,12 +995,27 @@ int run(
          << (jiaCaptionBoundary.found + amaniTableBoundary.found) << '/'
          << (2 * boundaryPoints.size())
          << ",both conflicting source feed conventions must yield one traceable WLV-WL boundary at every experimental temperature\n";
+    gate << "CPA_ATHABASCA_FIGURE7_CONTINUATION_ROWS,"
+         << (continuationRowsComplete ? "PASS" : "FAIL") << ','
+         << (jiaCaptionBoundary.continuationFound +
+             amaniTableBoundary.continuationFound) << '/'
+         << (2 * boundaryPoints.size())
+         << ",high-pressure-to-low-pressure seeded O+W continuation must trace a WLV-WL boundary at every source temperature\n";
+    gate << "CPA_ATHABASCA_FIGURE7_CALIBRATION_POINT,OBSERVE,"
+         << amaniTableBoundary.calibrationContinuationPressureMPa
+         << ",paper states one ~593.1 K boundary point was matched; original Amani table gives 593.0 K / 12.8 MPa, so report the frozen-parameter prediction without retuning\n";
     gate << "CPA_ATHABASCA_FIGURE7_JIA_CAPTION_AAD,OBSERVE,"
          << jiaCaptionBoundary.aadMPa
          << ",audit against published 0.771 MPa AAD; Jia caption composition conflicts with the original Amani table\n";
     gate << "CPA_ATHABASCA_FIGURE7_AMANI_TABLE_AAD,OBSERVE,"
          << amaniTableBoundary.aadMPa
-         << ",audit against published 0.771 MPa AAD using the original Amani Table-2.5 composition label\n";
+         << ",independent-solve audit against published 0.771 MPa AAD using the original Amani Table-2.5 composition label\n";
+    gate << "CPA_ATHABASCA_FIGURE7_AMANI_TABLE_CONTINUATION_AAD,OBSERVE,"
+         << amaniTableBoundary.continuationAadMPa
+         << ",seeded branch-continuation AAD using the original Amani Table-2.5 composition label\n";
+    gate << "CPA_ATHABASCA_FIGURE7_JIA_CAPTION_CONTINUATION_AAD,OBSERVE,"
+         << jiaCaptionBoundary.continuationAadMPa
+         << ",seeded branch-continuation AAD using the conflicting Jia Figure-7 caption composition\n";
     gate << "CPA_ATHABASCA_FIGURE7_PUBLISHED_AAD_DIFFERENCE,OBSERVE,"
          << std::min(
                 jiaCaptionBoundary.publishedAadDifferenceMPa,
@@ -835,11 +1026,16 @@ int run(
               << owBranchPassed << '/' << points.size()
               << ", unrestricted equilibrium " << unrestrictedPassed << '/'
               << points.size() << ", Table5 MAE(exp)=" << std::scientific
-              << maeExperimental << ", Figure7 AAD Jia-caption="
+              << maeExperimental << ", Figure7 independent AAD Jia-caption="
               << jiaCaptionBoundary.aadMPa << " MPa, Amani-table="
               << amaniTableBoundary.aadMPa
+              << " MPa; continuation AAD Jia-caption="
+              << jiaCaptionBoundary.continuationAadMPa
+              << " MPa, Amani-table="
+              << amaniTableBoundary.continuationAadMPa
               << " MPa, published=0.771 MPa\n";
-    return (owBranchGate && boundaryRowsComplete) ? 0 : 2;
+    return (owBranchGate && boundaryRowsComplete && continuationRowsComplete)
+        ? 0 : 2;
 }
 } // namespace
 
