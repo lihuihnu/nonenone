@@ -1,5 +1,5 @@
 component,Tc_K,Pc_MPa,Vc_cm3_mol,omega,MW_g_mol,cpa_a0_Pa_m6_mol2,cpa_b_m3_mol,cpa_c1,physical_term,parameter_status,source
-H2O,647.096,22.064,74.958780884,0.3443,18.01528,0.12277,1.4515e-05,0.67359,SRK,LOCKED_4C_WATER_CPA,"Folas CPA 4C water parameters; already used by repository CO2-DME-H2O VLLE benchmark"
+H2O,647.096,22.064,55.948074534,0.3443,18.01528,0.12277,1.4515e-05,0.67359,SRK,LOCKED_4C_WATER_CPA,"Folas CPA 4C water parameters; already used by repository CO2-DME-H2O VLLE benchmark"
 OIL_GASOLINE,515.231,3.192179,358.490,0.269328,82.392,2.45754175486,1.16269921130e-04,0.891155659401,SRK,PROVISIONAL_SRK_DERIVED_CPA_PHYSICAL,"Derived consistently from characterized Tc/Pc/omega using SRK critical mapping; not fitted CPA narrow-cut parameters"
 OIL_DIESEL,736.423,1.751155,824.073,0.583473,215.583,9.15196330734,3.02939137177e-04,1.33846893146,SRK,PROVISIONAL_SRK_DERIVED_CPA_PHYSICAL,"Derived consistently from characterized Tc/Pc/omega; upgrade to Yan-type C7+ CPA narrow-cut characterization when equations/data are fully recovered"
 OIL_MIDDLE,870.437,1.138075,1318.853,0.896554,387.349,19.6737874211,5.50958755266e-04,1.74970559881,SRK,PROVISIONAL_SRK_DERIVED_CPA_PHYSICAL_HIGH_OMEGA,"Same consistent SRK mapping; high c1 is a screening value and must be checked against phase/density data"
