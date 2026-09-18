@@ -160,7 +160,11 @@ and
 
 ## Next numerical experiments
 
-Before target generated-Heavy data arrive, the next code-level benchmark is to reproduce the Jia & Okuno Athabasca-bitumen CPA Case 1 using the production CPA backend and the registered literature parameters. That benchmark is **implementation validation only**: it tests whether the code can reproduce a published water/asphaltene/solvation CPA case near 633.8 K and 23.72 MPa, without transferring its parameters to `OIL_HEAVY`.
+The first Athabasca implementation benchmark is now complete at the **Table 5 liquid-branch** level. With the Jia & Okuno Case-1 literature parameters frozen, the production CPA backend reproduces a finite O+W branch at all 8/8 reported water-solubility states with maximum material-closure error about `6.7e-16`. The O+W branch MAE is about `0.01002` mole fraction versus experiment and `0.00491` versus the published Jia CPA values; these errors remain report-only because no acceptance tolerance has been preregistered.
+
+The unrestricted equilibrium is 7/8 at those exact experimental T/P rows. The exceptional `603.5 K / 15.32 MPa` state has a converged O+W branch but that branch is unstable to an incipient missing phase. This is consistent with the fact that Table 5 values are reported at experimental **WLV-WL transition points**: liquid-branch parity and global phase-boundary parity are different tests.
+
+Therefore the next small code-level benchmark is now narrowly defined: reproduce the **Figure 7 WLV-WL phase boundary / transition-pressure locus** with the same frozen Jia Case-1 parameters and production CPA backend. Only that separate boundary benchmark may judge unrestricted phase topology. None of the Athabasca parameters are transferred into `OIL_HEAVY`.
 
 Once target-window generated-Heavy data exist, fit PR and CPA independently to the calibration split, freeze parameters, and compare the same hold-out rows. Only then use the binary model in the laboratory slab to study:
 
