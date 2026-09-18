@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p h02-results/mesh_norm_20x8
-          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
           COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
           make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/mesh_norm_20x8/A" RUN_ARGS="$COMMON_ARGS" > h02-results/mesh_norm_20x8/A.log 2>&1
           for mode in B C; do
@@ -132,7 +132,7 @@ jobs:
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
           mkdir -p "$root"
-          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
           COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/B" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/B.log" 2>&1
           grep -F '[SNES][MESH-NORM]' "$root/B.log" | head -1
@@ -141,19 +141,74 @@ jobs:
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
-          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
           COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/C" RUN_ARGS="-h02_mode C $COMMON_ARGS" > "$root/C.log" 2>&1
           python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis" --modes BC | tee "$root/analysis.log"
           grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
           tail -30 "$root/C.log"
-      - name: Gate matched-PVI B C grid convergence
+      - name: Record 20x8 to 60x20 B C grid gate without changing thresholds
         run: |
           set -euo pipefail
-          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_BC | tee h02-results/grid_gate_BC.log
-          cat h02-results/grid_gate_BC/grid_convergence.csv
-          cat h02-results/grid_gate_BC/convergence_gates.csv
-          cat h02-results/grid_gate_BC/mechanism_increment_stability.csv
+          mkdir -p h02-results/grid_gate_20x8_to_60x20_BC
+          set +e
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_20x8_to_60x20_BC             | tee h02-results/grid_gate_20x8_to_60x20_BC.log
+          rc=$?
+          set -e
+          echo "$rc" > h02-results/grid_gate_20x8_to_60x20_BC/exit_code.txt
+          cat h02-results/grid_gate_20x8_to_60x20_BC/grid_convergence.csv
+          cat h02-results/grid_gate_20x8_to_60x20_BC/convergence_gates.csv
+          # This screening result is evidence, not a reason to alter thresholds.
+          # Continue to the preregistered aligned 36x12 grid regardless of PASS/FAIL.
+
+      - name: Run aligned 36x12 A B C to 2 PVI with all convergence gates
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/aligned_36x12"
+          mkdir -p "$root"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 36 -h02_ny 12 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis"             | tee "$root/analysis.log"
+          for mode in A B C; do
+            grep -F '[SNES][MESH-NORM]' "$root/$mode.log" | head -1
+            tail -20 "$root/$mode.log"
+          done
+
+      - name: Compare aligned 36x12 to certified 60x20 A and new 60x20 B C
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/grid_gate_36x12_to_60x20_A
+          mkdir -p h02-results/grid_gate_36x12_to_60x20_BC
+
+          set +e
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/aligned_36x12             --dt1 h02-results/aligned_36x12             --grid60 case/scw_h02_2d/reference/run64_A_60x20             --modes A             --out h02-results/grid_gate_36x12_to_60x20_A             | tee h02-results/grid_gate_36x12_to_60x20_A.log
+          rc_a=$?
+
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/aligned_36x12             --dt1 h02-results/aligned_36x12             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_36x12_to_60x20_BC             | tee h02-results/grid_gate_36x12_to_60x20_BC.log
+          rc_bc=$?
+          set -e
+
+          echo "$rc_a" > h02-results/grid_gate_36x12_to_60x20_A/exit_code.txt
+          echo "$rc_bc" > h02-results/grid_gate_36x12_to_60x20_BC/exit_code.txt
+
+          echo "===== 36x12 -> 60x20 A ====="
+          cat h02-results/grid_gate_36x12_to_60x20_A/grid_convergence.csv
+          cat h02-results/grid_gate_36x12_to_60x20_A/convergence_gates.csv
+          echo "===== 36x12 -> 60x20 B/C ====="
+          cat h02-results/grid_gate_36x12_to_60x20_BC/grid_convergence.csv
+          cat h02-results/grid_gate_36x12_to_60x20_BC/convergence_gates.csv
+          cat h02-results/grid_gate_36x12_to_60x20_BC/mechanism_increment_stability.csv
+
+          if [ "$rc_a" -ne 0 ] || [ "$rc_bc" -ne 0 ]; then
+            echo "H02_ALIGNED_GRID_CERTIFICATION=FAIL"
+            exit 2
+          fi
+          echo "H02_ALIGNED_GRID_CERTIFICATION=PASS"
+
       - name: Upload exact native outputs even on failure
         if: always()
         uses: actions/upload-artifact@v4
