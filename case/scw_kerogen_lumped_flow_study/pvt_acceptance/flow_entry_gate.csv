@@ -3,5 +3,5 @@ PR_BINARY_CALIBRATION,RESERVOIR_GATE_BLOCKED,RESERVOIR_GATE_PASS,yes,"All four H
 CPA_CALIBRATION,CPA_GATE_BLOCKED,CPA_GATE_PASS,yes,"CPA physical/BIP/association validation must pass independently."
 DENSITY_VALIDATION,DENSITY_GATE_BLOCKED,DENSITY_GATE_PASS,yes,"Density validation must pass without fitting on validation rows."
 VISCOSITY_VALIDATION,VISCOSITY_GATE_BLOCKED,VISCOSITY_GATE_PASS,yes,"Intrinsic and coupled transport validation must pass."
-ZERO_D_PVT_RUNTIME,BLOCKED_CPA_DENSE_PATH,ZERO_D_PVT_GATE_PASS,yes,"Initial anchors pass in both EOS, but CPA has two non-converged dense-path states at 380 C, zH2O~0.76106 and 26.00/26.25 MPa."
-FAIR_FLOW_COMPARISON,FLOW_GATE_BLOCKED,FLOW_GATE_PASS,yes,"Blocked by PR/CPA/property gates and the CPA dense-path 0D failure; flow results themselves cannot promote the EOS."
+ZERO_D_PVT_RUNTIME,ZERO_D_PVT_GATE_PASS,ZERO_D_PVT_GATE_PASS,no,"Strict PR/CPA registered scans, P-T map health, dense composition paths and cross-EOS initial-state anchors all pass. The former CPA onset failures were fixed without parameter changes."
+FAIR_FLOW_COMPARISON,FLOW_GATE_BLOCKED,FLOW_GATE_PASS,yes,"0D numerical PVT gate now passes; flow remains blocked by independent PR/CPA experimental calibration plus density and viscosity validation gates. Flow results themselves cannot promote the EOS."
