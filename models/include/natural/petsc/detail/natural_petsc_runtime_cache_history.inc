@@ -313,10 +313,10 @@
         PetscObjectState phaseStateState{};
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(solution, &solutionState));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(solution), &solutionState));
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(phaseState_, &phaseStateState));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(phaseState_), &phaseStateState));
 
         return cachedSolutionState_ == solutionState &&
                cachedPhaseStateState_ == phaseStateState;
