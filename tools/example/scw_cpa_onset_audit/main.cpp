@@ -92,6 +92,7 @@ struct Candidate
     double trialOil{missing};
     double trialGas{missing};
     double trialWater{missing};
+    double incipientOilGasL1{missing};
     double betaOil{missing};
     double betaWater{missing};
     double xOilWater{missing};
@@ -377,6 +378,15 @@ Candidate certify(
     candidate.trialOil = stability.trialSum[0];
     candidate.trialGas = stability.trialSum[1];
     candidate.trialWater = stability.trialSum[2];
+    if (stability.missingPhaseUnstable[0] &&
+        stability.missingPhaseUnstable[1])
+    {
+        candidate.incipientOilGasL1 = 0.0;
+        for (std::size_t component = 0; component < N; ++component)
+            candidate.incipientOilGasL1 += std::abs(
+                stability.incipientComposition[0][component] -
+                stability.incipientComposition[1][component]);
+    }
     candidate.betaOil = result.phaseMoleFraction[0];
     candidate.betaWater = result.phaseMoleFraction[2];
     candidate.xOilWater = result.composition[0][water];
@@ -459,6 +469,7 @@ void writeCandidate(
         << (c.gasMissingUnstable ? 1 : 0) << ','
         << (c.waterMissingUnstable ? 1 : 0) << ','
         << c.trialOil << ',' << c.trialGas << ',' << c.trialWater << ','
+        << c.incipientOilGasL1 << ','
         << c.betaOil << ',' << c.betaWater << ','
         << c.xOilWater << ',' << c.xWaterWater << ','
         << (c.roleConsistent ? 1 : 0) << ','
@@ -508,7 +519,7 @@ int main(int argc, char **argv)
             << "method,z_H2O,pressure_MPa,converged,phase_code,phase_count,"
                "iterations,stability_valid,stability_stable,"
                "missing_oil_unstable,missing_gas_unstable,missing_water_unstable,"
-               "trial_sum_oil,trial_sum_gas,trial_sum_water,beta_oil,beta_water,"
+               "trial_sum_oil,trial_sum_gas,trial_sum_water,incipient_oil_gas_L1,beta_oil,beta_water,"
                "xH2O_oil,xH2O_water,role_consistent,mass_closure,"
                "max_log_fugacity_spread\n";
 
@@ -733,7 +744,7 @@ int main(int argc, char **argv)
             << "hypothesis,status,evidence\n";
 
         bool seededBoth = true;
-        bool unseededBoth = true;
+        bool unseededStableOwBoth = true;
         bool rootsBoth = true;
         bool roleBoth = true;
         bool stableBoth = true;
@@ -744,7 +755,11 @@ int main(int argc, char **argv)
                 eos, flash, pressure, failureZ,
                 flash.flashRestricted(
                     pressure, temperature, failureZ, oilWaterPresence()));
-            unseededBoth = unseededBoth && unseeded.converged;
+            unseededStableOwBoth = unseededStableOwBoth &&
+                unseeded.converged &&
+                unseeded.phaseCode == 5 &&
+                unseeded.stabilityValid &&
+                unseeded.stabilityStable;
 
             const Composition zHigh = compositionAt(parameters, 0.775);
             Flash::Result highSeed = flash.flash(
@@ -796,7 +811,7 @@ int main(int argc, char **argv)
             << (roleBoth ? "NOT_SUPPORTED" : "POSSIBLE")
             << ",Normal and deliberately swapped O/W seeds should converge to the same canonical tie-line.\n"
             << "UNSEEDED_ACTIVE_SET_OR_PAIR_INITIALIZATION,"
-            << ((!unseededBoth && seededBoth) ? "SUPPORTED" : "NOT_ISOLATED")
+            << ((!unseededStableOwBoth && seededBoth) ? "SUPPORTED" : "NOT_ISOLATED")
             << ",Compare unseeded restricted O+W against the same solve with a nearby converged tie-line seed.\n"
             << "CONTINUATION_STEP_OR_SEED_REUSE,"
             << (seededBoth ? "SUPPORTED" : "NOT_RESOLVED")
