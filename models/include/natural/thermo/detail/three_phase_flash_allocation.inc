@@ -778,24 +778,7 @@
                 }
                 if (!kgValid) kg = wilsonGasOilK_(pressure, temperature);
                 if (!kwValid) kw = initialWaterOilK_(z);
-
-                double initialBetaGas = 0.15;
-                double initialBetaWater = 0.15;
-                if (eos_.usesCubicPlusAssociation() &&
-                    options_.cpaSelectGibbsMinimumRoot)
-                {
-                    const std::size_t gasSlot = static_cast<std::size_t>(
-                        phaseIndex(CompositionalPhase::Gas));
-                    const std::size_t waterSlot = static_cast<std::size_t>(
-                        phaseIndex(CompositionalPhase::Water));
-                    initialBetaGas =
-                        std::max(seed.phaseMoleFraction[gasSlot], 1.0e-8);
-                    initialBetaWater =
-                        std::max(seed.phaseMoleFraction[waterSlot], 1.0e-8);
-                }
-                current = flashThree_(
-                    pressure, temperature, z, kg, kw,
-                    initialBetaGas, initialBetaWater);
+                current = flashThree_(pressure, temperature, z, kg, kw);
                 if (!current.converged)
                 {
                     lastPhysical.converged = false;
