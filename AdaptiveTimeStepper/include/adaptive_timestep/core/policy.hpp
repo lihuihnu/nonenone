@@ -25,9 +25,10 @@ class AdaptiveTimeStepPolicy final
 {
 public:
     explicit AdaptiveTimeStepPolicy(AdaptiveTimeStepConfig config)
-        : config_(std::move(config)), recommendedDt_(config_.fixedOutputDt)
+        : config_(std::move(config))
     {
         config_.validate();
+        recommendedDt_ = config_.effectiveMaximumDt();
     }
 
     /** @brief 返回已完成合法性检查的只读策略配置。 */
@@ -62,7 +63,7 @@ public:
     {
         if (!config_.adaptive)
         {
-            recommendedDt_ = config_.fixedOutputDt;
+            recommendedDt_ = config_.effectiveMaximumDt();
             return;
         }
 
@@ -72,7 +73,7 @@ public:
         if (nonlinearIterations <= config_.easyNonlinearIterations)
         {
             recommendedDt_ = std::min(
-                config_.fixedOutputDt,
+                config_.effectiveMaximumDt(),
                 actualDt * config_.growthFactor);
         }
         else if (nonlinearIterations >= config_.difficultNonlinearIterations)
