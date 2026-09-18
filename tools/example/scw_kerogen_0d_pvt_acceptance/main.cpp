@@ -143,6 +143,10 @@ struct BackendResult
     std::size_t passedPoints{0};
     std::size_t initialPoints{0};
     std::size_t passedInitialPoints{0};
+    std::size_t envelopeMapPoints{0};
+    std::size_t envelopeMapFailures{0};
+    std::size_t compositionPathPoints{0};
+    std::size_t compositionPathFailures{0};
     std::vector<AnchorResult> anchors;
 };
 
@@ -687,6 +691,9 @@ BackendResult runBackend(
         const std::string stem = safeStem(family);
         const auto pt = unrestricted.pressureTemperature(
             it->z, envelopeT, envelopeP);
+        summary.envelopeMapPoints += pt.samples.size();
+        for (const auto &sample : pt.samples)
+            summary.envelopeMapFailures += sample.statusCode == 0 ? 0u : 1u;
         MPMC::tools::writeCsv(
             outDir / (stem + "_full_pt_map.csv"), pt, names);
         const auto boundaries =
@@ -723,22 +730,38 @@ BackendResult runBackend(
     {
         const auto map = unrestricted.pressureComposition(
             temperature, targetPressure, low->z, high->z, pathAxis);
+        summary.compositionPathPoints += map.samples.size();
+        for (const auto &sample : map.samples)
+            summary.compositionPathFailures += sample.statusCode == 0 ? 0u : 1u;
         std::ostringstream stem;
         stem << "base_pressure_composition_" << std::llround(temperature * 100.0);
         MPMC::tools::writeCsv(outDir / (stem.str() + ".csv"), map, names);
     }
 
     std::ofstream summaryFile(outDir / "acceptance_summary.csv");
+    const bool registeredScanPass =
+        summary.passedPoints == summary.scanPoints;
+    const bool envelopeHealth =
+        summary.envelopeMapFailures == 0;
+    const bool compositionPathHealth =
+        summary.compositionPathFailures == 0;
     summaryFile << "backend,scan_points,scan_passed,scan_failed,scan_pass_fraction,"
                    "initial_anchor_points,initial_anchor_passed,initial_anchor_failed,"
-                   "scan_health,initial_state_gate\n"
+                   "envelope_map_points,envelope_map_failures,"
+                   "composition_path_points,composition_path_failures,"
+                   "registered_scan_gate,envelope_health_gate,composition_path_gate,"
+                   "initial_state_gate\n"
         << backend << ',' << summary.scanPoints << ',' << summary.passedPoints << ','
         << (summary.scanPoints - summary.passedPoints) << ','
         << static_cast<double>(summary.passedPoints) /
                static_cast<double>(summary.scanPoints) << ','
         << summary.initialPoints << ',' << summary.passedInitialPoints << ','
         << (summary.initialPoints - summary.passedInitialPoints) << ','
-        << (summary.passedPoints == summary.scanPoints ? "PASS" : "FAIL") << ','
+        << summary.envelopeMapPoints << ',' << summary.envelopeMapFailures << ','
+        << summary.compositionPathPoints << ',' << summary.compositionPathFailures << ','
+        << (registeredScanPass ? "PASS" : "FAIL") << ','
+        << (envelopeHealth ? "PASS" : "FAIL") << ','
+        << (compositionPathHealth ? "PASS" : "FAIL") << ','
         << (summary.passedInitialPoints == summary.initialPoints ? "PASS" : "FAIL")
         << '\n';
     return summary;
@@ -807,22 +830,42 @@ int main(int argc, char **argv)
                 << '\n';
         }
 
-        const bool prScan =
+        const bool prRegisteredScan =
             pr.scanPoints > 0 && pr.passedPoints == pr.scanPoints;
-        const bool cpaScan =
+        const bool cpaRegisteredScan =
             cpa.scanPoints > 0 && cpa.passedPoints == cpa.scanPoints;
-        const bool zeroDPvtPass = prScan && cpaScan && bothInitial;
+        const bool prEnvelope =
+            pr.envelopeMapPoints > 0 && pr.envelopeMapFailures == 0;
+        const bool cpaEnvelope =
+            cpa.envelopeMapPoints > 0 && cpa.envelopeMapFailures == 0;
+        const bool prCompositionPath =
+            pr.compositionPathPoints > 0 && pr.compositionPathFailures == 0;
+        const bool cpaCompositionPath =
+            cpa.compositionPathPoints > 0 && cpa.compositionPathFailures == 0;
+        const bool zeroDPvtPass =
+            prRegisteredScan && cpaRegisteredScan &&
+            prEnvelope && cpaEnvelope &&
+            prCompositionPath && cpaCompositionPath &&
+            bothInitial;
 
         std::ofstream gate(output / "zero_d_pvt_gate.csv");
         gate << "gate,status,requirement\n"
-            << "PR_TARGET_SCAN," << (prScan ? "PASS" : "FAIL")
-            << ",All registered PR T-P-z scan states must be physically self-consistent\n"
-            << "CPA_TARGET_SCAN," << (cpaScan ? "PASS" : "FAIL")
-            << ",All registered CPA T-P-z scan states must be physically self-consistent\n"
+            << "PR_REGISTERED_SCAN," << (prRegisteredScan ? "PASS" : "FAIL")
+            << ",All registered PR T-P-z states must pass explicit physical-consistency checks\n"
+            << "CPA_REGISTERED_SCAN," << (cpaRegisteredScan ? "PASS" : "FAIL")
+            << ",All registered CPA T-P-z states must pass explicit physical-consistency checks\n"
+            << "PR_ENVELOPE_MAP_HEALTH," << (prEnvelope ? "PASS" : "FAIL")
+            << ",No flash failures are allowed in the PR target-window P-T envelope maps\n"
+            << "CPA_ENVELOPE_MAP_HEALTH," << (cpaEnvelope ? "PASS" : "FAIL")
+            << ",No flash failures are allowed in the CPA target-window P-T envelope maps\n"
+            << "PR_DENSE_COMPOSITION_PATH," << (prCompositionPath ? "PASS" : "FAIL")
+            << ",No flash failures are allowed in the dense PR 25-30 MPa oil-rich to water-rich paths\n"
+            << "CPA_DENSE_COMPOSITION_PATH," << (cpaCompositionPath ? "PASS" : "FAIL")
+            << ",No flash failures are allowed in the dense CPA 25-30 MPa oil-rich to water-rich paths\n"
             << "CROSS_EOS_INITIAL_STATE," << (bothInitial ? "PASS" : "FAIL")
             << ",At 360/374/380 C and 25 MPa the BASE initial composition must be self-consistent in both EOS; identical phase count is diagnostic only\n"
             << "ZERO_D_PVT_ACCEPTANCE," << (zeroDPvtPass ? "PASS" : "BLOCKED")
-            << ",PR and CPA target scans plus cross-EOS initial-state gate\n";
+            << ",Registered scans, envelope health, dense composition paths and cross-EOS initial-state gate\n";
 
         std::ofstream flag(output / "zero_d_pvt_gate.txt");
         flag << (zeroDPvtPass
