@@ -20,6 +20,7 @@
 #include <output/simulation/reservoir_diagnostics.hpp>
 #include <output/well/control_switch_output.hpp>
 #include <output/well/detailed_well_output.hpp>
+#include <output/well/producer_composition_output.hpp>
 
 #include <petscksp.h>
 #include <petscsnes.h>
@@ -76,6 +77,51 @@ struct HasSnesStagnationSettings<
         decltype(Config::Numerics::snesStagnationMinimumIterations),
         decltype(Config::Numerics::snesStagnationWindow),
         decltype(Config::Numerics::snesStagnationRelativeImprovement)>> : std::true_type
+{};
+
+
+template <class Output, class = void>
+struct HasProducerCompositionOutput : std::false_type
+{};
+
+template <class Output>
+struct HasProducerCompositionOutput<
+    Output,
+    std::void_t<decltype(Output::writeProducerComposition)>> : std::true_type
+{};
+
+template <class Output, class = void>
+struct HasProducerEffectivePoreVolume : std::false_type
+{};
+
+template <class Output>
+struct HasProducerEffectivePoreVolume<
+    Output,
+    std::void_t<decltype(Output::producerEffectivePoreVolumeM3)>> : std::true_type
+{};
+
+template <class Fluid, class = void>
+struct HasExplicitProducerLightHeavyGroups : std::false_type
+{};
+
+template <class Fluid>
+struct HasExplicitProducerLightHeavyGroups<
+    Fluid,
+    std::void_t<
+        decltype(Fluid::producerLighteningLightComponents),
+        decltype(Fluid::producerLighteningHeavyComponents)>> : std::true_type
+{};
+
+template <class Fluid, class = void>
+struct HasSingleLightHeavyComponents : std::false_type
+{};
+
+template <class Fluid>
+struct HasSingleLightHeavyComponents<
+    Fluid,
+    std::void_t<
+        decltype(Fluid::lightComponent),
+        decltype(Fluid::heavyComponent)>> : std::true_type
 {};
 
 /** @brief 构造非线性平台早停配置，并允许 PETSc 命令行临时覆盖。 */
@@ -592,6 +638,7 @@ public:
           snapshotEvery_(run.outputEvery),
           rank_(rank),
           well_(wellOptions_(run), rank),
+          producer_(producerOptions_(run), rank),
           inventory_(inventoryOptions_(run), rank),
           massBalance_(massBalanceOptions_(run), rank),
           reservoir_(reservoirOptions_(run), rank)
@@ -603,6 +650,7 @@ public:
     void write(std::size_t step, double time, Runtime &runtime, Vec solution)
     {
         well_.write(step, time, runtime, solution);
+        producer_.write(step, time, runtime, solution);
 
         // 性能：组分守恒在每个固定输出状态已经计算全局库存，这里直接复用该
         // reduction，避免对同一接受解重复构造 EOS/单元物性并再次 MPI 归约。
@@ -648,6 +696,7 @@ public:
 
     void acceptedStep(Runtime &runtime, Vec solution, double acceptedTime)
     {
+        producer_.acceptedStep(runtime, solution, acceptedTime);
         massBalance_.acceptedStep(runtime, solution, acceptedTime);
     }
 
@@ -767,6 +816,57 @@ private:
         return options;
     }
 
+    static MPMC::ProducerCompositionOutputOptions producerOptions_(
+        const RunOptions &run)
+    {
+        MPMC::ProducerCompositionOutputOptions options;
+        options.resultDirectory = run.resultDirectory;
+        if constexpr (detail::HasProducerCompositionOutput<
+                          typename Config::Output>::value)
+        {
+            options.enabled =
+                Config::Output::writeProducerComposition;
+        }
+
+        options.componentNames.reserve(
+            static_cast<std::size_t>(Indices::numComponents));
+        for (int component = 0;
+             component < Indices::numComponents;
+             ++component)
+        {
+            options.componentNames.emplace_back(
+                Config::Fluid::componentNames[
+                    static_cast<std::size_t>(component)]);
+        }
+
+        if constexpr (detail::HasExplicitProducerLightHeavyGroups<
+                          typename Config::Fluid>::value)
+        {
+            options.lightComponents.assign(
+                Config::Fluid::producerLighteningLightComponents.begin(),
+                Config::Fluid::producerLighteningLightComponents.end());
+            options.heavyComponents.assign(
+                Config::Fluid::producerLighteningHeavyComponents.begin(),
+                Config::Fluid::producerLighteningHeavyComponents.end());
+        }
+        else if constexpr (detail::HasSingleLightHeavyComponents<
+                               typename Config::Fluid>::value)
+        {
+            options.lightComponents = {
+                Config::Fluid::lightComponent};
+            options.heavyComponents = {
+                Config::Fluid::heavyComponent};
+        }
+
+        if constexpr (detail::HasProducerEffectivePoreVolume<
+                          typename Config::Output>::value)
+        {
+            options.effectivePoreVolumeM3 =
+                Config::Output::producerEffectivePoreVolumeM3;
+        }
+        return options;
+    }
+
     static MPMC::ModelInventoryOutputOptions inventoryOptions_(const RunOptions &run)
     {
         MPMC::ModelInventoryOutputOptions options;
@@ -809,6 +909,7 @@ private:
     std::size_t snapshotEvery_{1};
     PetscMPIInt rank_{0};
     MPMC::DetailedWellOutput<Indices, Runtime> well_;
+    MPMC::ProducerCompositionOutput<Indices, Runtime> producer_;
     MPMC::ModelInventoryOutput<Indices, Runtime> inventory_;
     MPMC::ComponentMassBalanceOutput<Indices, Runtime> massBalance_;
     MPMC::ReservoirDiagnosticsOutput<Indices, Runtime> reservoir_;
