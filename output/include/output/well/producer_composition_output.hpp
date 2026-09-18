@@ -41,6 +41,7 @@ struct ProducerCompositionOutputOptions final
     std::vector<std::string> componentNames{};
     std::vector<int> lightComponents{};
     std::vector<int> heavyComponents{};
+    int waterComponent{-1};
 
     // Formal slab runs must supply the measured operating-condition PV.
     // Legacy/numerical cases may leave it NaN; cumulative injected volume is
@@ -111,7 +112,8 @@ public:
                     << ",cum_" << token << "_produced_kg"
                     << ",RF_" << token;
             }
-            out << ",E_L_over_H_instant_mass"
+            out << ",RF_total_hydrocarbon"
+                << ",E_L_over_H_instant_mass"
                 << ",E_L_over_H_cumulative_mass\n";
         }
     }
@@ -174,7 +176,8 @@ public:
                     << ',' << snapshot.cumulativeProducedKg[c]
                     << ',' << snapshot.recoveryFraction[c];
             }
-            out << ',' << snapshot.instantaneousLightHeavyEnrichment
+            out << ',' << totalHydrocarbonRecovery_(snapshot)
+                << ',' << snapshot.instantaneousLightHeavyEnrichment
                 << ',' << snapshot.cumulativeLightHeavyEnrichment
                 << '\n';
         }
@@ -266,6 +269,10 @@ private:
         };
         validate(options_.lightComponents);
         validate(options_.heavyComponents);
+        if (options_.waterComponent < -1 ||
+            options_.waterComponent >= static_cast<int>(N))
+            throw std::out_of_range(
+                "Producer-composition water component index out of range.");
     }
 
     static Array productionMagnitude_(
