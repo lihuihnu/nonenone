@@ -8,6 +8,7 @@ on:
       - 'case/scw_kerogen_lumped_flow_study/**'
       - 'tools/example/scw_cpa_onset_audit/**'
       - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
       - 'tools/Makefile'
       - '.github/workflows/scw-cpa-onset-audit.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'case/scw_kerogen_lumped_flow_study/**'
       - 'tools/example/scw_cpa_onset_audit/**'
       - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
       - 'tools/Makefile'
       - '.github/workflows/scw-cpa-onset-audit.yml'
 
@@ -29,6 +31,15 @@ jobs:
 
       - name: Run frozen-parameter audit
         run: make -C tools run-scw-cpa-onset-audit CXX=g++
+
+      - name: Run focused thermodynamic failure-mode regression
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror             -Iad/include -Icommon/include -Iindices/include -Imodels/include             -Icase/include -Itest/include -Itools/include             test/src/unit/thermodynamic_failure_modes_test.cpp             -o /tmp/thermodynamic_failure_modes_test
+          /tmp/thermodynamic_failure_modes_test
+
+      - name: Run public CPA VLLE regression
+        run: make -C tools run-cpa-dme-vlle CXX=g++
 
       - name: Show classification
         if: always()
