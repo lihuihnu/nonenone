@@ -168,6 +168,21 @@ private:
                     "  scaled norms L2 / RMS / Linf : %.12e / %.12e / %.12e  N=%lld\n",
                     d.residualNorm2, d.residualRms, d.residualNormInfinity,
                     d.globalEquationCount);
+        {
+            std::ostringstream mass;
+            mass << "  global signed mass residual  :" << std::scientific << std::setprecision(6);
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                const std::size_t comp = static_cast<std::size_t>(component);
+                mass << ' ' << Config::Fluid::componentNames[comp]
+                     << '=' << d.globalSignedComponentMassResidual[comp];
+            }
+            if constexpr (Indices::hasIndependentWaterConservation)
+                mass << " INDEPENDENT_H2O="
+                     << d.globalSignedIndependentWaterResidual;
+            mass << " kg/s\n";
+            PetscPrintf(PETSC_COMM_SELF, "%s", mass.str().c_str());
+        }
         PetscPrintf(PETSC_COMM_SELF,
                     "  max row                      : cell current/input=%lld/%lld  eq=%d (%s)\n",
                     static_cast<long long>(d.currentCellId),
@@ -216,6 +231,15 @@ private:
             << "equation_index,equation_name,signed_scaled_residual,equation_scale,"
             << "signed_unscaled_residual,pressure_bar,phase_presence_bits,"
             << "phase_suppression_bits";
+        for (int component = 0; component < Indices::numComponents; ++component)
+        {
+            stream << ",global_mass_residual_"
+                   << Config::Fluid::componentNames[
+                          static_cast<std::size_t>(component)]
+                   << "_kg_s";
+        }
+        if constexpr (Indices::hasIndependentWaterConservation)
+            stream << ",global_mass_residual_INDEPENDENT_H2O_kg_s";
         for (int phase = 0; phase < Indices::numPhases; ++phase)
         {
             stream << ",S_" << phaseName_(phase);
@@ -263,6 +287,11 @@ private:
                << d.pressure / bar << ','
                << static_cast<unsigned>(d.phasePresenceBits) << ','
                << static_cast<unsigned>(d.phaseSuppressionBits);
+        for (int component = 0; component < Indices::numComponents; ++component)
+            stream << ',' << d.globalSignedComponentMassResidual[
+                static_cast<std::size_t>(component)];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            stream << ',' << d.globalSignedIndependentWaterResidual;
         for (int phase = 0; phase < Indices::numPhases; ++phase)
         {
             const std::size_t p = static_cast<std::size_t>(phase);
