@@ -828,17 +828,18 @@
             }
 
             bool added = false;
+            bool reuseStagedCpaPair = false;
 
             // CPA can enter a one-density-root region in which a Water-only
             // equilibrium reports numerically identical missing Oil and Gas
-            // TPD directions. Releasing both labels at once creates an
-            // artificial W -> O+G+W jump and can miss the physical O+W
-            // bifurcation. When both trial strength and incipient composition
-            // coincide, treat them as one nonaqueous instability direction:
-            // release the liquid-root Oil role first, re-equilibrate, then
-            // rerun stability. A genuinely distinct Gas instability will
-            // therefore be released on the following outer iteration.
-            bool deduplicatedCpaNonaqueousDirection = false;
+            // TPD directions.  They are one nonaqueous bifurcation direction,
+            // not automatically two distinct new phases.  First try the
+            // liquid-root O+W branch using the Oil incipient composition.  If
+            // that pair is a real two-phase basin, keep it and rerun stability;
+            // if the pair collapses back to one phase, restore the original
+            // simultaneous O+G release so genuine three-phase onsets are not
+            // suppressed.
+            bool handledCoincidentCpaNonaqueousDirections = false;
             if (eos_.usesCubicPlusAssociation() &&
                 active.count() == 1 &&
                 active.contains(CompositionalPhase::Water) &&
@@ -851,6 +852,8 @@
                     phaseIndex(CompositionalPhase::Oil));
                 const std::size_t gasSlot = static_cast<std::size_t>(
                     phaseIndex(CompositionalPhase::Gas));
+                const std::size_t waterSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Water));
                 const double oilTrial = stability.trialSum[oilSlot];
                 const double gasTrial = stability.trialSum[gasSlot];
                 const double trialScale = std::max({
@@ -877,15 +880,63 @@
                     std::abs(oilTrial - gasTrial) <= trialTolerance &&
                     incipientL1 <= compositionTolerance)
                 {
-                    active.add(CompositionalPhase::Oil);
-                    seed.composition[oilSlot] =
+                    Composition K = pairInitialK_(
+                        CompositionalPhase::Oil,
+                        CompositionalPhase::Water,
+                        pressure, temperature, z);
+                    const Composition &oilIncipient =
                         stability.incipientComposition[oilSlot];
-                    added = true;
-                    deduplicatedCpaNonaqueousDirection = true;
+                    const Composition &waterComposition =
+                        current.composition[waterSlot];
+                    for (int i = 0; i < N; ++i)
+                    {
+                        const std::size_t component =
+                            static_cast<std::size_t>(i);
+                        K[component] = std::clamp(
+                            waterComposition[component] /
+                                std::max(
+                                    oilIncipient[component],
+                                    options_.compositionFloor),
+                            1.0e-100, 1.0e100);
+                    }
+
+                    Result staged = flashTwo_(
+                        pressure, temperature, z,
+                        CompositionalPhase::Oil,
+                        CompositionalPhase::Water, K);
+                    if (staged.converged)
+                    {
+                        canonicalize_(pressure, temperature, staged);
+                        if (staged.presence.count() == 2 &&
+                            staged.presence.contains(
+                                CompositionalPhase::Oil) &&
+                            staged.presence.contains(
+                                CompositionalPhase::Water))
+                        {
+                            active = staged.presence;
+                            seed = staged;
+                            lastPhysical = staged;
+                            added = true;
+                            reuseStagedCpaPair = true;
+                            handledCoincidentCpaNonaqueousDirections = true;
+                        }
+                    }
+
+                    if (!handledCoincidentCpaNonaqueousDirections)
+                    {
+                        active.add(CompositionalPhase::Oil);
+                        active.add(CompositionalPhase::Gas);
+                        seed.composition[oilSlot] =
+                            stability.incipientComposition[oilSlot];
+                        seed.composition[gasSlot] =
+                            stability.incipientComposition[gasSlot];
+                        added = true;
+                        handledCoincidentCpaNonaqueousDirections = true;
+                    }
                 }
             }
 
-            if (!deduplicatedCpaNonaqueousDirection)
+            if (!handledCoincidentCpaNonaqueousDirections)
             {
                 for (CompositionalPhase p : phases_)
                 {
@@ -913,7 +964,7 @@
 
             deriveReferenceK_(seed);
             seed.presence = active;
-            useConvergedSeed = false;
+            useConvergedSeed = reuseStagedCpaPair;
         }
         canonicalize_(pressure, temperature, seed);
         return seed;
