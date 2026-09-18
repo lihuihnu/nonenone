@@ -582,11 +582,15 @@ int main(int argc, char **argv)
                "xH2O_oil,xH2O_water,role_consistent,mass_closure,"
                "max_log_fugacity_spread\n";
 
-        Flash::Result pressureSeed = flash.flashRestricted(
-            27.0e6, temperature, failureZ, oilWaterPresence());
-        if (!pressureSeed.converged)
+        Flash::Result pressureSeed = flash.flash(
+            27.0e6, temperature, failureZ);
+        if (!pressureSeed.converged ||
+            !pressureSeed.presence.contains(MPMC::CompositionalPhase::Oil) ||
+            !pressureSeed.presence.contains(MPMC::CompositionalPhase::Water))
+        {
             throw std::runtime_error(
-                "CPA audit could not establish the 27 MPa O+W seed.");
+                "CPA audit could not establish the 27 MPa unrestricted O+W seed.");
+        }
         for (int step = 0; step <= 60; ++step)
         {
             const double pressureMPa = 27.0 - 0.025 * step;
@@ -619,11 +623,15 @@ int main(int argc, char **argv)
             const double pressure = pressureMPa * 1.0e6;
             double zw = 0.775;
             Composition z = compositionAt(parameters, zw);
-            Flash::Result seed = flash.flashRestricted(
-                pressure, temperature, z, oilWaterPresence());
-            if (!seed.converged)
+            Flash::Result seed = flash.flash(
+                pressure, temperature, z);
+            if (!seed.converged ||
+                !seed.presence.contains(MPMC::CompositionalPhase::Oil) ||
+                !seed.presence.contains(MPMC::CompositionalPhase::Water))
+            {
                 throw std::runtime_error(
-                    "CPA audit could not establish the high-water O+W seed.");
+                    "CPA audit could not establish the high-water unrestricted O+W seed.");
+            }
             for (int step = 0; step <= 140; ++step)
             {
                 zw = 0.775 - 0.00025 * step;
@@ -653,9 +661,11 @@ int main(int argc, char **argv)
         {
             const double pressure = pressureMPa * 1.0e6;
             const Composition zHigh = compositionAt(parameters, 0.775);
-            Flash::Result seed = flash.flashRestricted(
-                pressure, temperature, zHigh, oilWaterPresence());
-            if (!seed.converged)
+            Flash::Result seed = flash.flash(
+                pressure, temperature, zHigh);
+            if (!seed.converged ||
+                !seed.presence.contains(MPMC::CompositionalPhase::Oil) ||
+                !seed.presence.contains(MPMC::CompositionalPhase::Water))
                 continue;
             Composition zTarget = failureZ;
             Flash::Result normal = flash.flashRestricted(
@@ -737,10 +747,12 @@ int main(int argc, char **argv)
             unseededBoth = unseededBoth && unseeded.converged;
 
             const Composition zHigh = compositionAt(parameters, 0.775);
-            Flash::Result highSeed = flash.flashRestricted(
-                pressure, temperature, zHigh, oilWaterPresence());
+            Flash::Result highSeed = flash.flash(
+                pressure, temperature, zHigh);
             Flash::Result seeded;
-            if (highSeed.converged)
+            if (highSeed.converged &&
+                highSeed.presence.contains(MPMC::CompositionalPhase::Oil) &&
+                highSeed.presence.contains(MPMC::CompositionalPhase::Water))
                 seeded = flash.flashRestricted(
                     pressure, temperature, failureZ,
                     oilWaterPresence(), highSeed.composition);
@@ -757,7 +769,9 @@ int main(int argc, char **argv)
                 probe.profile.cpaAssociationIterativeCalls == 0 &&
                 probe.profile.cpaWaterOnlyAnalyticFastPathAvailable;
 
-            if (highSeed.converged)
+            if (highSeed.converged &&
+                highSeed.presence.contains(MPMC::CompositionalPhase::Oil) &&
+                highSeed.presence.contains(MPMC::CompositionalPhase::Water))
             {
                 auto swappedSeed = highSeed.composition;
                 std::swap(swappedSeed[0], swappedSeed[2]);
