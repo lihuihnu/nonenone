@@ -1,0 +1,4 @@
+scenario,Swr,Sor,Sgr,krw_endpoint,kro_endpoint,krg_endpoint,nw,no,ng,status,basis
+COREY_LOW_TRAPPING,0.11,0.08,0.0,1.0,1.0,1.0,2.0,2.0,2.0,SENSITIVITY_ONLY,"Low residual bounds anchored by Krevor 2012 Swr=0.11 and Oak-derived Sor=0.08; exponents are deliberately simple lower-curvature screening values."
+COREY_REFERENCE_PROXY,0.1699,0.18,0.0,1.0,1.0,1.0,6.0,2.0,3.0,SENSITIVITY_ONLY,"Swr/nw/ng from Niu 2015 Berea design; Sor/no from Oak 1990 reinterpretation. Composite low-temperature proxy, not one experiment and not SCW calibration."
+COREY_HIGH_TRAPPING,0.32,0.30,0.0,1.0,1.0,1.0,6.0,4.0,4.0,SENSITIVITY_ONLY,"High residual bound reflects historical Berea connate-water/residual-oil ranges; exponents intentionally span steeper Corey behavior."
