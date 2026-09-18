@@ -1,0 +1,3 @@
+source_id,role,citation,key_fact,status
+IAPWS_CRITICAL_POINT,PRIMARY_WATER_STATE_REFERENCE,"International Association for the Properties of Water and Steam (IAPWS), ordinary-water critical point / saturation guidance","Tc=647.096 K (373.946 C); Pc=22.064 MPa; saturation curve terminates at the critical point.",VERIFIED
+IAPWS_IF97,PRIMARY_THERMODYNAMIC_STANDARD,"IAPWS Industrial Formulation 1997, revised release","Provides the water/steam thermodynamic region framework used for subcritical dense-liquid and supercritical states.",VERIFIED
