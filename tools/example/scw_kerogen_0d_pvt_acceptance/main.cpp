@@ -134,6 +134,10 @@ struct AnchorResult
     int phaseCode{};
     int phaseCount{};
     bool pass{false};
+    std::array<double, 3> beta{missing, missing, missing};
+    std::array<double, 3> massDensity{missing, missing, missing};
+    std::array<double, 3> viscosity{missing, missing, missing};
+    std::array<double, 3> waterMoleFraction{missing, missing, missing};
 };
 
 struct BackendResult
@@ -148,6 +152,7 @@ struct BackendResult
     std::size_t compositionPathPoints{0};
     std::size_t compositionPathFailures{0};
     std::vector<AnchorResult> anchors;
+    std::vector<AnchorResult> temperatureControlAnchors;
 };
 
 std::vector<std::string> splitCsv(const std::string &line)
@@ -607,16 +612,40 @@ BackendResult runBackend(
                     temperature, composition.z);
                 ++summary.scanPoints;
                 summary.passedPoints += state.pass ? 1u : 0u;
-                const bool anchor = composition.initialAnchor
+                const auto makeAnchor = [&]() {
+                    AnchorResult anchor;
+                    anchor.temperature = temperature;
+                    anchor.pressureMPa = pressureMPa;
+                    anchor.phaseCode = state.phaseCode;
+                    anchor.phaseCount = state.phaseCount;
+                    anchor.pass = state.pass;
+                    for (std::size_t phase = 0; phase < 3; ++phase)
+                    {
+                        anchor.beta[phase] = state.property[phase].beta;
+                        anchor.massDensity[phase] =
+                            state.property[phase].massDensity;
+                        anchor.viscosity[phase] =
+                            state.property[phase].lbcViscosity;
+                        anchor.waterMoleFraction[phase] =
+                            state.flash.composition[phase][water];
+                    }
+                    return anchor;
+                };
+
+                const bool initialAnchor = composition.initialAnchor
                     && std::abs(pressureMPa - 25.0) < 1.0e-12;
-                if (anchor)
+                if (initialAnchor)
                 {
                     ++summary.initialPoints;
                     summary.passedInitialPoints += state.pass ? 1u : 0u;
-                    summary.anchors.push_back({
-                        temperature, pressureMPa,
-                        state.phaseCode, state.phaseCount, state.pass});
+                    summary.anchors.push_back(makeAnchor());
                 }
+
+                const bool temperatureControlAnchor =
+                    composition.initialAnchor &&
+                    std::abs(pressureMPa - 28.0) < 1.0e-12;
+                if (temperatureControlAnchor)
+                    summary.temperatureControlAnchors.push_back(makeAnchor());
 
                 states << backend << ',' << composition.family << ','
                     << composition.waterFraction << ','
@@ -779,6 +808,17 @@ const AnchorResult *findAnchor(
     return nullptr;
 }
 
+const AnchorResult *findTemperatureControlAnchor(
+    const BackendResult &result,
+    double temperature)
+{
+    for (const auto &anchor : result.temperatureControlAnchors)
+        if (std::abs(anchor.temperature - temperature) < 1.0e-10 &&
+            std::abs(anchor.pressureMPa - 28.0) < 1.0e-10)
+            return &anchor;
+    return nullptr;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -830,6 +870,59 @@ int main(int argc, char **argv)
                 << '\n';
         }
 
+        std::ofstream temperatureControl(
+            output / "scw_temperature_control_0d.csv");
+        temperatureControl << std::setprecision(17)
+            << "backend,role,temperature_C,temperature_K,pressure_MPa,"
+               "state_pass,phase_code,phase_count,"
+               "beta_oil,beta_gas,beta_water,"
+               "density_oil_kg_m3,density_gas_kg_m3,density_water_kg_m3,"
+               "viscosity_oil_Pa_s,viscosity_gas_Pa_s,viscosity_water_Pa_s,"
+               "xH2O_oil,xH2O_gas,xH2O_water\n";
+
+        bool formalTemperaturePairPass = true;
+        for (const BackendResult *backend : {&pr, &cpa})
+        {
+            for (double controlTemperature : targetTemperatures)
+            {
+                const auto *anchor =
+                    findTemperatureControlAnchor(*backend, controlTemperature);
+                if (!anchor)
+                    throw std::runtime_error(
+                        "Missing 28 MPa temperature-control anchor.");
+
+                const bool formalMember =
+                    std::abs(controlTemperature - 633.15) < 1.0e-10 ||
+                    std::abs(controlTemperature - 653.15) < 1.0e-10;
+                if (formalMember)
+                    formalTemperaturePairPass =
+                        formalTemperaturePairPass && anchor->pass;
+
+                const char *role =
+                    std::abs(controlTemperature - 633.15) < 1.0e-10
+                        ? "SUBCRITICAL_CONTROL"
+                        : (std::abs(controlTemperature - 653.15) < 1.0e-10
+                            ? "SUPERCRITICAL_TEST"
+                            : "NEAR_CRITICAL_DIAGNOSTIC");
+
+                temperatureControl
+                    << backend->name << ',' << role << ','
+                    << controlTemperature - 273.15 << ','
+                    << controlTemperature << ",28,"
+                    << (anchor->pass ? 1 : 0) << ','
+                    << anchor->phaseCode << ',' << anchor->phaseCount;
+                for (double value : anchor->beta)
+                    temperatureControl << ',' << value;
+                for (double value : anchor->massDensity)
+                    temperatureControl << ',' << value;
+                for (double value : anchor->viscosity)
+                    temperatureControl << ',' << value;
+                for (double value : anchor->waterMoleFraction)
+                    temperatureControl << ',' << value;
+                temperatureControl << '\n';
+            }
+        }
+
         const bool prRegisteredScan =
             pr.scanPoints > 0 && pr.passedPoints == pr.scanPoints;
         const bool cpaRegisteredScan =
@@ -846,7 +939,7 @@ int main(int argc, char **argv)
             prRegisteredScan && cpaRegisteredScan &&
             prEnvelope && cpaEnvelope &&
             prCompositionPath && cpaCompositionPath &&
-            bothInitial;
+            bothInitial && formalTemperaturePairPass;
 
         std::ofstream gate(output / "zero_d_pvt_gate.csv");
         gate << "gate,status,requirement\n"
@@ -864,8 +957,11 @@ int main(int argc, char **argv)
             << ",No flash failures are allowed in the dense CPA 25-30 MPa oil-rich to water-rich paths\n"
             << "CROSS_EOS_INITIAL_STATE," << (bothInitial ? "PASS" : "FAIL")
             << ",At 360/374/380 C and 25 MPa the BASE initial composition must be self-consistent in both EOS; identical phase count is diagnostic only\n"
+            << "SCW_360_380_CONTROL_PAIR_28MPA,"
+            << (formalTemperaturePairPass ? "PASS" : "FAIL")
+            << ",At BASE zH2O=0.20 and 28 MPa both PR and CPA must independently pass the formal 360 C control and 380 C SCW states; 374 C is diagnostic only\n"
             << "ZERO_D_PVT_ACCEPTANCE," << (zeroDPvtPass ? "PASS" : "BLOCKED")
-            << ",Registered scans, envelope health, dense composition paths and cross-EOS initial-state gate\n";
+            << ",Registered scans, envelope health, dense composition paths, cross-EOS initial-state gate and formal 360/380 C 28 MPa control-pair gate\n";
 
         std::ofstream flag(output / "zero_d_pvt_gate.txt");
         flag << (zeroDPvtPass
