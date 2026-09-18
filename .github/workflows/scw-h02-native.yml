@@ -147,19 +147,34 @@ jobs:
           python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis" --modes BC | tee "$root/analysis.log"
           grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
           tail -30 "$root/C.log"
-      - name: Record 20x8 to 60x20 B C grid gate without changing thresholds
+      - name: Record 20x8 to 60x20 A B C grid gates without changing thresholds
         run: |
           set -euo pipefail
+          mkdir -p h02-results/grid_gate_20x8_to_60x20_A
           mkdir -p h02-results/grid_gate_20x8_to_60x20_BC
+
           set +e
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 case/scw_h02_2d/reference/run64_A_60x20             --modes A             --out h02-results/grid_gate_20x8_to_60x20_A             | tee h02-results/grid_gate_20x8_to_60x20_A.log
+          rc_a=$?
+
           python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_20x8_to_60x20_BC             | tee h02-results/grid_gate_20x8_to_60x20_BC.log
-          rc=$?
+          rc_bc=$?
           set -e
-          echo "$rc" > h02-results/grid_gate_20x8_to_60x20_BC/exit_code.txt
+
+          echo "$rc_a" > h02-results/grid_gate_20x8_to_60x20_A/exit_code.txt
+          echo "$rc_bc" > h02-results/grid_gate_20x8_to_60x20_BC/exit_code.txt
+
+          echo "===== 20x8 -> 60x20 A ====="
+          cat h02-results/grid_gate_20x8_to_60x20_A/grid_convergence.csv
+          cat h02-results/grid_gate_20x8_to_60x20_A/convergence_gates.csv
+          echo "===== 20x8 -> 60x20 B/C ====="
           cat h02-results/grid_gate_20x8_to_60x20_BC/grid_convergence.csv
           cat h02-results/grid_gate_20x8_to_60x20_BC/convergence_gates.csv
-          # This screening result is evidence, not a reason to alter thresholds.
-          # Continue to the preregistered aligned 36x12 grid regardless of PASS/FAIL.
+
+          # Preserve both preregistered results verbatim. A failure here is
+          # expected to trigger the already planned aligned 36x12 study, not
+          # threshold retuning or an early workflow abort.
+          printf 'A=%s\nBC=%s\n' "$rc_a" "$rc_bc"             > h02-results/grid_gate_20x8_to_60x20_status.txt
 
       - name: Run aligned 36x12 A B C to 2 PVI with all convergence gates
         run: |
