@@ -1,0 +1,2 @@
+T_K,P_MPa,role,source_id,source_locator,notes
+593.1,12.77,JIA_STEP4_CALIBRATION_POINT_AUDIT,AMANI2014_THESIS_TABLE_5_5,"Amani PhD thesis Table 5.5; LLV/LL boundary pressure summary used to reconcile Jia Step 4","Jia & Okuno state that the 593.1 K Figure-7 point was matched in Step 4. Keep this point separate from the six Table-2.5 rows used for the Figure-7 AAD audit; printed Table-4 parameters may contain rounding relative to the authors' internal calibrated values."
