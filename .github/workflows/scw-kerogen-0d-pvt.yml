@@ -1,0 +1,49 @@
+name: SCW kerogen 0D PVT acceptance
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/**'
+      - 'tools/example/scw_kerogen_0d_pvt_acceptance/**'
+      - 'tools/include/tools/phase_diagram.hpp'
+      - 'models/include/natural/thermo/**'
+      - 'models/include/natural/properties/**'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-kerogen-0d-pvt.yml'
+  pull_request:
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/**'
+      - 'tools/example/scw_kerogen_0d_pvt_acceptance/**'
+      - 'tools/include/tools/phase_diagram.hpp'
+      - 'models/include/natural/thermo/**'
+      - 'models/include/natural/properties/**'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-kerogen-0d-pvt.yml'
+
+jobs:
+  zero-d-pvt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile 0D PVT acceptance harness
+        run: make -C tools bin/scw_kerogen_0d_pvt_acceptance CXX=g++
+
+      - name: Run PR and CPA 0D PVT acceptance
+        run: make -C tools run-scw-kerogen-0d-pvt-acceptance CXX=g++
+
+      - name: Show gate
+        if: always()
+        run: |
+          cat tools/example/scw_kerogen_0d_pvt_acceptance/results/zero_d_pvt_gate.csv || true
+          cat tools/example/scw_kerogen_0d_pvt_acceptance/results/cross_eos_initial_state.csv || true
+
+      - name: Upload 0D PVT results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-kerogen-0d-pvt-results
+          path: tools/example/scw_kerogen_0d_pvt_acceptance/results/
+          if-no-files-found: error
