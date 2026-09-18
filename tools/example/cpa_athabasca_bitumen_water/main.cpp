@@ -334,21 +334,21 @@ Eos makeJiaCase1Cpa()
     cpa.donorSites[asphaltene] = 2;
     cpa.acceptorSites[asphaltene] = 2;
 
-    // PC1-PC3 are inert (epsilon_AiBi=0) but solvating.  They carry one
-    // electron-acceptor site so water donors can form the explicit cross bond.
-    // Jia Table 4 gives beta_AiBi=0.07.  CR-1 then gives:
-    // epsilon_water-PC = (epsilon_water + 0)/2;
-    // beta_water-PC = sqrt(beta_water * 0.07).
+    // PC1-PC3 are non-self-associating but solvating.  Jia follows the
+    // Folas modified-CR1 convention for water/aromatic solvation: the inert
+    // pseudo-component carries one acceptor site, epsilon_cross is one half
+    // of the water self-association energy, and the fitted beta reported in
+    // Table 4 is the CROSS-association volume itself (not a pseudo-pure beta
+    // to be geometrically averaged with water beta).
     for (std::size_t pc : {pc1, pc2, pc3})
     {
         cpa.associationEnergy[pc] = 0.0;
-        cpa.associationVolume[pc] = 0.07;
+        cpa.associationVolume[pc] = 0.0;
         cpa.donorSites[pc] = 0;
         cpa.acceptorSites[pc] = 1;
         cpa.crossAssociationEnergy[water][pc] =
             0.5 * jiaWaterEpsilon;
-        cpa.crossAssociationVolume[water][pc] =
-            std::sqrt(jiaWaterBeta * 0.07);
+        cpa.crossAssociationVolume[water][pc] = 0.07;
     }
 
     // Water/asphaltene cross association is intentionally left to the
