@@ -432,7 +432,7 @@ private:
                 cfg.globalEquationCount > 0
                     ? functionNorm /
                         std::sqrt(static_cast<PetscReal>(cfg.globalEquationCount))
-                    : PETSC_INFINITY;
+                    : std::numeric_limits<PetscReal>::infinity();
             if (rms > cfg.rmsAbsoluteTolerance)
             {
                 *reason = SNES_CONVERGED_ITERATING;
