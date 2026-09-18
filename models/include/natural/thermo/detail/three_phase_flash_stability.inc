@@ -187,7 +187,7 @@
         else
             state.sum = std::exp(logSum);
 
-        const auto thermo = phaseResult_(
+        const auto thermo = stabilityCandidatePhaseResult_(
             candidate, pressure, temperature, state.composition);
         state.norm = 0.0;
         for (int i = 0; i < N; ++i)
@@ -254,7 +254,7 @@
             if (current.norm < options_.stabilityTolerance)
                 return finalizeStabilityTrial_(current, referenceComposition);
 
-            const auto thermo = phaseResult_(
+            const auto thermo = stabilityCandidatePhaseResult_(
                 candidate, pressure, temperature, current.composition);
             for (int i = 0; i < N; ++i)
             {
@@ -342,7 +342,7 @@
                 return {};
             if (current.norm < options_.stabilityTolerance)
                 return finalizeStabilityTrial_(current, referenceComposition);
-            const auto thermo = phaseResult_(
+            const auto thermo = stabilityCandidatePhaseResult_(
                 candidate, pressure, temperature, current.composition);
             for (int i = 0; i < N; ++i)
             {

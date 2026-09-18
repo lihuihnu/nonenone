@@ -35,7 +35,9 @@ ProbeCheck recordProbe(const Eos &eos, const Flash &flash,
             const auto role = static_cast<MPMC::CompositionalPhase>(k);
             if (!r.presence.contains(role)) continue;
             const auto &x = r.composition[k];
-            const auto selected = eos.phaseResult(p, t, x, role, true);
+            // Recompute on the stored role's fixed root, independently of
+            // the candidate-root Gibbs option used by stability searches.
+            const auto selected = eos.phaseResult(p, t, x, role, false);
             const auto liquid = eos.phaseResult(p, t, x, true, false);
             const auto vapor = eos.phaseResult(p, t, x, false, false);
             c.rootMismatch = std::max(c.rootMismatch,
@@ -136,9 +138,13 @@ int main(int argc, char **argv) {
             // A metastable OW branch is legitimate below a WLV boundary, but
             // it cannot validate OW equilibrium. Only require all paths to
             // agree when unrestricted equilibrium actually has two liquids.
-            const bool pass = cg.valid && cg.stable && (!owGlobal ||
-                (cc.valid && cc.stable && cw.valid && cw.stable &&
-                 gap <= 1.0e-6 && globalGap <= 1.0e-6));
+            // Even a metastable liquid branch must remain root-consistent,
+            // fugacity-closed and seed-independent. A global three-phase
+            // equilibrium must have no higher G than the restricted branch.
+            const bool pass = cg.valid && cg.stable && cc.valid && cw.valid &&
+                gap <= 1.0e-6 && cg.gibbsRT <= cc.gibbsRT + 1.0e-8 &&
+                cg.gibbsRT <= cw.gibbsRT + 1.0e-8 && (!owGlobal ||
+                (cc.stable && cw.stable && globalGap <= 1.0e-6));
             allPass = allPass && pass;
             gates << t << ',' << p << ',' << w << ',' << (pass ? "PASS" : "FAIL")
                 << ',' << gap << ',' << globalGap

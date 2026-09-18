@@ -38,10 +38,10 @@ struct ThreePhaseFlashOptions
     double compositionFloor{1.0e-30};
     double logKStepLimit{2.0};
     double numericalJacobianStep{1.0e-6};
-    // CPA literature implementations such as Jia & Okuno (2018) select
-    // the lowest-Gibbs root when multiple density roots exist.  Natural's
-    // production default remains role-based liquid/vapor root selection;
-    // external reproduction benchmarks can opt into the literature rule.
+    // Opt-in CPA candidate-root comparison for missing-phase stability only.
+    // Active phases ALWAYS retain role-specific density roots: liquid for
+    // Oil/Water, vapor for Gas. This flag must never switch an active liquid
+    // to a vapor root while solving/continuing its equilibrium branch.
     bool cpaSelectGibbsMinimumRoot{false};
 };
 

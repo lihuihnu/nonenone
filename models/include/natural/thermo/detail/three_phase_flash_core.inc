@@ -107,12 +107,15 @@
     {
         if (eos_.usesCubicPlusAssociation())
         {
+            // Preserve active-root identity throughout residuals, Newton,
+            // canonicalization, and total-Gibbs evaluation. A locally lower
+            // G vapor root is a different candidate, not the same liquid.
             return eos_.phaseResult(
                 pressure,
                 temperature,
                 composition,
                 thermodynamicPhase,
-                options_.cpaSelectGibbsMinimumRoot);
+                false);
         }
 
         // 性能：一次 P–T flash 会重复计算逸度。PR 只有一套参数矩阵，SW 额外有一套水相矩阵；
@@ -138,6 +141,22 @@
     {
         return phaseResultForThermodynamicRole_(
             thermodynamicRole_(phase), pressure, temperature, composition);
+    }
+
+    // Active phases retain their role-specific density root. Only a missing
+    // phase candidate may compare roots by Gibbs energy; never change the
+    // reference liquid branch while evaluating its stability.
+    [[nodiscard]] typename Eos::template PhaseResult<double>
+    stabilityCandidatePhaseResult_(
+        CompositionalPhase phase,
+        double pressure,
+        double temperature,
+        const Composition &composition) const
+    {
+        if (eos_.usesCubicPlusAssociation() && options_.cpaSelectGibbsMinimumRoot)
+            return eos_.phaseResult(pressure, temperature, composition,
+                                    thermodynamicRole_(phase), true);
+        return phaseResult_(phase, pressure, temperature, composition);
     }
 
     void validatePT_(double pressure, double temperature) const
