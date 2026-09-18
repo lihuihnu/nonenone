@@ -256,6 +256,39 @@ PR 与 CPA 各自先做 `380-360` 的 within-EOS 温度差，再比较两个 EOS
 
 该 28 MPa paired anchor 已实际运行并 **PASS**。当前 BASE `z_H2O=0.20` 在 PR/CPA 下 360/374/380 °C 都保持单一 Oil-role 相；360→380 °C 的初始态变化主要表现为密度和黏度降低，而不是相数突变。因此后续“SCW 效应”必须重点观察注水后水富集局部组成的 phase/mobility/selection trajectory，而不是从初始点预设一定会出现新相。
 
+## 生产井组分升级为一级输出
+
+正式流动不得只报告总采收率。公共 runner 现在支持独立的 \`producer_composition.csv\`，详细定义见 \`15_PRODUCER_COMPOSITION_AND_SELECTIVITY.md\`。
+
+每口 producer 在每个固定输出状态必须给出：
+
+- 每个 conserved component 的瞬时生产质量流率；
+- 瞬时生产质量分数 \(Y_i\)；
+- accepted-step 积分的累计产量 \(M_{i,\mathrm{prod}}\)；
+- 以初始全局在位质量为分母的 \(RF_i\)；
+- 实际累计注入 reservoir volume 与 PVI；
+- 瞬时与累计 mass-basis \(E_{L/H}\)。
+
+当前实验驱动四油 lump 的选择性诊断注册为：
+
+\[
+L=\mathrm{OIL\_GASOLINE}+\mathrm{OIL\_DIESEL},
+\qquad
+H=\mathrm{OIL\_HEAVY}.
+\]
+
+Middle 始终单独输出，不并入 L/H。
+
+\[
+E_{L/H}
+=
+\frac{Y_L/Y_H}{w_{L,0}/w_{H,0}}.
+\]
+
+这里分母使用初始**质量比**，避免把 producer 质量分数与初始摩尔分数 \(z\) 混成无物理意义的指标。
+
+当前正式 5 组分 PVT 拓扑没有独立 gas-product lump，因此一级输出按真实 conserved components 使用 \`H2O / OIL_GASOLINE / OIL_DIESEL / OIL_MIDDLE / OIL_HEAVY\`；禁止把 Gas phase 或 Gasoline 偷换成独立 \`Gas\` component。若后续加入真实 Gas lump，必须先完成统一 gas+liquid 质量/摩尔基准。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
