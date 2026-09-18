@@ -56,6 +56,32 @@ struct ReferencePoint
     double publishedCpaWaterInBitumen{};
 };
 
+struct BoundaryPoint
+{
+    double temperatureK{};
+    double pressureMPa{};
+    double temperatureUncertaintyK{};
+    double pressureUncertaintyMPa{};
+};
+
+struct OwStabilityState
+{
+    bool valid{false};
+    bool gasUnstable{false};
+    double gasTrialSum{std::numeric_limits<double>::quiet_NaN()};
+    double materialClosure{std::numeric_limits<double>::quiet_NaN()};
+};
+
+struct BoundaryPrediction
+{
+    bool found{false};
+    double pressureMPa{std::numeric_limits<double>::quiet_NaN()};
+    double bracketLowMPa{std::numeric_limits<double>::quiet_NaN()};
+    double bracketHighMPa{std::numeric_limits<double>::quiet_NaN()};
+    int transitionCount{0};
+    int evaluations{0};
+};
+
 std::vector<std::string> splitCsv(const std::string &line)
 {
     std::vector<std::string> fields;
@@ -124,6 +150,44 @@ std::vector<ReferencePoint> readReference(const std::filesystem::path &path)
     return points;
 }
 
+std::vector<BoundaryPoint> readBoundaryReference(
+    const std::filesystem::path &path)
+{
+    std::ifstream in(path);
+    if (!in)
+        throw std::runtime_error(
+            "Cannot open Athabasca Figure-7 boundary CSV: " + path.string());
+    std::string line;
+    if (!std::getline(in, line))
+        throw std::runtime_error("Athabasca Figure-7 boundary CSV is empty.");
+    const auto header = splitCsv(line);
+    auto column = [&](const std::string &name) {
+        const auto it = std::find(header.begin(), header.end(), name);
+        if (it == header.end())
+            throw std::runtime_error("Missing boundary CSV column: " + name);
+        return static_cast<std::size_t>(std::distance(header.begin(), it));
+    };
+    const auto cT = column("T_K");
+    const auto cP = column("P_MPa");
+    const auto cTu = column("T_uncertainty_K");
+    const auto cPu = column("P_uncertainty_MPa");
+
+    std::vector<BoundaryPoint> points;
+    while (std::getline(in, line))
+    {
+        if (line.empty())
+            continue;
+        const auto row = splitCsv(line);
+        BoundaryPoint p;
+        p.temperatureK = std::stod(row.at(cT));
+        p.pressureMPa = std::stod(row.at(cP));
+        p.temperatureUncertaintyK = std::stod(row.at(cTu));
+        p.pressureUncertaintyMPa = std::stod(row.at(cPu));
+        points.push_back(p);
+    }
+    return points;
+}
+
 Composition bitumenComposition()
 {
     Composition z{0.0, 0.2664, 0.4925, 0.1360, 0.1041};
@@ -135,11 +199,12 @@ Composition bitumenComposition()
     return z;
 }
 
-Composition experimentalFeed()
+Composition feedFromWaterMassFraction(double waterMassFraction)
 {
-    // Figure 7 of Jia & Okuno Case 1: 55.9 wt% water + 44.1 wt%
-    // Athabasca bitumen.  Table 4 z-values are normalized here because the
-    // published rounded values sum to 0.999.
+    if (!(waterMassFraction > 0.0 && waterMassFraction < 1.0))
+        throw std::invalid_argument(
+            "Athabasca feed water mass fraction must lie in (0,1).");
+
     const Composition oil = bitumenComposition();
     constexpr std::array<double, 5> mwKgMol{
         0.01801528, 0.35243, 0.53903, 0.70684, 0.91619};
@@ -147,8 +212,8 @@ Composition experimentalFeed()
     for (std::size_t i = 1; i < oil.size(); ++i)
         oilMw += oil[i] * mwKgMol[i];
 
-    const double nWater = 0.559 / mwKgMol[0];
-    const double nOil = 0.441 / oilMw;
+    const double nWater = waterMassFraction / mwKgMol[0];
+    const double nOil = (1.0 - waterMassFraction) / oilMw;
     const double xWater = nWater / (nWater + nOil);
 
     Composition z{};
@@ -156,6 +221,15 @@ Composition experimentalFeed()
     for (std::size_t i = 1; i < z.size(); ++i)
         z[i] = (1.0 - xWater) * oil[i];
     return z;
+}
+
+Composition experimentalFeed()
+{
+    // Jia & Okuno Figure 7 caption states 55.9 wt% water + 44.1 wt%
+    // Athabasca bitumen.  The Amani thesis Table 2.5 labels the same six
+    // boundary points as 55.9 wt% bitumen + 44.1 wt% water.  Table-5 branch
+    // parity retains the Jia convention; Figure-7 boundary parity audits both.
+    return feedFromWaterMassFraction(0.559);
 }
 
 Eos makeJiaCase1Cpa()
@@ -254,13 +328,200 @@ double maxMaterialClosure(const Composition &z, const Flash::Result &result)
     return maximum;
 }
 
+OwStabilityState evaluateOwStability(
+    const Flash &flash,
+    double pressureMPa,
+    double temperatureK,
+    const Composition &z)
+{
+    const auto oilWater = MPMC::PhasePresence(
+        static_cast<std::uint8_t>(
+            MPMC::PhasePresence::oilBit |
+            MPMC::PhasePresence::waterBit));
+    OwStabilityState state;
+    const auto restricted = flash.flashRestricted(
+        pressureMPa * 1.0e6, temperatureK, z, oilWater);
+    if (!restricted.converged ||
+        restricted.presence.bits() != oilWater.bits())
+        return state;
+
+    state.materialClosure = maxMaterialClosure(z, restricted);
+    if (!std::isfinite(state.materialClosure) ||
+        state.materialClosure > 1.0e-8)
+        return state;
+
+    const auto stability = flash.stabilityTest(
+        pressureMPa * 1.0e6, temperatureK, z,
+        restricted.presence, restricted.composition);
+    if (!stability.valid)
+        return state;
+
+    const std::size_t gasSlot = static_cast<std::size_t>(
+        MPMC::phaseIndex(MPMC::CompositionalPhase::Gas));
+    state.valid = true;
+    state.gasUnstable = stability.missingPhaseUnstable[gasSlot];
+    state.gasTrialSum = stability.trialSum[gasSlot];
+    return state;
+}
+
+BoundaryPrediction findWlvWlBoundary(
+    const Flash &flash,
+    double temperatureK,
+    const Composition &z)
+{
+    constexpr double pMinMPa = 2.0;
+    constexpr double pMaxMPa = 30.0;
+    constexpr double scanStepMPa = 0.10;
+    constexpr int bisectionIterations = 28;
+
+    BoundaryPrediction result;
+    bool havePrevious = false;
+    double previousPressure = 0.0;
+    OwStabilityState previous;
+    double firstLow = std::numeric_limits<double>::quiet_NaN();
+    double firstHigh = std::numeric_limits<double>::quiet_NaN();
+
+    const int scanCount = static_cast<int>(
+        std::llround((pMaxMPa - pMinMPa) / scanStepMPa));
+    for (int k = 0; k <= scanCount; ++k)
+    {
+        const double pressure = pMinMPa + scanStepMPa * k;
+        const auto state =
+            evaluateOwStability(flash, pressure, temperatureK, z);
+        ++result.evaluations;
+        if (!state.valid)
+        {
+            havePrevious = false;
+            continue;
+        }
+
+        if (havePrevious &&
+            previous.gasUnstable && !state.gasUnstable)
+        {
+            ++result.transitionCount;
+            if (!std::isfinite(firstLow))
+            {
+                firstLow = previousPressure;
+                firstHigh = pressure;
+            }
+        }
+        previousPressure = pressure;
+        previous = state;
+        havePrevious = true;
+    }
+
+    if (result.transitionCount < 1 ||
+        !std::isfinite(firstLow) || !std::isfinite(firstHigh))
+        return result;
+
+    double low = firstLow;
+    double high = firstHigh;
+    auto lowState = evaluateOwStability(
+        flash, low, temperatureK, z);
+    auto highState = evaluateOwStability(
+        flash, high, temperatureK, z);
+    result.evaluations += 2;
+    if (!lowState.valid || !highState.valid ||
+        !lowState.gasUnstable || highState.gasUnstable)
+        return result;
+
+    for (int iteration = 0; iteration < bisectionIterations; ++iteration)
+    {
+        const double mid = 0.5 * (low + high);
+        const auto midState = evaluateOwStability(
+            flash, mid, temperatureK, z);
+        ++result.evaluations;
+        if (!midState.valid)
+            return result;
+        if (midState.gasUnstable)
+            low = mid;
+        else
+            high = mid;
+    }
+
+    result.found = true;
+    result.bracketLowMPa = low;
+    result.bracketHighMPa = high;
+    result.pressureMPa = 0.5 * (low + high);
+    return result;
+}
+
+struct BoundaryMetrics
+{
+    std::string convention;
+    double waterMassFraction{};
+    double waterMoleFraction{};
+    std::size_t found{};
+    double aadMPa{std::numeric_limits<double>::quiet_NaN()};
+    double maxAbsErrorMPa{std::numeric_limits<double>::quiet_NaN()};
+    double publishedAadDifferenceMPa{std::numeric_limits<double>::quiet_NaN()};
+};
+
+BoundaryMetrics evaluateBoundaryConvention(
+    const Flash &flash,
+    const std::vector<BoundaryPoint> &points,
+    const std::string &convention,
+    double waterMassFraction,
+    std::ofstream &rows)
+{
+    constexpr double publishedAadMPa = 0.771;
+    const Composition z = feedFromWaterMassFraction(waterMassFraction);
+
+    BoundaryMetrics metrics;
+    metrics.convention = convention;
+    metrics.waterMassFraction = waterMassFraction;
+    metrics.waterMoleFraction = z[water];
+
+    double sumAbs = 0.0;
+    double maxAbs = 0.0;
+    for (const auto &point : points)
+    {
+        const auto predicted =
+            findWlvWlBoundary(flash, point.temperatureK, z);
+        const double error = predicted.found ?
+            std::abs(predicted.pressureMPa - point.pressureMPa) :
+            std::numeric_limits<double>::quiet_NaN();
+        if (predicted.found)
+        {
+            ++metrics.found;
+            sumAbs += error;
+            maxAbs = std::max(maxAbs, error);
+        }
+        rows << convention << ',' << waterMassFraction << ',' << z[water]
+             << ',' << point.temperatureK << ',' << point.pressureMPa
+             << ',' << point.temperatureUncertaintyK << ','
+             << point.pressureUncertaintyMPa << ','
+             << (predicted.found ? 1 : 0) << ','
+             << predicted.pressureMPa << ','
+             << error << ',' << predicted.bracketLowMPa << ','
+             << predicted.bracketHighMPa << ','
+             << predicted.transitionCount << ','
+             << predicted.evaluations << '\n';
+    }
+
+    if (metrics.found == points.size() && !points.empty())
+    {
+        metrics.aadMPa =
+            sumAbs / static_cast<double>(points.size());
+        metrics.maxAbsErrorMPa = maxAbs;
+        metrics.publishedAadDifferenceMPa =
+            std::abs(metrics.aadMPa - publishedAadMPa);
+    }
+    return metrics;
+}
+
 int run(
     const std::filesystem::path &referencePath,
+    const std::filesystem::path &boundaryPath,
     const std::filesystem::path &outputDir)
 {
     const auto points = readReference(referencePath);
     if (points.empty())
         throw std::runtime_error("Athabasca reference table contains no rows.");
+    const auto boundaryPoints = readBoundaryReference(boundaryPath);
+    if (boundaryPoints.empty())
+        throw std::runtime_error(
+            "Athabasca Figure-7 boundary table contains no rows.");
     std::filesystem::create_directories(outputDir);
 
     Eos eos = makeJiaCase1Cpa();
@@ -274,8 +535,18 @@ int run(
     std::ofstream rows(outputDir / "water_solubility_comparison.csv");
     std::ofstream metrics(outputDir / "metrics.csv");
     std::ofstream gate(outputDir / "benchmark_gate.csv");
-    if (!rows || !metrics || !gate)
+    std::ofstream boundaryRows(
+        outputDir / "figure7_boundary_comparison.csv");
+    std::ofstream boundaryMetrics(
+        outputDir / "figure7_boundary_metrics.csv");
+    if (!rows || !metrics || !gate || !boundaryRows || !boundaryMetrics)
         throw std::runtime_error("Cannot create Athabasca benchmark outputs.");
+
+    boundaryRows << std::scientific << std::setprecision(12)
+        << "feed_convention,water_mass_fraction,water_mole_fraction,"
+           "T_K,experimental_P_MPa,T_uncertainty_K,P_uncertainty_MPa,"
+           "boundary_found,predicted_P_MPa,abs_error_MPa,"
+           "bracket_low_MPa,bracket_high_MPa,transition_count,evaluations\n";
 
     rows << std::scientific << std::setprecision(12);
     rows << "T_K,P_MPa,zH2O_feed,converged,phase_code,phase_count,"
@@ -463,6 +734,51 @@ int run(
             << maxAbsExperimental << ',' << maxUnrestrictedClosure << ','
             << maxOwBranchClosure << '\n';
 
+    const auto jiaCaptionBoundary = evaluateBoundaryConvention(
+        flash, boundaryPoints, "JIA_FIGURE7_CAPTION",
+        0.559, boundaryRows);
+    const auto amaniTableBoundary = evaluateBoundaryConvention(
+        flash, boundaryPoints, "AMANI_TABLE_2_5",
+        0.441, boundaryRows);
+
+    constexpr double publishedBoundaryAadMPa = 0.771;
+    // Two source pressure uncertainties (2 x 0.07 MPa) plus a small numerical
+    // interpolation allowance define this preregistered parity band.  It is
+    // set before examining the production-CPA result and is not a fit target.
+    constexpr double publishedAadParityToleranceMPa = 0.15;
+
+    const auto writeBoundaryMetric = [&](const BoundaryMetrics &m) {
+        boundaryMetrics << std::scientific << std::setprecision(12)
+            << m.convention << ',' << m.waterMassFraction << ','
+            << m.waterMoleFraction << ',' << m.found << ','
+            << boundaryPoints.size() << ',' << m.aadMPa << ','
+            << m.maxAbsErrorMPa << ',' << publishedBoundaryAadMPa << ','
+            << m.publishedAadDifferenceMPa << ','
+            << publishedAadParityToleranceMPa << '\n';
+    };
+    boundaryMetrics
+        << "feed_convention,water_mass_fraction,water_mole_fraction,"
+           "boundary_points_found,boundary_points_total,aad_MPa,"
+           "max_abs_error_MPa,published_Jia_aad_MPa,"
+           "abs_difference_from_published_aad_MPa,"
+           "published_aad_parity_tolerance_MPa\n";
+    writeBoundaryMetric(jiaCaptionBoundary);
+    writeBoundaryMetric(amaniTableBoundary);
+
+    const bool boundaryRowsComplete =
+        jiaCaptionBoundary.found == boundaryPoints.size() &&
+        amaniTableBoundary.found == boundaryPoints.size();
+    const bool jiaCaptionAadParity =
+        std::isfinite(jiaCaptionBoundary.publishedAadDifferenceMPa) &&
+        jiaCaptionBoundary.publishedAadDifferenceMPa <=
+            publishedAadParityToleranceMPa;
+    const bool amaniTableAadParity =
+        std::isfinite(amaniTableBoundary.publishedAadDifferenceMPa) &&
+        amaniTableBoundary.publishedAadDifferenceMPa <=
+            publishedAadParityToleranceMPa;
+    const bool publishedAadParity =
+        jiaCaptionAadParity || amaniTableAadParity;
+
     // Table 5 is a branch-composition benchmark at experimental WLV-WL
     // transition points.  Therefore Stage 1 hard-gates reproducibility of the
     // O+W liquid branch, while unrestricted phase topology remains diagnostic
@@ -479,14 +795,34 @@ int run(
     gate << "CPA_ATHABASCA_PARITY,OBSERVE,"
          << std::scientific << std::setprecision(12) << maeExperimental
          << ",O+W branch MAE versus experiment; report-only until a preregistered parity tolerance is fixed\n";
+    gate << "CPA_ATHABASCA_FIGURE7_BOUNDARY_ROWS,"
+         << (boundaryRowsComplete ? "PASS" : "FAIL") << ','
+         << (jiaCaptionBoundary.found + amaniTableBoundary.found) << '/'
+         << (2 * boundaryPoints.size())
+         << ",both conflicting source feed conventions must yield one traceable WLV-WL boundary at every experimental temperature\n";
+    gate << "CPA_ATHABASCA_FIGURE7_JIA_CAPTION_AAD,"
+         << (jiaCaptionAadParity ? "PASS" : "FAIL") << ','
+         << jiaCaptionBoundary.aadMPa
+         << ",compare against published 0.771 MPa AAD using the Jia Figure-7 caption feed convention\n";
+    gate << "CPA_ATHABASCA_FIGURE7_AMANI_TABLE_AAD,"
+         << (amaniTableAadParity ? "PASS" : "FAIL") << ','
+         << amaniTableBoundary.aadMPa
+         << ",compare against published 0.771 MPa AAD using the Amani Table-2.5 feed convention\n";
+    gate << "CPA_ATHABASCA_FIGURE7_PUBLISHED_AAD_PARITY,"
+         << (publishedAadParity ? "PASS" : "FAIL") << ','
+         << publishedBoundaryAadMPa
+         << ",at least one explicitly documented source convention must reproduce the published AAD within 0.15 MPa without parameter tuning\n";
 
     std::cout << "Athabasca CPA proxy: O+W branch "
               << owBranchPassed << '/' << points.size()
               << ", unrestricted equilibrium " << unrestrictedPassed << '/'
-              << points.size() << ", MAE(exp)=" << std::scientific
-              << maeExperimental << ", MAE(Jia CPA)=" << maePublished
-              << ", max O+W closure=" << maxOwBranchClosure << '\n';
-    return owBranchGate ? 0 : 2;
+              << points.size() << ", Table5 MAE(exp)=" << std::scientific
+              << maeExperimental << ", Figure7 AAD Jia-caption="
+              << jiaCaptionBoundary.aadMPa << " MPa, Amani-table="
+              << amaniTableBoundary.aadMPa
+              << " MPa, published=0.771 MPa\n";
+    return (owBranchGate && boundaryRowsComplete && publishedAadParity)
+        ? 0 : 2;
 }
 } // namespace
 
@@ -494,13 +830,14 @@ int main(int argc, char **argv)
 {
     try
     {
-        if (argc != 3)
+        if (argc != 4)
         {
             std::cerr
-                << "usage: cpa_athabasca_bitumen_water REFERENCE_CSV OUTPUT_DIR\n";
+                << "usage: cpa_athabasca_bitumen_water "
+                   "SOLUBILITY_CSV BOUNDARY_CSV OUTPUT_DIR\n";
             return 1;
         }
-        return run(argv[1], argv[2]);
+        return run(argv[1], argv[2], argv[3]);
     }
     catch (const std::exception &error)
     {
