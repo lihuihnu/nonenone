@@ -7,6 +7,7 @@ on:
     paths:
       - 'tools/example/cpa_athabasca_bitumen_water/**'
       - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_athabasca_water_proxy.csv'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_figure7_wlv_wl_boundary.csv'
       - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
       - 'models/include/natural/thermo/**'
       - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'tools/example/cpa_athabasca_bitumen_water/**'
       - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_athabasca_water_proxy.csv'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_figure7_wlv_wl_boundary.csv'
       - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
       - 'models/include/natural/thermo/**'
       - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
@@ -50,6 +52,8 @@ jobs:
           cat tools/example/cpa_athabasca_bitumen_water/results/benchmark_gate.csv || true
           cat tools/example/cpa_athabasca_bitumen_water/results/metrics.csv || true
           cat tools/example/cpa_athabasca_bitumen_water/results/water_solubility_comparison.csv || true
+          cat tools/example/cpa_athabasca_bitumen_water/results/figure7_boundary_metrics.csv || true
+          cat tools/example/cpa_athabasca_bitumen_water/results/figure7_boundary_comparison.csv || true
 
       - name: Upload Athabasca CPA proxy results
         if: always()
