@@ -164,6 +164,38 @@ PR and CPA must each independently pass:
 
 The existing broad 25–30 MPa scan contains these states, but the formal experiment now records them as named paired anchors rather than relying only on their membership in a large scan.
 
+## Current 0D paired-anchor result
+
+The dedicated 28 MPa paired anchor has now run successfully for both EOS:
+
+\`SCW_360_380_CONTROL_PAIR_28MPA = PASS\`.
+
+At the current BASE composition \(z_{\mathrm{H2O}}=0.20\), all three 28 MPa anchor temperatures remain a single Oil-role phase in both PR and CPA.
+
+The current 0D values are:
+
+| EOS | T °C | phase count | mass density kg/m³ | LBC viscosity Pa·s |
+|---|---:|---:|---:|---:|
+| PR | 360 | 1 | 681.648 | 1.97572e-4 |
+| PR | 374 | 1 | 676.596 | 1.92852e-4 |
+| PR | 380 | 1 | 674.406 | 1.90867e-4 |
+| CPA | 360 | 1 | 614.440 | 1.45707e-4 |
+| CPA | 374 | 1 | 610.172 | 1.43371e-4 |
+| CPA | 380 | 1 | 608.323 | 1.42380e-4 |
+
+For the formal 360 -> 380 comparison at the initial BASE state:
+
+- PR density changes by approximately \(-1.06\%\);
+- PR viscosity changes by approximately \(-3.39\%\);
+- CPA density changes by approximately \(-1.00\%\);
+- CPA viscosity changes by approximately \(-2.28\%\).
+
+This initial-state result does **not** show a phase-topology change.
+
+That is scientifically important: the formal experiment must not equate “water crosses its critical point” with “the hydrocarbon-rich mixture must immediately split into a new phase.” The stronger SCW signal may instead emerge as injected water drives the local overall composition into water-rich parts of the phase diagram.
+
+Therefore the flow study must compare matched-PVI trajectories and water-rich local states, not only the initial bulk state.
+
 ## Primary observables
 
 The required observables are registered in \`porous_media/scw_temperature_control_observables.csv\`.
