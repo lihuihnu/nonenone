@@ -78,6 +78,9 @@ int main(int argc,char **argv)
               "ow_stability_valid,ow_gas_unstable,ow_gas_trial_sum,"
               "global_converged,global_phase_code,global_stable,"
               "global_beta_gas,global_material_closure,"
+              "incipient_xH2O,incipient_oil_L1,incipient_water_L1,"
+              "incipient_selected_Z,incipient_vapor_Z,incipient_liquid_Z,"
+              "global_gas_incipient_L1,global_gas_Z,global_gas_vapor_Z,"
               "global_gibbs_RT,ow_gibbs_RT,global_minus_ow_gibbs_RT\n";
 
         Eos eos=makeJiaCase1Cpa();
@@ -104,6 +107,13 @@ int main(int argc,char **argv)
                 const auto ow=continuedOw(flash,t,z,p);
                 bool owValid=false,gasUnstable=false;
                 double trial=std::numeric_limits<double>::quiet_NaN();
+                Composition incipient{};
+                bool incipientValid=false;
+                double incipientOilL1=std::numeric_limits<double>::quiet_NaN();
+                double incipientWaterL1=std::numeric_limits<double>::quiet_NaN();
+                double incipientSelectedZ=std::numeric_limits<double>::quiet_NaN();
+                double incipientVaporZ=std::numeric_limits<double>::quiet_NaN();
+                double incipientLiquidZ=std::numeric_limits<double>::quiet_NaN();
                 if(ow.converged)
                 {
                     const auto s=flash.stabilityTest(
@@ -115,6 +125,39 @@ int main(int argc,char **argv)
                             MPMC::phaseIndex(MPMC::CompositionalPhase::Gas));
                         gasUnstable=s.missingPhaseUnstable[gas];
                         trial=s.trialSum[gas];
+                        incipient=s.incipientComposition[gas];
+                        double sum=0.0;
+                        incipientValid=true;
+                        for(double x:incipient)
+                        {
+                            incipientValid=incipientValid&&std::isfinite(x)&&x>=0.0;
+                            sum+=x;
+                        }
+                        incipientValid=incipientValid&&std::abs(sum-1.0)<=1.0e-8;
+                        if(incipientValid)
+                        {
+                            incipientOilL1=0.0;
+                            incipientWaterL1=0.0;
+                            for(std::size_t i=0;i<5;++i)
+                            {
+                                incipientOilL1+=std::abs(
+                                    incipient[i]-ow.composition[0][i]);
+                                incipientWaterL1+=std::abs(
+                                    incipient[i]-ow.composition[2][i]);
+                            }
+                            const auto selected=eos.phaseResult(
+                                p*1.0e6,t,incipient,
+                                MPMC::CompositionalPhase::Gas,true);
+                            const auto vapor=eos.phaseResult(
+                                p*1.0e6,t,incipient,
+                                MPMC::CompositionalPhase::Gas,false);
+                            const auto liquid=eos.phaseResult(
+                                p*1.0e6,t,incipient,
+                                MPMC::CompositionalPhase::Oil,false);
+                            incipientSelectedZ=selected.compressibility;
+                            incipientVaporZ=vapor.compressibility;
+                            incipientLiquidZ=liquid.compressibility;
+                        }
                     }
                 }
 
@@ -136,6 +179,28 @@ int main(int argc,char **argv)
                        betaGas>options.phaseFractionTolerance)
                         foundThree=true;
                 }
+                double globalGasIncipientL1=
+                    std::numeric_limits<double>::quiet_NaN();
+                double globalGasZ=std::numeric_limits<double>::quiet_NaN();
+                double globalGasVaporZ=std::numeric_limits<double>::quiet_NaN();
+                if(global.converged &&
+                   global.presence.contains(MPMC::CompositionalPhase::Gas))
+                {
+                    const std::size_t gas=static_cast<std::size_t>(
+                        MPMC::phaseIndex(MPMC::CompositionalPhase::Gas));
+                    globalGasZ=global.compressibility[gas];
+                    const auto vapor=eos.phaseResult(
+                        p*1.0e6,t,global.composition[gas],
+                        MPMC::CompositionalPhase::Gas,false);
+                    globalGasVaporZ=vapor.compressibility;
+                    if(incipientValid)
+                    {
+                        globalGasIncipientL1=0.0;
+                        for(std::size_t i=0;i<5;++i)
+                            globalGasIncipientL1+=std::abs(
+                                global.composition[gas][i]-incipient[i]);
+                    }
+                }
                 const double gg=fixedG(eos,p,t,global);
                 const double go=fixedG(eos,p,t,ow);
                 rows<<t<<','<<b.pressureMPa<<','<<offset<<','<<p<<','
@@ -143,6 +208,12 @@ int main(int argc,char **argv)
                     <<global.converged<<','
                     <<(global.converged?global.presence.bits():0)<<','
                     <<globalStable<<','<<betaGas<<','<<closure<<','
+                    <<(incipientValid?incipient[0]:
+                       std::numeric_limits<double>::quiet_NaN())<<','
+                    <<incipientOilL1<<','<<incipientWaterL1<<','
+                    <<incipientSelectedZ<<','<<incipientVaporZ<<','
+                    <<incipientLiquidZ<<','<<globalGasIncipientL1<<','
+                    <<globalGasZ<<','<<globalGasVaporZ<<','
                     <<gg<<','<<go<<','<<(gg-go)<<'\n';
             }
             anyCertifiedThreeAtEachT =
