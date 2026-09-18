@@ -720,7 +720,8 @@ BackendResult runBackend(
     envelopeOptions.maxRefinementIterations = 24;
     envelopeOptions.relativePressureTolerance = 1.0e-6;
 
-    for (const std::string family : {"BASE", "LIGHT_ENRICHED", "HEAVY_ENRICHED"})
+    for (const std::string family : {
+             "BASE", "LIGHT_ENRICHED", "HEAVY_ENRICHED", "H2O_HEAVY_BINARY"})
     {
         auto it = std::find_if(
             scan.begin(), scan.end(), [&](const ScanComposition &item) {
@@ -749,34 +750,42 @@ BackendResult runBackend(
             ogEnvelope, names);
     }
 
-    // Dense pressure-composition scan along the measured oil ratio for each
-    // requested target temperature.
-    auto low = std::find_if(
-        scan.begin(), scan.end(), [](const ScanComposition &item) {
-            return item.family == "BASE" &&
-                std::abs(item.waterFraction - 0.01) < 1.0e-12;
-        });
-    auto high = std::find_if(
-        scan.begin(), scan.end(), [](const ScanComposition &item) {
-            return item.family == "BASE" &&
-                std::abs(item.waterFraction - 0.995) < 1.0e-12;
-        });
-    if (low == scan.end() || high == scan.end())
-        throw std::runtime_error("Missing BASE composition-path endpoints.");
+    // Dense pressure-composition scans for both the characterized oil ratio
+    // and the H2O-Heavy lower-dimensional screening family.
     const MPMC::tools::ScanAxis targetPressure{
         25.0e6, 30.0e6, 21, MPMC::tools::AxisSpacing::Linear};
     const MPMC::tools::ScanAxis pathAxis{
         0.0, 1.0, 81, MPMC::tools::AxisSpacing::Linear};
-    for (double temperature : targetTemperatures)
+    for (const std::string family : {"BASE", "H2O_HEAVY_BINARY"})
     {
-        const auto map = unrestricted.pressureComposition(
-            temperature, targetPressure, low->z, high->z, pathAxis);
-        summary.compositionPathPoints += map.samples.size();
-        for (const auto &sample : map.samples)
-            summary.compositionPathFailures += sample.statusCode == 0 ? 0u : 1u;
-        std::ostringstream stem;
-        stem << "base_pressure_composition_" << std::llround(temperature * 100.0);
-        MPMC::tools::writeCsv(outDir / (stem.str() + ".csv"), map, names);
+        auto low = std::find_if(
+            scan.begin(), scan.end(), [&](const ScanComposition &item) {
+                return item.family == family &&
+                    std::abs(item.waterFraction - 0.01) < 1.0e-12;
+            });
+        auto high = std::find_if(
+            scan.begin(), scan.end(), [&](const ScanComposition &item) {
+                return item.family == family &&
+                    std::abs(item.waterFraction - 0.995) < 1.0e-12;
+            });
+        if (low == scan.end() || high == scan.end())
+            throw std::runtime_error(
+                "Missing " + family + " composition-path endpoints.");
+
+        for (double temperature : targetTemperatures)
+        {
+            const auto map = unrestricted.pressureComposition(
+                temperature, targetPressure, low->z, high->z, pathAxis);
+            summary.compositionPathPoints += map.samples.size();
+            for (const auto &sample : map.samples)
+                summary.compositionPathFailures +=
+                    sample.statusCode == 0 ? 0u : 1u;
+            std::ostringstream stem;
+            stem << safeStem(family) << "_pressure_composition_"
+                 << std::llround(temperature * 100.0);
+            MPMC::tools::writeCsv(
+                outDir / (stem.str() + ".csv"), map, names);
+        }
     }
 
     std::ofstream summaryFile(outDir / "acceptance_summary.csv");
