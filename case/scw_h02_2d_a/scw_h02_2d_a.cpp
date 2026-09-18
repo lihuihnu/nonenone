@@ -4,6 +4,7 @@
 
 #include <case/case_support.hpp>
 #include <case/natural_scaling_options.hpp>
+#include <case/petsc_case_main.hpp>
 #include <case/well_factory.hpp>
 #include <indices/indices.hpp>
 #include <natural/petsc/natural_structuredgrid_runtime.hpp>
