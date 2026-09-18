@@ -1,0 +1,12 @@
+item,status,blocking_for_flow,acceptance_rule
+physical_medium_identity,PASS_REFERENCE_DEFINED,yes,"Choose actual fired Berea core/slab batch or explicitly choose a packed-sand slab; record batch/preparation."
+specimen_geometry,OPEN,yes,"Use measured cell/specimen dimensions; old 1.2 m x 0.1 m x 0.1 m abstract geometry is forbidden."
+specimen_porosity,OPEN,yes,"Measure the actual specimen/pack; literature values are priors only."
+absolute_permeability_ambient,OPEN,yes,"Measure actual specimen by Darcy flow."
+absolute_permeability_operating_TP,OPEN,yes,"Check at 360/374/380 C and 25-30 MPa or justify why ambient k is invariant."
+effective_pore_volume_operating_TP,OPEN,yes,"Determine accessible PV at operating T/P; use it for PVI/rate scaling."
+wettability_target_TP,OPEN,yes,"Water-wet is only a prior until target-T/P evidence or an explicit sensitivity decision is recorded."
+relative_permeability_target_TP,SCREENING_COREY_ONLY,yes,"Stage-1 Corey curves are sensitivity parameters, not calibration. Either obtain data or retain uncertainty ensemble in all flow conclusions."
+capillary_pressure_target_TP,OPEN_MODEL_AND_DATA,yes,"Current Natural flux has no explicit phase capillary-pressure closure; implement it or demonstrate a Pc=0 regime by dimensionless/pressure-drop evidence."
+post_test_rock_change_check,OPEN,yes,"Repeat phi/k and material checks after SCW exposure."
+ALL_POROUS_MEDIA,POROUS_MEDIA_GATE_BLOCKED,yes,"Laboratory-reproducible porous-medium definition is not yet accepted for flow."
