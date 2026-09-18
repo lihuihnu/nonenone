@@ -828,16 +828,78 @@
             }
 
             bool added = false;
-            for (CompositionalPhase p : phases_)
+
+            // CPA can enter a one-density-root region in which a Water-only
+            // equilibrium reports numerically identical missing Oil and Gas
+            // TPD directions. Releasing both labels at once creates an
+            // artificial W -> O+G+W jump and can miss the physical O+W
+            // bifurcation. When both trial strength and incipient composition
+            // coincide, treat them as one nonaqueous instability direction:
+            // release the liquid-root Oil role first, re-equilibrate, then
+            // rerun stability. A genuinely distinct Gas instability will
+            // therefore be released on the following outer iteration.
+            bool deduplicatedCpaNonaqueousDirection = false;
+            if (eos_.usesCubicPlusAssociation() &&
+                active.count() == 1 &&
+                active.contains(CompositionalPhase::Water) &&
+                stability.missingPhaseUnstable[static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Oil))] &&
+                stability.missingPhaseUnstable[static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Gas))])
             {
-                const int pi = phaseIndex(p);
-                if (!active.contains(p) &&
-                    stability.missingPhaseUnstable.at(static_cast<std::size_t>(pi)))
+                const std::size_t oilSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Oil));
+                const std::size_t gasSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Gas));
+                const double oilTrial = stability.trialSum[oilSlot];
+                const double gasTrial = stability.trialSum[gasSlot];
+                const double trialScale = std::max({
+                    1.0, std::abs(oilTrial), std::abs(gasTrial)});
+                const double trialTolerance = std::max(
+                    10.0 * options_.stabilityTolerance * trialScale,
+                    1.0e-12);
+
+                double incipientL1 = 0.0;
+                for (int i = 0; i < N; ++i)
                 {
-                    active.add(p);
-                    seed.composition[static_cast<std::size_t>(pi)] =
-                        stability.incipientComposition.at(static_cast<std::size_t>(pi));
+                    const std::size_t component =
+                        static_cast<std::size_t>(i);
+                    incipientL1 += std::abs(
+                        stability.incipientComposition[oilSlot][component] -
+                        stability.incipientComposition[gasSlot][component]);
+                }
+                const double compositionTolerance = std::max(
+                    10.0 * options_.coincidentPhaseCompositionTolerance,
+                    1.0e-10);
+
+                if (std::isfinite(oilTrial) &&
+                    std::isfinite(gasTrial) &&
+                    std::abs(oilTrial - gasTrial) <= trialTolerance &&
+                    incipientL1 <= compositionTolerance)
+                {
+                    active.add(CompositionalPhase::Oil);
+                    seed.composition[oilSlot] =
+                        stability.incipientComposition[oilSlot];
                     added = true;
+                    deduplicatedCpaNonaqueousDirection = true;
+                }
+            }
+
+            if (!deduplicatedCpaNonaqueousDirection)
+            {
+                for (CompositionalPhase p : phases_)
+                {
+                    const int pi = phaseIndex(p);
+                    if (!active.contains(p) &&
+                        stability.missingPhaseUnstable.at(
+                            static_cast<std::size_t>(pi)))
+                    {
+                        active.add(p);
+                        seed.composition[static_cast<std::size_t>(pi)] =
+                            stability.incipientComposition.at(
+                                static_cast<std::size_t>(pi));
+                        added = true;
+                    }
                 }
             }
             if (!added)
