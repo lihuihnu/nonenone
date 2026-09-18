@@ -179,6 +179,87 @@ void deterministicRobustnessSweep(const std::string &label)
 }
 
 
+void checkKerogenCpaCoincidentNonaqueousOnsetRecovery()
+{
+    using LocalMixture = MPMC::CompositionalMixture<Indices>;
+    using LocalEos = MPMC::CubicEquationOfState<Indices>;
+
+    constexpr std::array<double, 5> tc{
+        647.096, 515.231, 736.423, 870.437, 982.864};
+    constexpr std::array<double, 5> pc{
+        22.064e6, 3.192179e6, 1.751155e6, 1.138075e6, 0.808714e6};
+    constexpr std::array<double, 5> vc{
+        55.948074534e-6, 358.490e-6, 824.073e-6,
+        1318.853e-6, 1793.890e-6};
+    constexpr std::array<double, 5> omega{
+        0.3443, 0.269328, 0.583473, 0.896554, 1.215676};
+    constexpr std::array<double, 5> mw{
+        0.01801528, 0.082392, 0.215583, 0.387349, 0.660132};
+    constexpr std::array<std::array<double, 5>, 5> kij{{
+        {{0.0, 0.044, -0.054, 0.0, 0.0}},
+        {{0.044, 0.0, 0.0, 0.0, 0.0}},
+        {{-0.054, 0.0, 0.0, 0.0, 0.0}},
+        {{0.0, 0.0, 0.0, 0.0, 0.0}},
+        {{0.0, 0.0, 0.0, 0.0, 0.0}}
+    }};
+
+    LocalEos eos(
+        0.42748, 0.08664,
+        LocalMixture(tc, pc, vc, omega, mw, kij),
+        1, 1.0, 0.0, 1.0e-30);
+
+    LocalEos::CubicPlusAssociationOptions cpa;
+    cpa.a0 = {
+        0.12277, 2.45754175486, 9.15196330734,
+        19.6737874211, 35.3001105724};
+    cpa.b = {
+        1.4515e-5, 1.16269921130e-4, 3.02939137177e-4,
+        5.50958755266e-4, 8.75489809612e-4};
+    cpa.c1 = {
+        0.67359, 0.891155659401, 1.33846893146,
+        1.74970559881, 2.13336923189};
+    cpa.associationEnergy[0] = 16655.0;
+    cpa.associationVolume[0] = 0.0692;
+    cpa.donorSites[0] = 2;
+    cpa.acceptorSites[0] = 2;
+    cpa.physicalTerm = MPMC::CpaCubicPhysicalTerm::SoaveRedlichKwong;
+    cpa.radialDistribution = MPMC::CpaRadialDistribution::Simplified;
+    eos.configureCubicPlusAssociation(cpa);
+
+    MPMC::ThreePhaseFlashOptions options;
+    options.waterComponent = 0;
+    options.maximumIterations = 180;
+    options.maximumStabilityIterations = 120;
+    Flash flash(eos, options);
+
+    const Composition z{
+        0.7610625,
+        0.008680599375,
+        0.097192606875,
+        0.0777552801875,
+        0.0553090135625};
+
+    for (double pressure : {26.0e6, 26.25e6})
+    {
+        const auto result = flash.flash(pressure, 653.15, z);
+        require(result.converged,
+                "kerogen CPA onset regression must converge");
+        require(result.presence.contains(MPMC::CompositionalPhase::Oil) &&
+                    result.presence.contains(MPMC::CompositionalPhase::Water) &&
+                    !result.presence.contains(MPMC::CompositionalPhase::Gas),
+                "kerogen CPA onset regression must recover stable O+W");
+        checkMaterialClosure(z, result);
+
+        const auto stability = flash.stabilityTest(
+            pressure, 653.15, z, result.presence, result.composition);
+        require(stability.valid && stability.stable,
+                "kerogen CPA O+W onset state must carry a stable certificate");
+        require(result.composition[2][0] > result.composition[0][0],
+                "kerogen CPA Water role must remain more H2O-rich than Oil");
+    }
+}
+
+
 void checkStaticBipSymmetryContract()
 {
     using Mixture = MPMC::CompositionalMixture<Indices>;
@@ -247,6 +328,7 @@ int main()
     try
     {
         checkPreviouslyMissedReducedSets();
+        checkKerogenCpaCoincidentNonaqueousOnsetRecovery();
         deterministicRobustnessSweep<CaseConfig::PrFactoryConfig>("PR");
         deterministicRobustnessSweep<CaseConfig::SwFactoryConfig>("SW");
         deterministicRobustnessSweep<CaseConfig::CpaFactoryConfig>("CPA");
