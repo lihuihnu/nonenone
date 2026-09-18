@@ -66,7 +66,10 @@ class ProducerCompositionOutput final
 public:
     static constexpr std::size_t N =
         static_cast<std::size_t>(Indices::numComponents);
+    static constexpr std::size_t P =
+        static_cast<std::size_t>(Indices::numPhases);
     using Array = std::array<double, N>;
+    using PhaseComponentArray = std::array<std::array<double, N>, P>;
     using Ledger = ProducerCompositionLedger<N>;
     using WellStateType = WellState<Indices>;
 
@@ -111,6 +114,18 @@ public:
                     << ",Y_" << token << "_mass_fraction"
                     << ",cum_" << token << "_produced_kg"
                     << ",RF_" << token;
+            }
+            for (std::size_t phase = 0; phase < P; ++phase)
+            {
+                const auto phaseToken = phaseToken_(phase);
+                for (const auto &name : options_.componentNames)
+                {
+                    const auto token = csvToken_(name);
+                    out << ",m_dot_" << phaseToken << "_" << token
+                        << "_produced_kg_s"
+                        << ",cum_" << phaseToken << "_" << token
+                        << "_produced_kg";
+                }
             }
             if (!options_.lightComponents.empty())
                 out << ",m_dot_Light_group_produced_kg_s"
@@ -186,6 +201,15 @@ public:
                     << ',' << snapshot.cumulativeProducedKg[c]
                     << ',' << snapshot.recoveryFraction[c];
             }
+            const auto phaseRates = phaseProductionMagnitude_(states[i]);
+            for (std::size_t phase = 0; phase < P; ++phase)
+            {
+                for (std::size_t component = 0; component < N; ++component)
+                {
+                    out << ',' << phaseRates[phase][component]
+                        << ',' << cumulativePhaseProducedKg_[i][phase][component];
+                }
+            }
             if (!options_.lightComponents.empty())
                 writeGroup_(out, snapshot, options_.lightComponents);
             if (!options_.heavyComponents.empty())
@@ -247,9 +271,18 @@ public:
             }
 
             if (wells[i].type == WellType::Producer)
+            {
+                const auto phaseRates =
+                    phaseProductionMagnitude_(states[i]);
+                for (std::size_t phase = 0; phase < P; ++phase)
+                    for (std::size_t component = 0; component < N; ++component)
+                        cumulativePhaseProducedKg_[i][phase][component] +=
+                            phaseRates[phase][component] * dt;
+
                 ledgers_[i].accept(
                     acceptedTimeSeconds,
                     productionMagnitude_(states[i]));
+            }
         }
 
         cumulativeInjectedReservoirM3_ +=
@@ -258,6 +291,20 @@ public:
     }
 
 private:
+    static std::string phaseToken_(std::size_t phase)
+    {
+        if (phase == static_cast<std::size_t>(Indices::Phase::liquid))
+            return "Oil";
+        if (phase == static_cast<std::size_t>(Indices::Phase::vapor))
+            return "Gas";
+        if constexpr (Indices::hasWater)
+        {
+            if (phase == static_cast<std::size_t>(Indices::Phase::water))
+                return "Water";
+        }
+        return "Phase" + std::to_string(phase);
+    }
+
     static std::string csvToken_(std::string name)
     {
         for (char &ch : name)
@@ -362,6 +409,19 @@ private:
         return result;
     }
 
+    static PhaseComponentArray phaseProductionMagnitude_(
+        const WellStateType &state)
+    {
+        PhaseComponentArray result{};
+        for (std::size_t phase = 0; phase < P; ++phase)
+            for (std::size_t component = 0; component < N; ++component)
+                result[phase][component] =
+                    std::max(
+                        0.0,
+                        -state.phaseComponentMassRate[phase][component]);
+        return result;
+    }
+
     void initialize_(
         Runtime &runtime,
         Vec solution,
@@ -379,6 +439,8 @@ private:
         }
 
         ledgers_.assign(runtime.wells().size(), Ledger{});
+        cumulativePhaseProducedKg_.assign(
+            runtime.wells().size(), PhaseComponentArray{});
         for (std::size_t i = 0; i < runtime.wells().size(); ++i)
             if (runtime.wells()[i].type == WellType::Producer)
                 ledgers_[i].initialize(initial, timeSeconds);
@@ -391,6 +453,7 @@ private:
     ProducerCompositionOutputOptions options_;
     PetscMPIInt rank_{0};
     std::vector<Ledger> ledgers_{};
+    std::vector<PhaseComponentArray> cumulativePhaseProducedKg_{};
     double lastAcceptedTimeSeconds_{0.0};
     double cumulativeInjectedReservoirM3_{0.0};
     bool initialized_{false};
