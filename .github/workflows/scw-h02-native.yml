@@ -1,8 +1,10 @@
 name: SCW H02 native 2D runner
 on:
+  pull_request:
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
   push:
     branches: [docs/scw-kerogen-acs2023-data]
-    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/fluid_system.hpp', 'models/include/natural/petsc/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -74,6 +76,24 @@ jobs:
           done
           cat h02-results/exit_codes.txt
           exit "$rc"
+      - name: Run complete 2-PVI conditional-mechanism chain on verification mesh
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/full
+          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -adaptive_dt true -snes_max_it 30 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/full/A" RUN_ARGS="$COMMON_ARGS" > h02-results/full/A.log 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/full/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "h02-results/full/$mode.log" 2>&1
+          done
+          for mode in A B C; do
+            echo "===== H02 $mode final log ====="
+            tail -30 "h02-results/full/$mode.log"
+          done
+      - name: Build comparable H02 mechanism tables and require 2 PVI
+        run: |
+          set -euo pipefail
+          python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/full             --out h02-results/full/analysis | tee h02-results/full/analysis.log
+          cat h02-results/full/analysis/h02_bc_viscosity_delta.csv
       - name: Upload exact native outputs even on failure
         if: always()
         uses: actions/upload-artifact@v4
