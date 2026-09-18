@@ -60,6 +60,7 @@ struct RunOptions final
     std::size_t outputEvery{1};
     double dtDays{1.0};
     bool adaptive{true};
+    double targetPVI{std::numeric_limits<double>::quiet_NaN()};
     std::string resultDirectory{"./results"};
     std::string meshDirectory;
 };
@@ -79,6 +80,14 @@ struct HasSnesStagnationSettings<
         decltype(Config::Numerics::snesStagnationRelativeImprovement)>> : std::true_type
 {};
 
+
+template <class Time, class = void>
+struct HasTargetPVI : std::false_type
+{};
+
+template <class Time>
+struct HasTargetPVI<Time, std::void_t<decltype(Time::targetPVI)>> : std::true_type
+{};
 
 template <class Output, class = void>
 struct HasProducerCompositionOutput : std::false_type
@@ -180,6 +189,8 @@ RunOptions readRunOptions()
     options.outputEvery = Config::Output::every;
     options.dtDays = Config::Time::dtDays;
     options.adaptive = Config::Time::adaptive;
+    if constexpr (HasTargetPVI<typename Config::Time>::value)
+        options.targetPVI = Config::Time::targetPVI;
     options.resultDirectory = Config::Output::directory;
 
     // 所有算例都显式提供 Grid::meshDirectory：
@@ -191,6 +202,7 @@ RunOptions readRunOptions()
     PetscInt outputEvery = static_cast<PetscInt>(options.outputEvery);
     PetscReal dtDays = options.dtDays;
     PetscBool adaptive = options.adaptive ? PETSC_TRUE : PETSC_FALSE;
+    PetscReal targetPVI = options.targetPVI;
     char result[PETSC_MAX_PATH_LEN]{};
     char mesh[PETSC_MAX_PATH_LEN]{};
     PetscBool resultSet = PETSC_FALSE;
@@ -204,6 +216,8 @@ RunOptions readRunOptions()
                    PetscOptionsGetReal(nullptr, nullptr, "-dt", &dtDays, nullptr));
     PetscCallAbort(PETSC_COMM_WORLD,
                    PetscOptionsGetBool(nullptr, nullptr, "-adaptive_dt", &adaptive, nullptr));
+    PetscCallAbort(PETSC_COMM_WORLD,
+                   PetscOptionsGetReal(nullptr, nullptr, "-target_pvi", &targetPVI, nullptr));
     PetscCallAbort(PETSC_COMM_WORLD,
                    PetscOptionsGetString(nullptr, nullptr, "-result_dir",
                                          result, sizeof(result), &resultSet));
@@ -222,6 +236,9 @@ RunOptions readRunOptions()
     options.outputEvery = static_cast<std::size_t>(outputEvery);
     options.dtDays = dtDays;
     options.adaptive = adaptive == PETSC_TRUE;
+    options.targetPVI = static_cast<double>(targetPVI);
+    if (std::isfinite(options.targetPVI) && !(options.targetPVI > 0.0))
+        throw std::invalid_argument("-target_pvi must be positive when supplied.");
     if (resultSet)
         options.resultDirectory = result;
     if (meshSet)
@@ -711,6 +728,11 @@ public:
         massBalance_.acceptedStep(runtime, solution, acceptedTime);
     }
 
+    [[nodiscard]] double producerPVI() const noexcept
+    {
+        return producer_.pvi();
+    }
+
 private:
     void writeThermodynamicProfile_(std::size_t step, double time, Runtime &runtime)
     {
@@ -1024,11 +1046,28 @@ void runTimeLoop(Runtime &runtime, SNES snes, Vec solution,
     PetscLogDouble localEnd = 0.0;
     PetscCallAbort(PETSC_COMM_WORLD, PetscTime(&localStart));
 
-    stepper.run(
-        run.numberOfSteps,
-        [&output, &runtime, solution](std::size_t step, double time) {
-            output.write(step, time, runtime, solution);
-        });
+    std::size_t completedFixedSteps = 0;
+    if (std::isfinite(run.targetPVI))
+    {
+        completedFixedSteps = stepper.runUntil(
+            run.numberOfSteps,
+            [&output, targetPVI = run.targetPVI](std::size_t, double) {
+                const double pvi = output.producerPVI();
+                return std::isfinite(pvi) && pvi >= targetPVI;
+            },
+            [&output, &runtime, solution](std::size_t step, double time) {
+                output.write(step, time, runtime, solution);
+            });
+    }
+    else
+    {
+        stepper.run(
+            run.numberOfSteps,
+            [&output, &runtime, solution](std::size_t step, double time) {
+                output.write(step, time, runtime, solution);
+            });
+        completedFixedSteps = run.numberOfSteps;
+    }
 
     saveInputOrderedCsv(
         runtime,
@@ -1058,8 +1097,8 @@ void runTimeLoop(Runtime &runtime, SNES snes, Vec solution,
         SimulationSummaryInfo{
             Config::name,
             run.resultDirectory,
-            run.numberOfSteps,
-            static_cast<double>(run.numberOfSteps) * run.dtDays,
+            completedFixedSteps,
+            runtime.currentTime() / secondsPerDay,
             switchOutput.switchCount(),
             Config::Output::printFinalSummary,
             Config::Output::writeFinalSummary},
