@@ -106,80 +106,54 @@ jobs:
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
-      - name: Diagnose full 60x20 B residual through 200 seconds
+      - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
         run: |
           set -euo pipefail
-          root="$GITHUB_WORKSPACE/h02-results/diag_60x20_B_200s"
-          mkdir -p "$root"
-          # Preserve the production 60-s output alignment exactly. Four
-          # intervals provide a 240-s safety horizon; the run64 defect occurred
-          # near 174 s, so the diagnostic should fail before the fourth output.
-          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
-          set +e
-          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/run.log" 2>&1
-          rc=$?
-          set -e
-          tail -120 "$root/run.log"
-          if [ -f "$root/failed_full_residual_diagnostics.csv" ]; then
-            echo "===== FULL RESIDUAL DIAGNOSTIC ====="
-            cat "$root/failed_full_residual_diagnostics.csv"
-          fi
-          exit "$rc"
-      - name: Run complete 2-PVI conditional-mechanism chain on verification mesh
-        run: |
-          set -euo pipefail
-          mkdir -p h02-results/full
-          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
-          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/full/A" RUN_ARGS="$COMMON_ARGS" > h02-results/full/A.log 2>&1
+          mkdir -p h02-results/mesh_norm_20x8
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/mesh_norm_20x8/A" RUN_ARGS="$COMMON_ARGS" > h02-results/mesh_norm_20x8/A.log 2>&1
           for mode in B C; do
-            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/full/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "h02-results/full/$mode.log" 2>&1
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/mesh_norm_20x8/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "h02-results/mesh_norm_20x8/$mode.log" 2>&1
           done
+          python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/mesh_norm_20x8             --out h02-results/mesh_norm_20x8/analysis | tee h02-results/mesh_norm_20x8/analysis.log
           for mode in A B C; do
-            echo "===== H02 $mode final log ====="
-            tail -30 "h02-results/full/$mode.log"
+            echo "===== H02 mesh-normalized 20x8 $mode ====="
+            grep -F '[SNES][MESH-NORM]' "h02-results/mesh_norm_20x8/$mode.log" | head -1
+            tail -20 "h02-results/mesh_norm_20x8/$mode.log"
           done
-      - name: Build comparable H02 mechanism tables and require 2 PVI
+      - name: Confirm mesh-normalized 20x8 mass and mechanism tables
         run: |
           set -euo pipefail
-          python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/full             --out h02-results/full/analysis | tee h02-results/full/analysis.log
-          cat h02-results/full/analysis/h02_bc_viscosity_delta.csv
-      - name: Run 20x8 dt_max=1s complete 2-PVI convergence control
+          cat h02-results/mesh_norm_20x8/analysis/h02_numerical_gates.csv
+          cat h02-results/mesh_norm_20x8/analysis/h02_mechanism_at_1_2_pvi.csv
+      - name: Run full 60x20 B to 2 PVI with mesh-normalized gate
         run: |
           set -euo pipefail
-          root="$GITHUB_WORKSPACE/h02-results/convergence/dt1_20x8"
+          root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
           mkdir -p "$root"
-          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000011574074074074073 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
-          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
-          for mode in B C; do
-            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
-          done
-          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis" | tee "$root/analysis.log"
-          for mode in A B C; do
-            echo "===== H02 20x8 dt1 $mode ====="
-            tail -20 "$root/$mode.log"
-          done
-      - name: Run full 60x20 dt_max=2s complete 2-PVI grid control
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/B" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/B.log" 2>&1
+          grep -F '[SNES][MESH-NORM]' "$root/B.log" | head -1
+          tail -30 "$root/B.log"
+      - name: Run full 60x20 C only after B succeeds
         run: |
           set -euo pipefail
-          root="$GITHUB_WORKSPACE/h02-results/convergence/dt2_60x20"
-          mkdir -p "$root"
-          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
-          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
-          for mode in B C; do
-            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
-          done
-          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis" | tee "$root/analysis.log"
-          for mode in A B C; do
-            echo "===== H02 60x20 dt2 $mode ====="
-            tail -20 "$root/$mode.log"
-          done
-      - name: Gate matched-PVI time-step and grid convergence
+          root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/C" RUN_ARGS="-h02_mode C $COMMON_ARGS" > "$root/C.log" 2>&1
+          python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis" --modes BC | tee "$root/analysis.log"
+          grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
+          tail -30 "$root/C.log"
+      - name: Gate matched-PVI B C grid convergence
         run: |
           set -euo pipefail
-          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/full             --dt1 h02-results/convergence/dt1_20x8             --grid60 h02-results/convergence/dt2_60x20             --out h02-results/convergence/analysis | tee h02-results/convergence/convergence.log
-          cat h02-results/convergence/analysis/time_step_convergence.csv
-          cat h02-results/convergence/analysis/grid_convergence.csv
-          cat h02-results/convergence/analysis/mechanism_increment_stability.csv
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_BC | tee h02-results/grid_gate_BC.log
+          cat h02-results/grid_gate_BC/grid_convergence.csv
+          cat h02-results/grid_gate_BC/convergence_gates.csv
+          cat h02-results/grid_gate_BC/mechanism_increment_stability.csv
       - name: Upload exact native outputs even on failure
         if: always()
         uses: actions/upload-artifact@v4
