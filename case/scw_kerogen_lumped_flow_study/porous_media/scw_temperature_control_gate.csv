@@ -6,7 +6,7 @@ only_temperature_varies_numeric_isolation,PASS_DESIGN,no,"Geometry, composition,
 apparatus_pairing_protocol,OPEN,yes,"Use the same apparatus geometry and matched specimen/batch protocol; record thermal exposure/order to avoid history confounding."
 same_feed_preparation,OPEN,yes,"Prepare/verify identical initial and injection compositions for the formal pair."
 same_target_pvi_rate,OPEN,yes,"Use the same dimensionless PVI rate; document any Q difference caused only by measured PV_eff(T,p)."
-paired_0d_anchor_28MPa,OPEN_RUNTIME,yes,"Both PR and CPA must independently pass BASE zH2O=0.20 at 360 and 380 C, 28 MPa."
+paired_0d_anchor_28MPa,PASS_RUNTIME,no,"PR and CPA each pass BASE zH2O=0.20 at 360 and 380 C, 28 MPa; dedicated output is scw_temperature_control_0d.csv."
 paired_property_validation,OPEN_PROPERTY_GATES,yes,"Density/viscosity models must be admissible at both 360 and 380 C."
 paired_flow_outputs,OPEN_IMPLEMENTATION,yes,"Flow output must include matched-PVI pressure, saturation, mobility and component-recovery/selectivity metrics."
 paired_mass_balance,OPEN_RUNTIME,yes,"Both members must pass the same component inventory/closure gate."
