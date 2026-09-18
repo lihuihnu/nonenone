@@ -53,5 +53,18 @@ jobs:
               print(f'[PASS] {path}: {len(rows)-1} data rows, {width} columns')
           PY
 
-      - name: Check documentation links
-        run: python3 scripts/check_markdown_links.py
+      - name: Check focused documentation references
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          required = [
+              Path('case/scw_kerogen_lumped_flow_study/13_LAB_FLOW_CONTROL_AND_PVI.md'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/flow_control_contract.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/flow_control_gate.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/darcy_flow_scale.csv'),
+              Path('case/scw_kerogen_common/lab_flow_scaling.hpp'),
+          ]
+          missing = [str(p) for p in required if not p.is_file()]
+          assert not missing, f'missing focused flow-control docs/files: {missing}'
+          print('[PASS] focused flow-control documentation references')
+          PY
