@@ -1,0 +1,4 @@
+run_id,role,temperature_C,temperature_K,pressure_center_MPa,water_state_class,formal_pair,near_critical_diagnostic,locked_geometry,locked_initial_composition,locked_injection_composition,locked_pvi_rate,locked_well_control,locked_gravity,locked_corey_pc_for_mechanism_isolation,status,notes
+CTRL_360,SUBCRITICAL_CONTROL,360,633.15,28.0,COMPRESSED_LIQUID_WATER,yes,no,yes,yes,yes,yes,yes,yes,yes,FORMAL_CONTROL,"T<Tc and 28 MPa exceeds the saturation pressure at this subcritical T; water is compressed liquid."
+CTRL_380,SUPERCRITICAL_TEST,380,653.15,28.0,SUPERCRITICAL_WATER,yes,no,yes,yes,yes,yes,yes,yes,yes,FORMAL_TEST,"T>Tc and p>Pc; this is the primary SCW member of the paired experiment."
+DIAG_374,NEAR_CRITICAL_DIAGNOSTIC,374,647.15,28.0,NEAR_CRITICAL_SUPERCRITICAL_SIDE,no,yes,yes,yes,yes,yes,yes,yes,yes,DIAGNOSTIC_ONLY,"Near-critical diagnostic used to test nonlinearity; it does not replace the 360/380 formal pair."
