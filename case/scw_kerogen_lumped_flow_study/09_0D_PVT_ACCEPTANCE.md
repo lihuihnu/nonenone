@@ -139,7 +139,7 @@ The output `cross_eos_initial_state.csv` reports phase-count agreement only as a
 
 The runtime zero-dimensional gate is PASS only if:
 
-`PR scan PASS && CPA scan PASS && both-EOS initial-state PASS`.
+`PR registered scan PASS && CPA registered scan PASS && PR/CPA target-window P-T map health PASS && PR/CPA dense pressure-composition path PASS && both-EOS initial-state PASS`.
 
 ## Reservoir-entry dependency
 
