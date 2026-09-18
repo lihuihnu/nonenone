@@ -137,7 +137,7 @@ CPA 的水–烃 BIP 与 PR 完全独立：Gasoline 以 water+n-hexane CPA `kij=
 
 PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，不能用流动结果反推哪个 EOS“合理”。验收协议见 `09_0D_PVT_ACCEPTANCE.md`，机器可读组成扫描见 `pvt_acceptance/composition_scan.csv`。
 
-目标温度为 `360 / 374 / 380 °C`，压力为 `25–30 MPa`。组成扫描以实验四个 oil lump 的摩尔比为中心，沿 H2O overall mole fraction 从 `0.01` 扫到 `0.995`，并加入 light-enriched / heavy-enriched 两个明确标为 deterministic sensitivity 的油组成族。
+目标温度为 `360 / 374 / 380 °C`，压力为 `25–30 MPa`。组成扫描以实验四个 oil lump 的摩尔比为中心，沿 H2O overall mole fraction 从 `0.01` 扫到 `0.995`，并加入 light-enriched / heavy-enriched 两个明确标为 deterministic sensitivity 的油组成族。现在还增加了 `H2O_HEAVY_BINARY` 下维筛查族：Gasoline/Diesel/Middle 总库存严格为 0，Heavy=`1-z_H2O`，用于隔离单一 Heavy pseudo-component 的相平衡与物性行为。详细结果和物理门禁见 `16_H2O_HEAVY_BINARY_SCREENING.md`。
 
 每个状态输出并检查：
 
@@ -148,7 +148,7 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 - mass / molar density；
 - LBC viscosity 与适用时的 IAPWS water viscosity reference；
 - Oil / Gas / Water canonical phase role；
-- material closure 与 active-phase fugacity closure。
+- material closure 与 active-phase fugacity closure；对总体库存为零的组分不强制无物理意义的跨相逸度等式，详见 `16_H2O_HEAVY_BINARY_SCREENING.md`。
 
 主初始锚点固定为 `BASE oil ratio + z_H2O=0.20 + 25 MPa`，分别在 360/374/380 °C 下评估。PR 与 CPA 不要求预测相同相数；相数差异是模型结果。真正硬要求是**两个 EOS 各自都必须物理自洽**。
 
@@ -166,11 +166,12 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 
 当前严格 0D runtime gate 已经 **PASS**：
 
-- PR registered scan：594/594；
-- CPA registered scan：594/594；
-- PR/CPA target-window P–T map health：全部 PASS；
-- PR dense composition path：5103/5103；
-- CPA dense composition path：5103/5103；
+- PR registered scan：792/792；
+- CPA registered scan：792/792；
+- 其中新增 H2O–Heavy binary registered states：PR 198/198、CPA 198/198；
+- PR/CPA target-window P–T map health：四个 family 全部 PASS；
+- PR dense composition paths：10206/10206（BASE 5103 + H2O–Heavy 5103）；
+- CPA dense composition paths：10206/10206（BASE 5103 + H2O–Heavy 5103）；
 - 360/374/380 °C、25 MPa 的 BASE cross-EOS initial anchors：全部 PASS。
 
 原先 CPA 在 380 °C、`z_H2O≈0.7610625`、26.00/26.25 MPa 的两个 failure states 已在**冻结 CPA 参数**的条件下定位为 active-set/continuation 数值问题并修复。详细证据见 `10_CPA_PHASE_ONSET_AUDIT.md`。这只清除了 0D 数值阻断，不代表 CPA 参数已经实验标定。
@@ -315,8 +316,8 @@ ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、
 
 ## 当前工作顺序
 
-1. 逐表追回并保存 H2O–lump 的高温高压 VLE/LLE/PVT 原始数据；
-2. 分别完成 PR 与 CPA 的二元/association 标定，不跨模型复制参数；
+1. 保留已经通过的 `H2O_HEAVY_BINARY` production-kernel 数值筛查；优先追回/测量 360–380 °C、25–30 MPa 的 H2O–actual-Heavy 相数、相组成、密度和相界数据；
+2. 在真实 Heavy calibration/hold-out 数据到位后，分别完成 PR 与 CPA 的 H2O–Heavy BIP/association 标定，不跨模型复制参数；随后再扩展到其它 H2O–lump；
 3. 完成独立 density validation，并在另一数据层拟合必要的 volume translation；
 4. 完成 intrinsic viscosity validation，再做 EOS-density + transport coupled validation；
 5. 保持现已通过的 strict 0D PVT gate 作为所有后续参数更新的回归门禁；
