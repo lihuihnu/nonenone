@@ -159,6 +159,10 @@ struct NaturalFullResidualFailureDiagnostic final
     double equationScale{1.0};
     double signedUnscaledResidual{0.0};
 
+    std::array<double, Indices::numComponents>
+        globalSignedComponentMassResidual{};
+    double globalSignedIndependentWaterResidual{0.0};
+
     PetscInt currentCellId{-1};
     PetscInt inputCellId{-1};
     int equationIndex{-1};
