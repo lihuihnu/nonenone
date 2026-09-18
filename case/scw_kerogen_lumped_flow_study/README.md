@@ -254,6 +254,8 @@ PR 与 CPA 各自先做 `380-360` 的 within-EOS 温度差，再比较两个 EOS
 
 0D hard gate 现已增加 `SCW_360_380_CONTROL_PAIR_28MPA`，并输出 `scw_temperature_control_0d.csv`。最终 flow readiness 还必须通过 `porous_media/scw_temperature_control_gate.csv`。
 
+该 28 MPa paired anchor 已实际运行并 **PASS**。当前 BASE `z_H2O=0.20` 在 PR/CPA 下 360/374/380 °C 都保持单一 Oil-role 相；360→380 °C 的初始态变化主要表现为密度和黏度降低，而不是相数突变。因此后续“SCW 效应”必须重点观察注水后水富集局部组成的 phase/mobility/selection trajectory，而不是从初始点预设一定会出现新相。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
