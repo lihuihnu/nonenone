@@ -18,7 +18,6 @@ int run(){
  if(std::string(mode)!="B"&&std::string(mode)!="C")throw std::invalid_argument("Only B/C are wired to this compositional runner; A needs a genuine no-transfer closure and is NOT approximated using kij.");
  if(nx<2||ny<2)throw std::invalid_argument("H02 requires nx,ny >= 2");
  auto run=MPMC::cases::readRunOptions<H02::Config>();
- if(run.dtDays*86400.>2.0000001)throw std::invalid_argument("Output dt also caps internal dt: use <=2 seconds");
  MPMC::cases::validateCaseConfig<Indices,H02::Config>();
  Grid grid(nx,ny,1,MPMC::GridExtent{.30,.10,.010});grid.setup();Runner::initializeRock(grid);
  auto fluid=MPMC::cases::makeFluidSystem<Indices,H02::Config>();
