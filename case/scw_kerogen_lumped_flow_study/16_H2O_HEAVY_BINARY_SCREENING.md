@@ -108,15 +108,23 @@ The oil-rich water mole fractions look large because the Heavy pseudo-component 
 
 The PR/CPA onset difference is itself a warning: with unvalidated H2O–Heavy parameters, model choice materially changes the predicted phase split.
 
-More importantly, both baselines put essentially zero `>500 °C` Heavy in the water-rich phase. This means the current single-Heavy screening model does **not** yet provide a defensible model of the experimentally reported SCW extraction/carrying mechanism. It must not be used to claim that SCW carries or fails to carry the actual generated Heavy fraction.
+More importantly, both baselines put essentially zero `>500 °C` Heavy in the water-rich phase. This is a useful **tail-retention baseline**, but it is not a validated statement about bulk heavy-oil extraction. The present pseudo-component represents the least-volatile `>500 °C` tail, whereas the heavy-oil/bitumen experiments cited below contain substantial lighter saturate/aromatic/resin material. Therefore the reported SCW extraction/carrying mechanism may emerge mainly through Light/Middle material even if the true `>500 °C` tail remains weakly soluble. The current binary result must not be used to claim that SCW carries or fails to carry the actual generated Heavy fraction.
 
 ## Literature evidence hierarchy
 
-### Direct equilibrium context — not target-window calibration
+### High-pressure bitumen proxy — pressure coverage is now available, but material identity still blocks calibration
+
+Amani, Gray & Shaw (2013), DOI `10.1016/j.supflu.2013.03.007`, measured the phase behavior of water + Athabasca bitumen from 522.1–644.0 K and 4.2–35.7 MPa using an X-ray-tomography view cell. They reported both P–T and P–x diagrams and classified the pseudo-binary as Type IIIb. This is the strongest high-pressure bulk-bitumen phase-topology proxy currently registered: it covers the full 25–30 MPa pressure window and directly overlaps 360 °C (633.15 K), but it stops below the 374/380 °C targets and the material is not the generated `>500 °C OIL_HEAVY` pseudo-cut.
+
+A companion Amani et al. (2013) paper, DOI `10.1016/j.fluid.2013.07.021`, measured water solubility in the Athabasca-bitumen-rich liquid and phase volumes over 523–644 K and 3.9–26.2 MPa. Eight experimental water-solubility rows reproduced in Jia & Okuno (2018) are stored in `binary_pr_calibration/amani2013_athabasca_water_proxy.csv`. The closest row to the first target is 633.8 K and 23.72 MPa, where the measured bitumen-rich-phase water mole fraction is 0.8462. This is close enough to be a valuable **proxy rejection/context point**, but it is not licensed as an actual-Heavy fitting row.
+
+Jia & Okuno (2018), DOI `10.1002/aic.16191`, used the Amani data as a CPA case study for Athabasca bitumen. Their model represents bitumen with three non-self-associating pseudo-components plus a 4C self-associating asphaltene pseudo-component; it includes water–asphaltene cross-association and water–hydrocarbon solvation. After matching one WLV–WL phase-boundary point at 593.1 K, their reported phase-boundary AAD was 0.771 MPa and the water-solubility AAD was 0.00745 in mole fraction. At 633.8 K and 23.72 MPa they report experiment/CPA `x_H2O = 0.8462/0.8572`. They also note that a referenced PR model produced a stable single phase at 623.2 and 633.8 K where the CPA model retained the observed multiphase behavior.
+
+The Jia Case-1 literature parameters are transcribed into `cpa_parameters/jia2018_athabasca_case1_parameters.csv` solely to support an **external CPA implementation benchmark**. They must not be copied into the generated Heavy model: Athabasca bitumen has a different SARA/asphaltene composition, and the solvation/association parameters are chemistry-specific.
+
+### Lower-pressure heavy-oil context
 
 Matsui et al. (2014), DOI `10.1627/jpi.57.118`, measured water + Canadian bitumen equilibrium at 603–653 K and up to about 16–17 MPa. At 653 K the visual observations report formation of a new water-rich liquid near 17 MPa and disappearance of an observable vapor by about 20 MPa; at 25 MPa the view cell became too dark for a quantitative phase observation.
-
-This is valuable qualitative high-temperature phase-topology context, but the quantitative equilibrium data do not reach the 25–30 MPa target window and the oil is not the generated `OIL_HEAVY` pseudo-cut.
 
 Sato et al. (2018), DOI `10.1627/jpi.61.256`, measured water + atmospheric residue VLE at 603–643 K and 2.0–10.2 MPa. Their PR analysis showed substantially better liquid-water prediction when the residue characterization used detailed molecular-structure information rather than only average MW/SG. This supports treating Heavy characterization uncertainty as a first-class model issue.
 
@@ -137,8 +145,10 @@ The binary numerical screen does not promote flow. The following remain mandator
 1. target-window H2O–actual-Heavy phase count / phase boundary / tie-line composition data near 360–380 °C and 25–30 MPa;
 2. independent Heavy density data at the same window;
 3. independent Heavy or reconstructed-oil viscosity data at the same window;
-4. chemical evidence (PNA/aromatic/polar/resin/asphaltene/water-solubility) before adding Heavy self-association or H2O–Heavy cross-association in CPA;
+4. chemical evidence (PNA/aromatic/polar/resin/asphaltene/water-solubility) before adding Heavy self-association or H2O–Heavy cross-association in CPA; the Jia/Athabasca association scheme is a structural proxy, not transferable proof;
 5. hold-out rows not used for parameter regression.
+
+The newly registered Amani/Jia data reduce the **pressure-coverage** uncertainty for a bulk-bitumen proxy, but they do not remove the **material-identity** uncertainty. Accordingly, the actual generated-Heavy gate remains blocked.
 
 Until these are available:
 
@@ -148,9 +158,11 @@ and
 
 `FLOW_PROMOTION = BLOCKED`.
 
-## Next numerical experiment after data acquisition
+## Next numerical experiments
 
-Once target-window Heavy data exist, fit PR and CPA independently to the calibration split, freeze parameters, and compare the same hold-out rows. Only then use the binary model in the laboratory slab to study:
+Before target generated-Heavy data arrive, the next code-level benchmark is to reproduce the Jia & Okuno Athabasca-bitumen CPA Case 1 using the production CPA backend and the registered literature parameters. That benchmark is **implementation validation only**: it tests whether the code can reproduce a published water/asphaltene/solvation CPA case near 633.8 K and 23.72 MPa, without transferring its parameters to `OIL_HEAVY`.
+
+Once target-window generated-Heavy data exist, fit PR and CPA independently to the calibration split, freeze parameters, and compare the same hold-out rows. Only then use the binary model in the laboratory slab to study:
 
 - equilibrium oil-/water-rich viscosities;
 - Heavy transfer into the water-rich phase;
