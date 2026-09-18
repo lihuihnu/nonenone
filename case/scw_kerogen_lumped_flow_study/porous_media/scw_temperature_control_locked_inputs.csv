@@ -1,0 +1,17 @@
+quantity,formal_pair_rule,mechanism_isolation_rule,final_experiment_rule,evidence_status
+pressure_center_MPa,"same: 28 MPa","same","same nominal center; actual local pressure evolves from identical control logic",LOCKED_DESIGN
+grid_topology,"same 60x20x1","same","same",LOCKED_DESIGN
+apparatus_geometry,"same Lx/Ly/Lz and manifolds","same","same apparatus geometry",APPARATUS_PENDING
+porous_medium,"same material/batch specification","same phi/k field","matched specimens from same characterized batch; do not reuse if prior thermal exposure changes properties",EXPERIMENT_PENDING
+initial_overall_composition,"same BASE z_H2O=0.20 and identical oil-lump ratios unless a later preregistered experimental composition supersedes it","same","same prepared feed composition",LOCKED_PAIR
+injection_composition,"same injected H2O composition","same","same prepared injection fluid",LOCKED_PAIR
+target_pvi_rate,"same r_PVI","same","same dimensionless injection intensity; Q follows measured PV_eff if PV changes with T",LOCKED_PAIR
+producer_control,"fixed BHP rule identical","same","same",LOCKED_PAIR
+injector_control,"ReservoirTotalRate + maximum BHP rule identical","same","same",LOCKED_PAIR
+gravity_case,"same orientation/case","same","same",LOCKED_PAIR
+relative_permeability,"same Corey sensitivity curve in mechanism-isolation comparison","identical parameters","temperature-specific measured kr may be used only in a separately labelled full-physics comparison",SENSITIVITY_ONLY
+capillary_pressure,"same Pc sensitivity case in mechanism-isolation comparison","identical parameters","temperature-specific measured IFT/contact-angle/Pc may be used only when measured",SENSITIVITY_ONLY
+absolute_permeability,"same constant measured value in mechanism-isolation comparison","identical","measure at both T; any change is reported as rock-response evidence, not silently substituted",MEASUREMENT_REQUIRED
+effective_pore_volume,"same reference basis for numerical isolation","identical unless explicit thermal expansion study","measure at both T for laboratory PVI conversion",MEASUREMENT_REQUIRED
+EOS_parameters,"same model identity and parameter provenance","same model; T is the only state-variable change","same chosen EOS per paired run",LOCKED_MODEL
+transport_model,"same model identity","same closure; T changes its predicted property","same validated closure",LOCKED_MODEL
