@@ -1,0 +1,15 @@
+metric_id,quantity,normalization,comparison,scientific_question,status
+PVT_PHASE_COUNT,phase_count,"at matched p,T,z","380 minus 360 / categorical change","Does crossing water critical temperature change phase topology?",REQUIRED
+PVT_PHASE_FRACTIONS,phase_mole_fractions,"same overall composition","Delta beta_alpha","How does phase split change?",REQUIRED
+PVT_PHASE_COMPOSITION,phase_component_mole_fractions,"same overall composition","Delta x_i_alpha","Does water/oil mutual partitioning change?",REQUIRED
+DENSITY,phase_mass_density,"kg/m3 at matched states","ratio and difference 380/360","How does density/buoyancy scale change?",REQUIRED
+VISCOSITY,phase_viscosity,"Pa s at matched states","ratio and difference 380/360","How much does mobility change through viscosity?",REQUIRED
+MOBILITY,phase_mobility,"kr/mu at matched saturation/PVI","ratio 380/360","What changes in transport capacity?",REQUIRED
+PRESSURE_DROP,total_slab_delta_p,"at matched PVI","DeltaP_380 - DeltaP_360","Does SCW condition alter hydraulic resistance?",REQUIRED
+INJECTOR_BHP,injector_bhp,"at matched PVI","p_inj,380 - p_inj,360","Does rate-controlled operation require different driving pressure?",REQUIRED
+PHASE_SATURATION,phase_saturation_field,"matched PVI and same grid","field difference / front location","Does phase occupancy/front structure change?",REQUIRED
+COMPONENT_RECOVERY,component_recovery_fraction,"cumulative produced component mass / initial in-place component mass","RF_i,380 - RF_i,360","Which pseudo-components are transported preferentially?",REQUIRED
+EFFLUENT_ENRICHMENT,component_effluent_enrichment,"produced component fraction / initial overall component fraction","E_i,380/E_i,360","Does crossing the critical state change component selectivity?",REQUIRED
+SELECTIVITY_RATIO,pairwise_component_recovery_ratio,"RF_i/RF_j at matched PVI","S_ij,380/S_ij,360","Are light/heavy components differentially mobilized?",REQUIRED
+BREAKTHROUGH_PVI,front_or_component_breakthrough,"PVI","PVI_bt,380 - PVI_bt,360","Does the SCW condition accelerate or delay transport?",REQUIRED_WITH_PREDECLARED_THRESHOLD
+INVENTORY_CLOSURE,total_component_mass_balance,"fraction of initial+injected inventory","must independently close for both runs","Are differences physical rather than bookkeeping error?",HARD_GATE
