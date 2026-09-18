@@ -45,15 +45,35 @@ equation count. It is not fitted to the 60x20 failure.
 
 ## New absolute convergence gate
 
-Absolute convergence requires BOTH:
+Absolute convergence now requires ALL THREE conditions:
 
 ```
 ||R_scaled||_2 / sqrt(N_global) <= 2.795084971874737e-8
 ||R_scaled||_infinity          <= 1.0e-6
+abs(sum_cells R_mass,i_raw)    <= 8.0e-12 kg/s   for every conserved component i
 ```
 
 The infinity bound preserves the strongest row-wise implication of the old
 global L2 gate: no individual scaled equation may exceed 1e-6.
+
+The component-wise signed mass gate was added after run #86 showed that RMS+Linf
+alone completed 60x20 B/C but accumulated Heavy trajectory errors of
+approximately 3.13e-6 and 3.28e-6 relative. The 8e-12 kg/s threshold was not
+fitted to those failures. It is derived from the already registered 1e-6
+trajectory mass budget, the conservative ~0.055 kg conserved-mass scale and
+the fixed ~6000 s two-PVI horizon:
+
+```
+0.055 kg * 1e-6 / 6000 s ~= 9.2e-12 kg/s
+```
+
+and rounded downward to 8e-12 kg/s to cover the 6060-s output overshoot.
+
+The signed sum is formed from the **unscaled production mass-balance rows** after
+undoing the solver row scaling and then MPI-summing over owned cells. Internal
+face fluxes cancel globally. In fully compositional B/C, H2O and OIL_HEAVY are
+checked independently. In A, OIL_HEAVY and the legacy independent-water
+conservation row are checked independently.
 
 The existing relative criterion remains `SNES_RTOL=1e-8`. Step-norm
 convergence remains disabled with `SNES_STOL=1e-100`.
@@ -76,11 +96,15 @@ valid.
 2. Require existing H2O/Heavy global mass gates <=1e-6.
 3. Compare 1 and 2 PVI RF_H, cumulative Heavy, pressure difference and
    B/C viscosity response with the accepted run49/run64 baseline.
-4. Run 60x20 B. Only after B completes, run 60x20 C.
-5. Apply the already preregistered matched-PVI grid gates. Do not change their
-   thresholds.
-6. If the grid screen remains marginal/failed, run the already proposed 36x12
-   aligned-well A/B/C ensemble and emphasize 36x12->60x20.
+4. Run 60x20 B. Only after B completes, run 60x20 C. Do not rerun the already
+   certified 60x20 A trajectory.
+5. Require the existing <=1e-6 trajectory mass audit before any grid claim.
+6. Apply the already preregistered 20x8->60x20 matched-PVI grid gates and record
+   PASS/FAIL without changing thresholds.
+7. Run the 36x12 aligned-well A/B/C ensemble regardless of the 20x8->60x20
+   grid-gate outcome.
+8. Emphasize 36x12->60x20 as the final spatial convergence pair. Use the
+   versioned certified run64 60x20 A reference rather than rerunning A.
 
 No physical parameter may change during this sequence.
 
