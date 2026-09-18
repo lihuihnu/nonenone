@@ -164,6 +164,17 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 
 即使 0D structural gate 通过，最终 flow comparison 仍必须同时满足 PR binary、CPA、density 和 viscosity 现有 gates；依赖关系见 `pvt_acceptance/flow_entry_gate.csv`。
 
+当前严格 0D runtime gate 已经 **PASS**：
+
+- PR registered scan：594/594；
+- CPA registered scan：594/594；
+- PR/CPA target-window P–T map health：全部 PASS；
+- PR dense composition path：5103/5103；
+- CPA dense composition path：5103/5103；
+- 360/374/380 °C、25 MPa 的 BASE cross-EOS initial anchors：全部 PASS。
+
+原先 CPA 在 380 °C、`z_H2O≈0.7610625`、26.00/26.25 MPa 的两个 failure states 已在**冻结 CPA 参数**的条件下定位为 active-set/continuation 数值问题并修复。详细证据见 `10_CPA_PHASE_ONSET_AUDIT.md`。这只清除了 0D 数值阻断，不代表 CPA 参数已经实验标定。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
@@ -174,12 +185,13 @@ ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、
 
 计划中的伪三维单层结构仍保留为后续目标：`60 x 20 x 1`、均质岩石、等温全组分多相流、左侧注水右侧生产、380 °C / 25 MPa 主工况及 360 °C / 25 MPa 对照。
 
-**这些流动设置当前不执行。** 只有 `binary_pr_calibration/reservoir_entry_gate.csv` 中所有四个 H2O–lump 行均为 `PASS` 后，才允许进入储层实现和运行。
+**这些流动设置当前不执行。** 0D PVT 数值门禁现在已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation 和 viscosity validation。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
 
 ## 当前工作顺序
 
-1. 逐表追回并保存四个 H2O–lump 实验代理体系的原始高温高压 VLE/LLE/PVT 数据；
-2. 用生产 PR EOS/flash 对每个体系回归 `kij(T)`；
-3. 用留出温度/压力验证相数、两相组成、密度/体积和相界；
-4. 对失败体系记录 PR 模型结构不足，不通过额外 BIP 自由度掩盖；
-5. 四个二元体系全部通过后，才开始储层流动。
+1. 逐表追回并保存 H2O–lump 的高温高压 VLE/LLE/PVT 原始数据；
+2. 分别完成 PR 与 CPA 的二元/association 标定，不跨模型复制参数；
+3. 完成独立 density validation，并在另一数据层拟合必要的 volume translation；
+4. 完成 intrinsic viscosity validation，再做 EOS-density + transport coupled validation；
+5. 保持现已通过的 strict 0D PVT gate 作为所有后续参数更新的回归门禁；
+6. 只有 `pvt_acceptance/flow_entry_gate.csv` 的所有硬依赖同时 PASS 后，才开始储层流动。
