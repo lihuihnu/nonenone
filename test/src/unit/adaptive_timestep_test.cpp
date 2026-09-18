@@ -217,6 +217,31 @@ void testClippedStepPreservesRecommendation()
     require(near(backend.attemptedDts[3], 1.0), "Clipped output step polluted next recommendation.");
 }
 
+void testMaximumInternalStepIsIndependentOfOutputCadence()
+{
+    MPMC::AdaptiveTimeStepConfig cfg;
+    cfg.fixedOutputDt = 60.0;
+    cfg.maximumDt = 2.0;
+    cfg.minimumDt = 0.01;
+    cfg.growthFactor = 2.0;
+    cfg.easyNonlinearIterations = 10;
+    cfg.difficultNonlinearIterations = 20;
+
+    std::vector<ScriptedSolve> script(
+        30, ScriptedSolve{true, 3, 0.0});
+    FakeBackend backend(std::move(script));
+    MPMC::AdaptiveTimeStepper<FakeBackend> stepper(backend, cfg);
+
+    stepper.run(1, [](std::size_t, double) {});
+
+    require(backend.attemptedDts.size() == 30,
+            "60 s output interval did not split into 2 s internal steps.");
+    for (double dt : backend.attemptedDts)
+        require(near(dt, 2.0), "Internal dt exceeded the configured maximum.");
+    require(near(backend.currentTime(), 60.0),
+            "Internal dt cap changed the mandatory output time.");
+}
+
 void testDifficultAcceptedStepShrinks()
 {
     MPMC::AdaptiveTimeStepConfig cfg;
@@ -292,6 +317,7 @@ int main()
     testNonlinearStagnationDetector();
     testFailureRetryAndExactOutput();
     testClippedStepPreservesRecommendation();
+    testMaximumInternalStepIsIndependentOfOutputCadence();
     testDifficultAcceptedStepShrinks();
     testControlSwitchResolveCountsAllIterations();
     testMinimumDtFailure();
