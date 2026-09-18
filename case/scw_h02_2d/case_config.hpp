@@ -37,7 +37,17 @@ struct Dissolution {static constexpr int component=1;static constexpr double wat
 struct Land {static constexpr double constant=0;};
 struct Adsorption {static constexpr double rockDensity=2650,standardPressure=101325,standardTemperature=288.15;inline static constexpr std::array<double,2> thetaMax{},coefficient{};};
 struct Numerics:ScwKerogen1D::Numerics {static constexpr double massResidualScale=2e-5,rateWellResidualFloor=2.5e-8;};
-struct Time:ScwKerogen1D::Time {static constexpr int numberOfSteps=2;static constexpr double dtDays=.1/86400.,minimumDtDays=1e-5/86400.;static constexpr int maximumRetries=12;};
-struct Output:ScwKerogen1D::Output {static constexpr double producerEffectivePoreVolumeM3=7.5e-5;inline static constexpr const char *directory="./results";};
+struct Time:ScwKerogen1D::Time {
+ static constexpr int numberOfSteps=200; // 12000 s safety horizon at 60 s output spacing
+ static constexpr double dtDays=60.0/86400.0;
+ static constexpr double minimumDtDays=1e-5/86400.0;
+ static constexpr int maximumRetries=12;
+ static constexpr double targetPVI=2.0;
+};
+struct Output:ScwKerogen1D::Output {
+ static constexpr double producerEffectivePoreVolumeM3=7.5e-5;
+ inline static constexpr const char *directory="./results";
+ static constexpr std::size_t every=25; // field snapshots every 0.5 nominal PVI
+};
 struct Config {inline static constexpr const char *name="scw_h02_2d";using Model=H02::Model;using Grid=H02::Grid;using Rock=H02::Rock;using Fluid=H02::Fluid;using InitialState=H02::InitialState;using Dissolution=H02::Dissolution;using Land=H02::Land;using Adsorption=H02::Adsorption;using Numerics=H02::Numerics;using Time=H02::Time;using Output=H02::Output;};
 }
