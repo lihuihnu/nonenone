@@ -158,39 +158,30 @@ Thus a numerically clean 0D scan cannot override missing experimental calibratio
 
 ## Current runtime result
 
-The GitHub-run production-kernel acceptance scan has now been executed.
+The strict production-kernel 0D acceptance has now passed after the frozen-parameter CPA phase-onset active-set fix documented in `10_CPA_PHASE_ONSET_AUDIT.md`.
 
 | gate | PR | CPA |
 |---|---:|---:|
 | registered stability/PVT states | 594 / 594 PASS | 594 / 594 PASS |
 | target-window P-T envelope-map flash states | 5673 / 5673 converged | 5673 / 5673 converged |
-| dense pressure-composition states | 5103 / 5103 converged | 5101 / 5103 converged |
+| dense pressure-composition states | 5103 / 5103 converged | 5103 / 5103 converged |
 | BASE initial anchors at 25 MPa | 3 / 3 PASS | 3 / 3 PASS |
 
-All three BASE initial anchors (360/374/380 °C, `z_H2O=0.20`, 25 MPa) are internally self-consistent in both EOS. Both currently return a single Oil-role phase.
+All three BASE initial anchors (360/374/380 °C, `z_H2O=0.20`, 25 MPa) remain internally self-consistent in both EOS.
 
-The complete 0D gate is nevertheless **BLOCKED** because CPA has two local non-converged states on the dense 380 °C composition path:
+The two former CPA dense-path failures at 380 °C, `z_H2O≈0.7610625`, 26.00 and 26.25 MPa are now recovered as stable O+W states without changing any CPA parameter. The failure mechanism was a coincident Oil/Gas TPD direction in a Water-only CPA one-root state: the active-set logic interpreted one nonaqueous bifurcation as two independent missing phases and attempted an artificial direct W -> O+G+W transition.
 
-- path fraction `0.7625`, corresponding to `z_H2O ≈ 0.7610625`;
-- 26.00 MPa;
-- 26.25 MPa.
+The production active-set fix now stages O+W only when the Oil/Gas instability directions are numerically coincident and preserves the original simultaneous release when no O+W basin exists. This retains genuine three-phase regions.
 
-Neighbouring CPA states show that these failures lie at the Water-only -> Oil+Water onset region: the same composition is Water-only below the narrow interval and O+W above it. This is exactly the kind of phase-boundary robustness issue that a compositional flow calculation may encounter, so it is not waived and is not repaired by BIP tuning.
+Therefore the structural zero-dimensional result is now:
 
-The PR dense path has no corresponding failure.
-
-The full BASE `z_H2O=0.20` P-T maps over 628.15–658.15 K and 20–35 MPa contain no phase-onset boundary for either EOS; both remain single Oil-role over that local initial-composition window. This does not imply the full composition space is single phase.
-
-The coarse registered composition scan also shows a substantive EOS topology difference: PR returns one- or two-phase O/W states in the registered domain, whereas CPA additionally produces three-phase O/G/W states in high-water, high-temperature / lower-pressure parts of the scan. This difference is retained as a model result rather than ranked as better or worse.
-
-At the initial anchors, CPA currently predicts mass density about 9.8–9.9% below PR and LBC viscosity about 25% below PR. Because the independent density and viscosity validation gates remain blocked, these differences are **not** yet admissible as flow-model evidence.
-
-Therefore:
-
-- `CROSS_EOS_INITIAL_STATE = PASS`;
+- `PR_REGISTERED_SCAN = PASS`;
+- `CPA_REGISTERED_SCAN = PASS`;
+- `PR_ENVELOPE_MAP_HEALTH = PASS`;
+- `CPA_ENVELOPE_MAP_HEALTH = PASS`;
 - `PR_DENSE_COMPOSITION_PATH = PASS`;
-- `CPA_DENSE_COMPOSITION_PATH = FAIL`;
-- `ZERO_D_PVT_ACCEPTANCE = BLOCKED`;
-- reservoir flow remains frozen.
+- `CPA_DENSE_COMPOSITION_PATH = PASS`;
+- `CROSS_EOS_INITIAL_STATE = PASS`;
+- `ZERO_D_PVT_ACCEPTANCE = PASS`.
 
-The next thermodynamic task is to diagnose the two CPA phase-onset failures with production-flash continuation / boundary refinement while keeping the current CPA physical and BIP parameters fixed. Only after numerical robustness is separated from parameter/model-form error should any parameter calibration resume.
+This removes the numerical 0D blocker only. Reservoir flow remains frozen because the independent PR binary-calibration, CPA calibration, density-validation and viscosity-validation gates have not yet all passed.
