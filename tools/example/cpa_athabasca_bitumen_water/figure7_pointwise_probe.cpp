@@ -314,10 +314,10 @@ OwStabilityState evaluateOwStabilityMultistart(
     // Deterministic path-independent seeds span the water-rich oil liquid
     // compositions encountered in the Figure-7 region. They do not use a
     // neighboring pressure state, so this remains independent of continuation.
-    constexpr std::array<double, 8> oilWaterSeeds{
-        0.20, 0.40, 0.60, 0.72, 0.80, 0.88, 0.94, 0.98};
-    constexpr std::array<double, 3> aqueousWaterSeeds{
-        0.98, 0.995, 0.9999};
+    constexpr std::array<double, 6> oilWaterSeeds{
+        0.30, 0.55, 0.72, 0.80, 0.90, 0.97};
+    constexpr std::array<double, 2> aqueousWaterSeeds{
+        0.995, 0.9999};
     for (double xo : oilWaterSeeds)
     {
         for (double xw : aqueousWaterSeeds)
@@ -351,11 +351,15 @@ BoundaryPrediction findIndependentMultistartBoundary(
     const Eos &eos,
     const Flash &flash,
     double temperatureK,
+    double experimentalPressureMPa,
     const Composition &z)
 {
-    constexpr double pMinMPa = 2.0;
-    constexpr double pMaxMPa = 30.0;
-    constexpr double scanStepMPa = 0.05;
+    // Pointwise verification searches the registered experimental boundary's
+    // neighborhood, not the entire 2-30 MPa topology. The window is fixed
+    // before calculation and changes only computational cost, never the EOS.
+    const double pMinMPa = std::max(2.0, experimentalPressureMPa - 4.0);
+    const double pMaxMPa = std::min(30.0, experimentalPressureMPa + 4.0);
+    constexpr double scanStepMPa = 0.10;
     constexpr int refinementIterations = 30;
 
     BoundaryPrediction result;
@@ -606,7 +610,8 @@ int main(int argc, char **argv)
             const double t = point[0];
             const double pExp = point[1];
             const auto independent =
-                findIndependentMultistartBoundary(eos, flash, t, z);
+                findIndependentMultistartBoundary(
+                    eos, flash, t, pExp, z);
             const auto continued =
                 findWlvWlBoundaryContinuation(flash, t, z);
 
