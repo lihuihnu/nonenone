@@ -133,6 +133,37 @@ CPA 的水–烃 BIP 与 PR 完全独立：Gasoline 以 water+n-hexane CPA `kij=
 
 当前总状态仍为 `DENSITY_GATE_BLOCKED` 与 `VISCOSITY_GATE_BLOCKED`，主要缺口是 target-window 的真实油馏分/长链代理高温高压 density/viscosity 数据，尤其是 Heavy。
 
+## 完整 0D PVT 验收已设为流动前最后一道热力学门禁
+
+PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，不能用流动结果反推哪个 EOS“合理”。验收协议见 `09_0D_PVT_ACCEPTANCE.md`，机器可读组成扫描见 `pvt_acceptance/composition_scan.csv`。
+
+目标温度为 `360 / 374 / 380 °C`，压力为 `25–30 MPa`。组成扫描以实验四个 oil lump 的摩尔比为中心，沿 H2O overall mole fraction 从 `0.01` 扫到 `0.995`，并加入 light-enriched / heavy-enriched 两个明确标为 deterministic sensitivity 的油组成族。
+
+每个状态输出并检查：
+
+- production flash convergence；
+- final active-set stability；
+- phase count / phase code；
+- 两/三相组成；
+- mass / molar density；
+- LBC viscosity 与适用时的 IAPWS water viscosity reference；
+- Oil / Gas / Water canonical phase role；
+- material closure 与 active-phase fugacity closure。
+
+主初始锚点固定为 `BASE oil ratio + z_H2O=0.20 + 25 MPa`，分别在 360/374/380 °C 下评估。PR 与 CPA 不要求预测相同相数；相数差异是模型结果。真正硬要求是**两个 EOS 各自都必须物理自洽**。
+
+此外还输出 unrestricted O/G/W P–T map、oil/gas/water phase-onset envelope、restricted O/G bubble/dew projection，以及三温度下的 dense pressure-composition maps。
+
+运行入口：
+
+`make -C tools run-scw-kerogen-0d-pvt-acceptance`
+
+硬门禁入口：
+
+`make -C tools require-scw-kerogen-0d-pvt-acceptance`
+
+即使 0D structural gate 通过，最终 flow comparison 仍必须同时满足 PR binary、CPA、density 和 viscosity 现有 gates；依赖关系见 `pvt_acceptance/flow_entry_gate.csv`。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
