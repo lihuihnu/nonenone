@@ -1,0 +1,11 @@
+measurement_id,quantity,stage,method,required_before_flow,status,notes
+M01,bulk_dimensions_and_bulk_volume,ambient,"caliper/metrology",yes,OPEN,"Needed for geometric PV consistency and slab/core replication."
+M02,dry_mass_and_mineralogy,ambient,"balance + XRD/XRF on companion material",yes,OPEN,"Track thermal/mineral alteration and batch identity."
+M03,effective_porosity_and_pore_volume,ambient,"vacuum saturation / gravimetry and/or CT",yes,OPEN,"Specimen value supersedes literature phi."
+M04,absolute_permeability_ambient,ambient,"single-phase DI-water Darcy test",yes,OPEN,"Specimen value supersedes literature k."
+M05,absolute_permeability_operating_TP,"360/374/380 C; 25-30 MPa","single-phase water/SCW multi-rate DeltaP-Q linearity",yes,OPEN,"Separates thermal/effective-stress changes from multiphase effects."
+M06,effective_pore_volume_operating_TP,"360/374/380 C; 25-30 MPa","tracer/residence-time or calibrated fluid inventory",yes,OPEN,"Use actual accessible PV for pore-volume injection rates."
+M07,wettability_operating_TP,"target T/P","high-P/T contact-angle on companion slab if available; otherwise displacement inference",yes,OPEN,"Low-T water-wet literature is only a prior."
+M08,two_phase_relative_permeability,"target T/P if feasible","steady-state or history-matched in-situ saturation",no,OPEN_HIGH_VALUE,"If unavailable in stage 1, use Corey sensitivity family and keep gate explicitly uncalibrated."
+M09,capillary_pressure_or_IFT_contact_angle,"target T/P","pressure-step displacement / MICP+Young-Laplace scaling with measured IFT/contact angle",yes,OPEN,"Needed because lab-scale capillary end effects can be comparable with viscous pressure drop."
+M10,post_run_phi_k_and_mass,post_test,"repeat M02-M05",yes,OPEN,"Detect SCW-induced mineral dissolution/precipitation or packing rearrangement."
