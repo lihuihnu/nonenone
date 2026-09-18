@@ -12,5 +12,6 @@ effective_pore_volume_operating_TP,OPEN,yes,"Determine accessible PV at operatin
 wettability_target_TP,OPEN,yes,"Water-wet is only a prior until target-T/P evidence or an explicit sensitivity decision is recorded."
 relative_permeability_target_TP,SCREENING_COREY_ONLY,yes,"Stage-1 Corey curves are sensitivity parameters, not calibration. Either obtain data or retain uncertainty ensemble in all flow conclusions."
 capillary_pressure_target_TP,OPEN_MODEL_AND_DATA,yes,"Current Natural flux has no explicit phase capillary-pressure closure; implement it or demonstrate a Pc=0 regime by dimensionless/pressure-drop evidence."
+flow_control_scale,FLOW_CONTROL_GATE_BLOCKED,yes,"Derive Q, DeltaP, producer BHP and injector max BHP from measured PV/k/geometry/viscosity and apparatus limits; no equal-rate constraint."
 post_test_rock_change_check,OPEN,yes,"Repeat phi/k and material checks after SCW exposure."
 ALL_POROUS_MEDIA,POROUS_MEDIA_GATE_BLOCKED,yes,"Grid topology is defined, but apparatus dimensions and specimen/rock-fluid measurements are not yet accepted for flow."
