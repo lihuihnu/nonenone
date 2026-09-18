@@ -281,7 +281,9 @@
         double temperature,
         const Composition &z,
         Composition kg,
-        Composition kw) const
+        Composition kw,
+        double initialBetaGas = 0.15,
+        double initialBetaWater = 0.15) const
     {
         Result result;
         result.presence = PhasePresence::all();
@@ -292,8 +294,14 @@
             kw[c] = std::clamp(kw[c], 1.0e-100, 1.0e100);
         }
 
-        double bg = 0.15;
-        double bw = 0.15;
+        double bg = std::clamp(initialBetaGas, 1.0e-12, 0.999);
+        double bw = std::clamp(initialBetaWater, 1.0e-12, 0.999);
+        if (bg + bw >= 0.999)
+        {
+            const double scale = 0.999 / (bg + bw);
+            bg *= scale;
+            bw *= scale;
+        }
         const int ssiSteps = std::min(
             options_.maximumIterations,
             std::max(options_.threePhaseSsiIterationsBeforeNewton, 0));
