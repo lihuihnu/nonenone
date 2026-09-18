@@ -124,6 +124,16 @@
                 std::sqrt(static_cast<double>(globalSize))
             : 0.0;
 
+        const auto globalMass =
+            evaluateGlobalSignedMassResidual(residual);
+        diagnostic.globalSignedComponentMassResidual =
+            globalMass.component;
+        if constexpr (Indices::hasIndependentWaterConservation)
+        {
+            diagnostic.globalSignedIndependentWaterResidual =
+                globalMass.independentWater;
+        }
+
         PetscMPIInt rank = 0;
         PetscCallMPIAbort(comm, MPI_Comm_rank(comm, &rank));
         const auto &map = backend_.dofMap(
