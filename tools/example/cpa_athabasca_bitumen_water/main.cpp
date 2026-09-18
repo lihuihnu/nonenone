@@ -372,15 +372,20 @@ BoundaryPrediction findWlvWlBoundary(
     constexpr double pMinMPa = 2.0;
     constexpr double pMaxMPa = 30.0;
     constexpr double scanStepMPa = 0.10;
-    constexpr int bisectionIterations = 28;
+    constexpr int refinementLevels = 6;
+    constexpr int refinementSegments = 20;
 
     BoundaryPrediction result;
     bool havePrevious = false;
     double previousPressure = 0.0;
     OwStabilityState previous;
-    double firstLow = std::numeric_limits<double>::quiet_NaN();
-    double firstHigh = std::numeric_limits<double>::quiet_NaN();
+    double selectedLow = std::numeric_limits<double>::quiet_NaN();
+    double selectedHigh = std::numeric_limits<double>::quiet_NaN();
 
+    // The experimental WLV-WL line is the high-pressure exit from the WLV
+    // region.  CPA may contain additional lower-pressure stability flips, so
+    // scan the full range and deliberately retain the HIGHEST-PRESSURE
+    // gas-unstable -> gas-stable crossing rather than the first crossing.
     const int scanCount = static_cast<int>(
         std::llround((pMaxMPa - pMinMPa) / scanStepMPa));
     for (int k = 0; k <= scanCount; ++k)
@@ -390,20 +395,14 @@ BoundaryPrediction findWlvWlBoundary(
             evaluateOwStability(flash, pressure, temperatureK, z);
         ++result.evaluations;
         if (!state.valid)
-        {
-            havePrevious = false;
             continue;
-        }
 
         if (havePrevious &&
             previous.gasUnstable && !state.gasUnstable)
         {
             ++result.transitionCount;
-            if (!std::isfinite(firstLow))
-            {
-                firstLow = previousPressure;
-                firstHigh = pressure;
-            }
+            selectedLow = previousPressure;
+            selectedHigh = pressure;
         }
         previousPressure = pressure;
         previous = state;
@@ -411,38 +410,61 @@ BoundaryPrediction findWlvWlBoundary(
     }
 
     if (result.transitionCount < 1 ||
-        !std::isfinite(firstLow) || !std::isfinite(firstHigh))
+        !std::isfinite(selectedLow) || !std::isfinite(selectedHigh))
         return result;
 
-    double low = firstLow;
-    double high = firstHigh;
-    auto lowState = evaluateOwStability(
-        flash, low, temperatureK, z);
-    auto highState = evaluateOwStability(
-        flash, high, temperatureK, z);
-    result.evaluations += 2;
-    if (!lowState.valid || !highState.valid ||
-        !lowState.gasUnstable || highState.gasUnstable)
-        return result;
-
-    for (int iteration = 0; iteration < bisectionIterations; ++iteration)
+    // Refine by repeated local scans instead of pure bisection.  Near an
+    // incipient phase the nonlinear restricted/stability path can have an
+    // isolated invalid midpoint even though valid states exist on both sides.
+    // A local scan preserves the physical unstable/stable bracket without
+    // converting one solver miss into a missing boundary.
+    double low = selectedLow;
+    double high = selectedHigh;
+    for (int level = 0; level < refinementLevels; ++level)
     {
-        const double mid = 0.5 * (low + high);
-        const auto midState = evaluateOwStability(
-            flash, mid, temperatureK, z);
-        ++result.evaluations;
-        if (!midState.valid)
-            return result;
-        if (midState.gasUnstable)
-            low = mid;
-        else
-            high = mid;
+        bool localHavePrevious = false;
+        double localPreviousPressure = 0.0;
+        OwStabilityState localPrevious;
+        double refinedLow = std::numeric_limits<double>::quiet_NaN();
+        double refinedHigh = std::numeric_limits<double>::quiet_NaN();
+
+        for (int segment = 0; segment <= refinementSegments; ++segment)
+        {
+            const double fraction =
+                static_cast<double>(segment) /
+                static_cast<double>(refinementSegments);
+            const double pressure = low + fraction * (high - low);
+            const auto state =
+                evaluateOwStability(flash, pressure, temperatureK, z);
+            ++result.evaluations;
+            if (!state.valid)
+                continue;
+
+            if (localHavePrevious &&
+                localPrevious.gasUnstable && !state.gasUnstable)
+            {
+                // Keep the highest-pressure crossing within this bracket too.
+                refinedLow = localPreviousPressure;
+                refinedHigh = pressure;
+            }
+            localPreviousPressure = pressure;
+            localPrevious = state;
+            localHavePrevious = true;
+        }
+
+        if (!std::isfinite(refinedLow) || !std::isfinite(refinedHigh))
+            break;
+        low = refinedLow;
+        high = refinedHigh;
     }
 
-    result.found = true;
-    result.bracketLowMPa = low;
-    result.bracketHighMPa = high;
-    result.pressureMPa = 0.5 * (low + high);
+    result.found = std::isfinite(low) && std::isfinite(high) && high > low;
+    if (result.found)
+    {
+        result.bracketLowMPa = low;
+        result.bracketHighMPa = high;
+        result.pressureMPa = 0.5 * (low + high);
+    }
     return result;
 }
 
