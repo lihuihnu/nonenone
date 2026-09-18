@@ -29,7 +29,9 @@
             static_cast<std::size_t>(Indices::numPhases);
         constexpr std::size_t componentCount =
             static_cast<std::size_t>(Indices::numComponents);
-        constexpr std::size_t componentOffset = 3 * phaseCount;
+        constexpr std::size_t phaseComponentOffset = 3 * phaseCount;
+        constexpr std::size_t componentOffset =
+            phaseComponentOffset + phaseCount * componentCount;
         constexpr std::size_t valuesPerWell = componentOffset + componentCount;
 
         std::vector<double> local(wells_.size() * valuesPerWell, 0.0);
@@ -67,6 +69,18 @@
                         scalarValue(result.reservoirPhaseRate[phase]);
                     local[base + 2 * phaseCount + phase] +=
                         scalarValue(result.phaseMassRate[phase]);
+                }
+                for (std::size_t phase = 0; phase < phaseCount; ++phase)
+                {
+                    for (std::size_t component = 0;
+                         component < componentCount; ++component)
+                    {
+                        local[
+                            base + phaseComponentOffset +
+                            phase * componentCount + component] +=
+                            scalarValue(
+                                result.phaseComponentMassSource[phase][component]);
+                    }
                 }
                 for (std::size_t component = 0;
                      component < componentCount; ++component)
@@ -106,6 +120,17 @@
                     std::abs(reservoirRate) > 1.0e-30
                         ? state.phaseMassRate[phase] / reservoirRate
                         : 0.0;
+            }
+            for (std::size_t phase = 0; phase < phaseCount; ++phase)
+            {
+                for (std::size_t component = 0;
+                     component < componentCount; ++component)
+                {
+                    state.phaseComponentMassRate[phase][component] =
+                        global[
+                            base + phaseComponentOffset +
+                            phase * componentCount + component];
+                }
             }
             for (std::size_t component = 0;
                  component < componentCount; ++component)
