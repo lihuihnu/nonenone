@@ -57,10 +57,33 @@ public:
     template <class OutputCallback>
     void run(std::size_t numberOfFixedSteps, OutputCallback &&outputCallback)
     {
+        (void)runUntil(
+            numberOfFixedSteps,
+            [](std::size_t, double) { return false; },
+            std::forward<OutputCallback>(outputCallback));
+    }
+
+    /**
+     * @brief Advance fixed output intervals until a committed-state predicate is met.
+     *
+     * The stop predicate is evaluated only after advanceTo_() has accepted all
+     * internal steps to the fixed target and after outputCallback has observed
+     * the committed state.  This is suitable for cumulative-volume/PVI stops:
+     * rejected attempts never contribute to the stopping coordinate.
+     *
+     * @return number of completed fixed output intervals.
+     */
+    template <class StopPredicate, class OutputCallback>
+    std::size_t runUntil(
+        std::size_t maximumFixedSteps,
+        StopPredicate &&stopPredicate,
+        OutputCallback &&outputCallback)
+    {
         const auto &cfg = policy_.config();
+        std::size_t completed = 0;
 
         for (std::size_t fixedStep = 1;
-             fixedStep <= numberOfFixedSteps;
+             fixedStep <= maximumFixedSteps;
              ++fixedStep)
         {
             const double targetTime =
@@ -71,7 +94,11 @@ public:
             advanceTo_(targetTime);
             backend_.alignCurrentTime(targetTime);
             outputCallback(fixedStep, targetTime);
+            completed = fixedStep;
+            if (stopPredicate(fixedStep, targetTime))
+                break;
         }
+        return completed;
     }
 
 private:
