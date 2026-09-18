@@ -49,6 +49,10 @@ The latter two are **not uncertainty bounds and not experimental compositions**.
 
 The machine-readable grid is `pvt_acceptance/composition_scan.csv`.
 
+A fourth family, `H2O_HEAVY_BINARY`, is registered as a **screening-only lower-dimensional slice** of the same five-component production kernel. Gasoline, Diesel and Middle are set to exactly zero, Heavy is `1-z_H2O`, and the same eleven water fractions are scanned. This family is intended to answer only whether the provisional Heavy characterization and frozen diagnostic PR/CPA interaction baselines are numerically self-consistent in the target window. It does **not** promote the Heavy BIP, CPA association model, density model or viscosity model to validated status.
+
+Because this is a lower-dimensional composition manifold, fugacity-equality closure is evaluated only for components with non-zero overall inventory. Components with `z_i=0` are still subject to non-negative normalized phase compositions and total material closure, but are not required to satisfy an equality chemical-potential residual that is not active for an absent component.
+
 ## Initial-state anchor
 
 The fairness anchor is the `BASE` oil distribution at
@@ -94,7 +98,7 @@ For every registered T–P–z state the acceptance harness requires:
 2. at least one phase is active;
 3. the final active set passes a fresh production `stabilityTest()`;
 4. component material reconstruction error is <= `1e-8`;
-5. maximum active-phase log-fugacity spread is <= `1e-6`;
+5. for every component present in the overall feed (`z_i > 1e-14`), maximum active-phase log-fugacity spread is <= `1e-6`; zero-total-inventory components are excluded from this equality residual and remain constrained by material closure/complementarity;
 6. every active phase composition is finite, non-negative and normalized;
 7. every active phase has positive finite Z, molar density, mass density and LBC viscosity;
 8. if a Water-role phase exists, it is the most water-rich active phase.
