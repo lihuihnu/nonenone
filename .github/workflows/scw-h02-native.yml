@@ -11,7 +11,7 @@ permissions:
 jobs:
   native:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - name: Install native solver dependencies
@@ -125,6 +125,43 @@ jobs:
           set -euo pipefail
           python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/full             --out h02-results/full/analysis | tee h02-results/full/analysis.log
           cat h02-results/full/analysis/h02_bc_viscosity_delta.csv
+      - name: Run 20x8 dt_max=1s complete 2-PVI convergence control
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/convergence/dt1_20x8"
+          mkdir -p "$root"
+          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000011574074074074073 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis" | tee "$root/analysis.log"
+          for mode in A B C; do
+            echo "===== H02 20x8 dt1 $mode ====="
+            tail -20 "$root/$mode.log"
+          done
+      - name: Run full 60x20 dt_max=2s complete 2-PVI grid control
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/convergence/dt2_60x20"
+          mkdir -p "$root"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis" | tee "$root/analysis.log"
+          for mode in A B C; do
+            echo "===== H02 60x20 dt2 $mode ====="
+            tail -20 "$root/$mode.log"
+          done
+      - name: Gate matched-PVI time-step and grid convergence
+        run: |
+          set -euo pipefail
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/full             --dt1 h02-results/convergence/dt1_20x8             --grid60 h02-results/convergence/dt2_60x20             --out h02-results/convergence/analysis | tee h02-results/convergence/convergence.log
+          cat h02-results/convergence/analysis/time_step_convergence.csv
+          cat h02-results/convergence/analysis/grid_convergence.csv
+          cat h02-results/convergence/analysis/mechanism_increment_stability.csv
       - name: Upload exact native outputs even on failure
         if: always()
         uses: actions/upload-artifact@v4
