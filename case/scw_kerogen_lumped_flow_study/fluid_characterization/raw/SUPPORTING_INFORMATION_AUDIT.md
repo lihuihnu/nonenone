@@ -87,6 +87,41 @@ The source-average non-heavy sum is therefore `0.81 + 23.73 + 34.11 = 58.65 wt%`
 
 The SI table gives the four product-fraction labels and percentages but does not itself state the boiling-point or carbon-number boundaries associated with those labels. Therefore these fractions are not yet a defensible direct mapping to the case's candidate `C6-C14 / C15-C20 / C21+` lumps.
 
+### 2.5 SimDist cut-definition audit and candidate carbon-number mapping
+
+The recovered ACS SI Table S5 reports the labels `Gasoline / Diesel / Distillate / Heavy Oil` and their exact fractions, but the SI itself does **not** print numerical boiling-point cut temperatures. The accessible ACS article page also does not expose the paid full-text method/figure containing a direct numeric definition. Therefore the cut temperatures below are not recorded as `DIRECT_ACS_NUMERIC`.
+
+A high-confidence convention can nevertheless be established from an evidence chain:
+
+1. a later open-access paper from the same research group (Tian Xie, Hui Jin and Qiuyang Zhao among the authors; DOI `10.3176/oil.2025.2.02`) again reports the same four oil fractions and explicitly describes its figure in terms of `IBP` (initial boiling point) and `FBP` (final boiling point);
+2. shale-oil simulated-distillation literature explicitly defines the corresponding bins as gasoline below 180 °C, diesel 180-350 °C, the 350-500 °C distillate/VGO interval, and heavy oil above 500 °C;
+3. an independent heavy-oil distillation table using the exact `Gasoline / Diesel / Distillate / Heavy oil` labels gives `IBP-180 / 180-350 / 350-500 / >500 °C`.
+
+For repository use this is therefore classified as `HIGH_CONFIDENCE_INFERRED_CONVENTION`, not a direct ACS Table S5 field:
+
+| ACS label | candidate boiling range | n-alkane-equivalent carbon range | basis |
+|---|---:|---|---|
+| Gasoline | IBP-180 °C | IBP to approximately C10 | n-C10 boils at about 174 °C and n-C11 at about 195 °C |
+| Diesel | 180-350 °C | approximately C11-C20 | n-C20 boils at about 343 °C and n-C21 at about 357 °C |
+| Distillate | 350-500 °C | approximately C21-C36 | 500 °C lies approximately between n-C36 and n-C37 |
+| Heavy Oil | >500 °C | approximately C37+ | n-C37 is just above 500 °C |
+
+These carbon numbers are **normal-alkane-equivalent boiling indices**, not chemical identities. This distinction matters for the recovered oil because its SARA data show large aromatic/resin/asphaltene fractions.
+
+The previous case proposal `C6-C14 / C15-C20 / C21+` is not fully observable from the recovered ACS SimDist bins. The `180-350 °C` Diesel interval spans approximately C11-C20 and crosses the proposed C14/C15 boundary, so it cannot be split into experimental C6-C14 and C15-C20 mass fractions without carbon-number-resolved data. By contrast, the previous broad `C21+` boundary is approximately compatible with the 350 °C cut and can be formed as `Distillate + Heavy Oil` for **secondary sensitivity analysis only**.
+
+A SimDist-aligned three-lump candidate is therefore:
+
+| candidate lump | boiling range | approximate carbon range | replicate 1 (wt%) | replicate 2 (wt%) | mean (wt%) | observed range | half-range |
+|---|---:|---|---:|---:|---:|---:|---:|
+| Light | IBP-180 °C | <=C10 equivalent | 0.79 | 0.83 | 0.81 | 0.79-0.83 | +/-0.02 |
+| Middle | 180-350 °C | C11-C20 equivalent | 22.68 | 24.78 | 23.73 | 22.68-24.78 | +/-1.05 |
+| Heavy | >350 °C | C21+ equivalent | 76.53 | 74.39 | 75.46 | 74.39-76.53 | +/-1.07 |
+
+For the original four source bins, the duplicate half-ranges are Gasoline +/-0.02, Diesel +/-1.05, Distillate +/-0.14 and Heavy Oil +/-1.21 wt%. With only two replicates, the repository uses raw ranges/half-ranges rather than treating a sample standard deviation as a well-characterized experimental uncertainty.
+
+The machine-readable mapping and duplicate statistics are stored in `acs2023_simdist_lumping_candidates.csv`.
+
 ### 2.5 What the recovered ACS SI changes
 
 The ACS access gap is closed: exact 380 °C generated-oil and distillation data are now available and retained in `related_pure_kerogen_acs2023.csv`.
