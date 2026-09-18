@@ -6,7 +6,9 @@
 
 #include <petscsys.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -166,6 +168,30 @@ struct NaturalFullResidualFailureDiagnostic final
         moleFraction{};
     std::uint8_t phasePresenceBits{0};
     std::uint8_t phaseSuppressionBits{0};
+};
+
+
+/**
+ * @brief MPI 全局有符号守恒残差 [kg/s]。
+ *
+ * component[] 对应 EOS/全组分质量方程。legacy independent-water 模型额外
+ * 使用 independentWater；全组分 O/G/W 中 H2O 已经包含在 component[]。
+ */
+template <class Indices>
+struct NaturalGlobalSignedMassResidual final
+{
+    std::array<double, Indices::numComponents> component{};
+    double independentWater{0.0};
+
+    [[nodiscard]] double maximumAbsolute() const noexcept
+    {
+        double maximum = 0.0;
+        for (double value : component)
+            maximum = std::max(maximum, std::abs(value));
+        if constexpr (Indices::hasIndependentWaterConservation)
+            maximum = std::max(maximum, std::abs(independentWater));
+        return maximum;
+    }
 };
 
 
