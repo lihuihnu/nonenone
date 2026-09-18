@@ -106,6 +106,24 @@ jobs:
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
+      - name: Diagnose full 60x20 B residual through 200 seconds
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/diag_60x20_B_200s"
+          mkdir -p "$root"
+          # Four 50-s output intervals: this diagnostic intentionally stops at
+          # 200 s unless the nonlinear failure occurs first.
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0005787037037037037 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          set +e
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/run.log" 2>&1
+          rc=$?
+          set -e
+          tail -120 "$root/run.log"
+          if [ -f "$root/failed_full_residual_diagnostics.csv" ]; then
+            echo "===== FULL RESIDUAL DIAGNOSTIC ====="
+            cat "$root/failed_full_residual_diagnostics.csv"
+          fi
+          exit "$rc"
       - name: Run complete 2-PVI conditional-mechanism chain on verification mesh
         run: |
           set -euo pipefail
