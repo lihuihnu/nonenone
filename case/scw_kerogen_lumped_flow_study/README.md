@@ -231,6 +231,29 @@ mathrm{PVI}(t)=rac{int_0^t Q_{m inj,actual,res}(	au),d	au}{PV_{m eff}}.
 
 如果 injector 因 maximum BHP 切换控制，PVI 使用实际注入量而不是 nominal target rate。物理时间仍保存，但不再只用“天”比较不同实验。
 
+## 正式 SCW 温度控制组已注册
+
+正式实验不允许只报告孤立的 380 °C 结果。主对照固定为：
+
+- `360 °C / 28 MPa`：subcritical compressed-water control；
+- `380 °C / 28 MPa`：supercritical-water test。
+
+`374 °C / 28 MPa` 只作为 near-critical diagnostic，用于判断响应是否在临界附近出现明显非线性，不替代 360/380 主对照。
+
+完整设计见 `14_SCW_TEMPERATURE_CONTROL_EXPERIMENT.md`。Formal pair 在 mechanism-isolation 层面锁定相同的几何、试件/均质岩石场、初始总体组成、注入组成、target PVI rate、井控、重力、Corey 与 capillary sensitivity case，只允许温度改变。
+
+流动比较按同一 PVI 评价：
+
+- phase topology / phase composition；
+- density / viscosity / mobility；
+- pressure drop / injector BHP；
+- saturation/front evolution；
+- component recovery、effluent enrichment 和 light/heavy selectivity。
+
+PR 与 CPA 各自先做 `380-360` 的 within-EOS 温度差，再比较两个 EOS 对该温度效应的预测差异。
+
+0D hard gate 现已增加 `SCW_360_380_CONTROL_PAIR_28MPA`，并输出 `scw_temperature_control_0d.csv`。最终 flow readiness 还必须通过 `porous_media/scw_temperature_control_gate.csv`。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
