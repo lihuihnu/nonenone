@@ -1,0 +1,69 @@
+name: SCW H02 native 2D runner
+on:
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths: ['case/scw_h02_2d/**', 'models/include/natural/fluid_system.hpp', '.github/workflows/scw-h02-native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native solver dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+      - name: Configure dependency profile
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_ROOT}
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := ${RUNNER_TEMP}/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          mkdir -p h02-results
+          git rev-parse HEAD > h02-results/checkout.txt
+          pkg-config --modversion PETSc > h02-results/petsc_version.txt
+      - name: Verify opt-in constitutive closure and build actual case
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -Iad/include -Icommon/include -Iindices/include -Imodels/include -Icase/include case/scw_h02_2d/test_closure.cpp -o /tmp/h02_test
+          /tmp/h02_test | tee h02-results/closure.log
+          make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/build.log
+      - name: Run B and C on the full 60x20 mesh through native runner
+        run: |
+          set +e
+          rc=0
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/$mode" RUN_ARGS="-h02_mode $mode -numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu" > "h02-results/$mode.log" 2>&1
+            code=$?
+            echo "$mode $code" | tee -a h02-results/exit_codes.txt
+            if [ "$code" != 0 ]; then rc=1; fi
+          done
+          cat h02-results/exit_codes.txt
+          exit "$rc"
+      - name: Upload exact native outputs even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-h02-native-2d
+          path: h02-results/
+          if-no-files-found: warn
