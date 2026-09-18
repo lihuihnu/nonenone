@@ -89,6 +89,16 @@ template <class Time>
 struct HasTargetPVI<Time, std::void_t<decltype(Time::targetPVI)>> : std::true_type
 {};
 
+template <class Time, class = void>
+struct HasMaximumInternalDt : std::false_type
+{};
+
+template <class Time>
+struct HasMaximumInternalDt<
+    Time,
+    std::void_t<decltype(Time::maximumDtDays)>> : std::true_type
+{};
+
 template <class Output, class = void>
 struct HasProducerCompositionOutput : std::false_type
 {};
@@ -284,6 +294,8 @@ MPMC::AdaptiveTimeStepConfig makeTimeStepConfig(const RunOptions &run)
 {
     MPMC::AdaptiveTimeStepConfig config;
     config.fixedOutputDt = run.dtDays * secondsPerDay;
+    if constexpr (HasMaximumInternalDt<typename Config::Time>::value)
+        config.maximumDt = Config::Time::maximumDtDays * secondsPerDay;
     config.minimumDt = Config::Time::minimumDtDays * secondsPerDay;
     config.cutFactor = Config::Time::cutFactor;
     config.growthFactor = Config::Time::growthFactor;
@@ -295,6 +307,7 @@ MPMC::AdaptiveTimeStepConfig makeTimeStepConfig(const RunOptions &run)
     config.adaptive = run.adaptive;
 
     // case_config.hpp 是默认值唯一来源；以下 PETSc 选项仅用于临时覆盖。
+    PetscReal maximumDtDays = config.maximumDt / secondsPerDay;
     PetscReal minimumDtDays = config.minimumDt / secondsPerDay;
     PetscReal cutFactor = config.cutFactor;
     PetscReal growthFactor = config.growthFactor;
@@ -304,6 +317,8 @@ MPMC::AdaptiveTimeStepConfig makeTimeStepConfig(const RunOptions &run)
     PetscInt retries = config.maximumRetries;
     PetscInt wellIterations = config.maximumWellControlIterations;
 
+    PetscCallAbort(PETSC_COMM_WORLD,
+                   PetscOptionsGetReal(nullptr, nullptr, "-dt_max", &maximumDtDays, nullptr));
     PetscCallAbort(PETSC_COMM_WORLD,
                    PetscOptionsGetReal(nullptr, nullptr, "-dt_min", &minimumDtDays, nullptr));
     PetscCallAbort(PETSC_COMM_WORLD,
@@ -322,6 +337,7 @@ MPMC::AdaptiveTimeStepConfig makeTimeStepConfig(const RunOptions &run)
                    PetscOptionsGetInt(nullptr, nullptr, "-dt_max_well_control_iterations",
                                       &wellIterations, nullptr));
 
+    config.maximumDt = static_cast<double>(maximumDtDays) * secondsPerDay;
     config.minimumDt = static_cast<double>(minimumDtDays) * secondsPerDay;
     config.cutFactor = static_cast<double>(cutFactor);
     config.growthFactor = static_cast<double>(growthFactor);
@@ -627,6 +643,7 @@ void printSimulationConfiguration(
         .row("Output intervals", std::to_string(run.numberOfSteps))
         .row("Output interval", MPMC::consoleNumber(timeConfig.fixedOutputDt / secondsPerDay), "day")
         .row("Adaptive time stepping", MPMC::consoleOnOff(timeConfig.adaptive))
+        .row("Maximum internal dt", MPMC::consoleNumber(timeConfig.effectiveMaximumDt() / secondsPerDay), "day")
         .row("Minimum dt", MPMC::consoleNumber(timeConfig.minimumDt / secondsPerDay), "day")
         .row("dt cut / growth", MPMC::consoleNumber(timeConfig.cutFactor, 4) + " / " +
             MPMC::consoleNumber(timeConfig.growthFactor, 4))
