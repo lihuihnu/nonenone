@@ -1,0 +1,56 @@
+name: SCW lab slab geometry contract
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'case/scw_kerogen_common/lab_pseudo3d_slab_geometry.hpp'
+      - 'case/scw_kerogen_common/benchmark_2d_common.hpp'
+      - 'case/scw_kerogen_lumped_flow_study/12_LAB_PSEUDO3D_SLAB_DESIGN.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/**'
+      - 'test/src/unit/lab_pseudo3d_geometry_test.cpp'
+      - '.github/workflows/scw-lab-slab-geometry.yml'
+  pull_request:
+    paths:
+      - 'case/scw_kerogen_common/lab_pseudo3d_slab_geometry.hpp'
+      - 'case/scw_kerogen_common/benchmark_2d_common.hpp'
+      - 'case/scw_kerogen_lumped_flow_study/12_LAB_PSEUDO3D_SLAB_DESIGN.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/**'
+      - 'test/src/unit/lab_pseudo3d_geometry_test.cpp'
+      - '.github/workflows/scw-lab-slab-geometry.yml'
+
+jobs:
+  geometry-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and run pseudo3D geometry regression
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror             test/src/unit/lab_pseudo3d_geometry_test.cpp             -o /tmp/lab_pseudo3d_geometry_test
+          /tmp/lab_pseudo3d_geometry_test
+
+      - name: Validate porous-media CSV shapes
+        run: |
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          files = [
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/pseudo3d_slab_geometry_contract.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/gravity_scope.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/heterogeneity_stage_policy.csv'),
+              Path('case/scw_kerogen_lumped_flow_study/porous_media/porous_media_entry_gate.csv'),
+          ]
+          for path in files:
+              with path.open(newline='', encoding='utf-8') as f:
+                  rows = list(csv.reader(f))
+              assert rows and rows[0], f'{path}: missing header'
+              width = len(rows[0])
+              bad = [i + 1 for i, row in enumerate(rows) if len(row) != width]
+              assert not bad, f'{path}: inconsistent column count at rows {bad}'
+              print(f'[PASS] {path}: {len(rows)-1} data rows, {width} columns')
+          PY
+
+      - name: Check Markdown links
+        run: python3 scripts/check_markdown_links.py
