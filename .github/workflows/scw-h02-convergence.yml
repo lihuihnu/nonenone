@@ -1,0 +1,99 @@
+name: SCW H02 time-grid convergence
+on:
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths:
+      - 'case/scw_h02_2d/compare_h02_convergence.py'
+      - 'case/scw_h02_2d/analyze_h02.py'
+      - 'case/scw_h02_2d/**'
+      - 'case/scw_h02_2d_a/**'
+      - 'models/include/natural/**'
+      - 'models/include/well/**'
+      - 'AdaptiveTimeStepper/**'
+      - '.github/workflows/scw-h02-convergence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native solver dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+      - name: Configure and build fixed H02 binaries
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_ROOT}
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := ${RUNNER_TEMP}/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          sed -i 's/^clean::/clean:/' case/Makefile
+          mkdir -p h02-convergence
+          git rev-parse HEAD > h02-convergence/checkout.txt
+          make case CASE=scw_h02_2d -j2
+          make case CASE=scw_h02_2d_a -j2
+      - name: Run 20x8 dt_max=2s strict ensemble
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-convergence/dt2_20x8"
+          mkdir -p "$root"
+          COMMON="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=2 RESULT_DIR="$root/A" RUN_ARGS="$COMMON" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=2 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis"
+      - name: Run 20x8 dt_max=1s strict ensemble
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-convergence/dt1_20x8"
+          mkdir -p "$root"
+          COMMON="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000011574074074074073 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=2 RESULT_DIR="$root/A" RUN_ARGS="$COMMON" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=2 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis"
+      - name: Run full 60x20 dt_max=2s strict ensemble
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-convergence/dt2_60x20"
+          mkdir -p "$root"
+          COMMON="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=2 RESULT_DIR="$root/A" RUN_ARGS="$COMMON" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=2 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py --root "$root" --out "$root/analysis"
+      - name: Compare matched-PVI time and grid convergence
+        run: |
+          set -euo pipefail
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-convergence/dt2_20x8             --dt1 h02-convergence/dt1_20x8             --grid60 h02-convergence/dt2_60x20             --out h02-convergence/analysis | tee h02-convergence/convergence.log
+      - name: Upload convergence evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: h02-time-grid-convergence
+          path: h02-convergence/
+          if-no-files-found: error
