@@ -6,6 +6,92 @@
  */
 
     /**
+     * @brief 对当前 PETSc residual 的守恒质量行做 MPI 全局有符号求和。
+     *
+     * PETSc Vec 中保存的是生产求解器实际使用的 scaled residual；这里按每行
+     * production equationScaleFactor_ 精确反缩放回 kg/s，再对 owned cells
+     * 求和。该量可直接约束一个 accepted Newton state 对全局离散质量守恒的
+     * 瞬时缺口，不包含 fugacity/closure/well-control 行。
+     */
+    [[nodiscard]] NaturalGlobalSignedMassResidual<Indices>
+    evaluateGlobalSignedMassResidual(Vec residual) const
+    {
+        requireVector_(residual, "residual");
+
+        constexpr std::size_t n =
+            static_cast<std::size_t>(Indices::numComponents);
+        constexpr std::size_t waterOffset = n;
+        constexpr std::size_t count =
+            n + (Indices::hasIndependentWaterConservation ? std::size_t(1) : std::size_t(0));
+
+        std::array<double, count> local{};
+        std::array<double, count> global{};
+
+        const auto &map = backend_.dofMap(
+            static_cast<PetscInt>(Indices::numPrimaryVariables));
+        PetscOwnedReadView residualView(residual);
+
+        for (std::size_t ownedIndex = 0;
+             ownedIndex < ownedCells_.size();
+             ++ownedIndex)
+        {
+            const Cell cell = ownedCells_[ownedIndex];
+            const PetscInt localBlock = ownedLocalBlockCache_[ownedIndex];
+
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                const std::size_t c = static_cast<std::size_t>(component);
+                const int equation = Indices::Equation::massConservation[c];
+                const PetscInt row = map.globalIndex(cell, equation);
+                if (row < residualView.begin() || row >= residualView.end())
+                    throw std::runtime_error(
+                        "Owned Natural mass residual row is outside PETSc ownership range.");
+
+                const double scaled = PetscRealPart(
+                    residualView.data()[row - residualView.begin()]);
+                const double scale = options_.scaling.enabled
+                    ? equationScaleFactor_(equation, localBlock)
+                    : 1.0;
+                local[c] += scale != 0.0 ? scaled / scale : scaled;
+            }
+
+            if constexpr (Indices::hasIndependentWaterConservation)
+            {
+                constexpr int equation = Indices::Equation::waterConservation;
+                const PetscInt row = map.globalIndex(cell, equation);
+                if (row < residualView.begin() || row >= residualView.end())
+                    throw std::runtime_error(
+                        "Owned Natural water residual row is outside PETSc ownership range.");
+
+                const double scaled = PetscRealPart(
+                    residualView.data()[row - residualView.begin()]);
+                const double scale = options_.scaling.enabled
+                    ? equationScaleFactor_(equation, localBlock)
+                    : 1.0;
+                local[waterOffset] += scale != 0.0 ? scaled / scale : scaled;
+            }
+        }
+
+        PetscCallMPIAbort(
+            backend_.communicator(),
+            MPI_Allreduce(
+                local.data(),
+                global.data(),
+                static_cast<int>(count),
+                MPI_DOUBLE,
+                MPI_SUM,
+                backend_.communicator()));
+
+        NaturalGlobalSignedMassResidual<Indices> result;
+        for (std::size_t c = 0; c < n; ++c)
+            result.component[c] = global[c];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            result.independentWater = global[waterOffset];
+        return result;
+    }
+
+
+    /**
      * @brief 识别失败 Newton 中 PETSc scaled residual 的全局最大方程行。
      *
      * 与质量守恒分解诊断不同，本函数扫描每个 owned cell 的全部 Natural
