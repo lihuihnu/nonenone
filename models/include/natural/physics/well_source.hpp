@@ -22,6 +22,10 @@ struct PerforationWellResult
     std::array<Scalar, Indices::numPhases> surfacePhaseRate{};
     std::array<Scalar, Indices::numPhases> reservoirPhaseRate{};
     std::array<Scalar, Indices::numPhases> phaseMassRate{};
+    // Exact phase-by-component source contribution [kg/s]. Summing over
+    // phases recovers componentMassSource for every conserved EOS component.
+    std::array<std::array<Scalar, Indices::numComponents>, Indices::numPhases>
+        phaseComponentMassSource{};
     std::array<Scalar, Indices::numComponents> componentMassSource{};
     Scalar waterMassSource{0.0};
 };
@@ -71,6 +75,9 @@ void computePerforationWellSourceInto(
 {
     if (!(wellIndex >= 0.0) || !std::isfinite(wellIndex))
         throw std::invalid_argument("Well index must be finite and nonnegative.");
+
+    for (auto &phaseSource : result.phaseComponentMassSource)
+        phaseSource.fill(Scalar(0.0));
 
     auto &dP = workspace.pressureDrop;
     auto &b = workspace.densityRatio;
@@ -122,10 +129,12 @@ void computePerforationWellSourceInto(
             for (int phase = 0; phase < Indices::numPhases; ++phase)
             {
                 const std::size_t p = static_cast<std::size_t>(phase);
-                if (scalarValue(result.phaseMassRate[p]) > 0.0)
-                    source += result.phaseMassRate[p] * injectionComponentMassFraction[c];
-                else
-                    source += result.phaseMassRate[p] * cellMassFraction[p][c];
+                const Scalar phaseSource =
+                    scalarValue(result.phaseMassRate[p]) > 0.0
+                        ? result.phaseMassRate[p] * injectionComponentMassFraction[c]
+                        : result.phaseMassRate[p] * cellMassFraction[p][c];
+                result.phaseComponentMassSource[p][c] = phaseSource;
+                source += phaseSource;
             }
             result.componentMassSource[c] = source;
         }
@@ -166,23 +175,12 @@ void computePerforationWellSourceInto(
     const bool injectingLiquid = scalarValue(result.phaseMassRate[liquid]) > 0.0;
     const bool injectingVapor = scalarValue(result.phaseMassRate[vapor]) > 0.0;
 
-    const auto hydrocarbonComponentSource = [&](std::size_t component) -> Scalar
+    const auto phaseComponentSource =
+        [&](std::size_t phase, std::size_t component, bool injecting) -> Scalar
     {
-        Scalar source = 0.0;
-        if (injectingLiquid)
-            source += result.phaseMassRate[liquid] *
-                      injectionComponentMassFraction[component];
-        else
-            source += cellMassFraction[liquid][component] *
-                      result.phaseMassRate[liquid];
-
-        if (injectingVapor)
-            source += result.phaseMassRate[vapor] *
-                      injectionComponentMassFraction[component];
-        else
-            source += cellMassFraction[vapor][component] *
-                      result.phaseMassRate[vapor];
-        return source;
+        return injecting
+            ? result.phaseMassRate[phase] * injectionComponentMassFraction[component]
+            : cellMassFraction[phase][component] * result.phaseMassRate[phase];
     };
 
     if constexpr (Indices::hasAqueousCO2Dissolution)
@@ -199,9 +197,18 @@ void computePerforationWellSourceInto(
         for (int component = 0; component < Indices::numComponents; ++component)
         {
             const std::size_t c = static_cast<std::size_t>(component);
-            Scalar source = hydrocarbonComponentSource(c);
+            result.phaseComponentMassSource[liquid][c] =
+                phaseComponentSource(liquid, c, injectingLiquid);
+            result.phaseComponentMassSource[vapor][c] =
+                phaseComponentSource(vapor, c, injectingVapor);
+            Scalar source =
+                result.phaseComponentMassSource[liquid][c] +
+                result.phaseComponentMassSource[vapor][c];
             if (component == dissolvedCO2Component)
+            {
+                result.phaseComponentMassSource[water][c] = aqueousCO2Source;
                 source += aqueousCO2Source;
+            }
             result.componentMassSource[c] = source;
         }
     }
@@ -210,7 +217,13 @@ void computePerforationWellSourceInto(
         for (int component = 0; component < Indices::numComponents; ++component)
         {
             const std::size_t c = static_cast<std::size_t>(component);
-            result.componentMassSource[c] = hydrocarbonComponentSource(c);
+            result.phaseComponentMassSource[liquid][c] =
+                phaseComponentSource(liquid, c, injectingLiquid);
+            result.phaseComponentMassSource[vapor][c] =
+                phaseComponentSource(vapor, c, injectingVapor);
+            result.componentMassSource[c] =
+                result.phaseComponentMassSource[liquid][c] +
+                result.phaseComponentMassSource[vapor][c];
         }
     }
 }
