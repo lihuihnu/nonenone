@@ -172,10 +172,10 @@
         PetscObjectState phaseStateBefore{};
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(solution, &solutionStateBefore));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(solution), &solutionStateBefore));
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(phaseState_, &phaseStateBefore));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(phaseState_), &phaseStateBefore));
 
         if (phaseEquilibriumCacheValid_ &&
             phaseEquilibriumSolution_ == solution &&
@@ -337,10 +337,10 @@
         PetscObjectState phaseStateAfter{};
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(solution, &solutionStateAfter));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(solution), &solutionStateAfter));
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(phaseState_, &phaseStateAfter));
+            PetscObjectStateGet(reinterpret_cast<PetscObject>(phaseState_), &phaseStateAfter));
 
         phaseEquilibriumSolution_ = solution;
         phaseEquilibriumSolutionState_ = solutionStateAfter;
