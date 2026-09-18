@@ -54,6 +54,7 @@ constexpr std::size_t N = 5;
 constexpr std::size_t water = 0;
 constexpr double tref = 653.15;
 constexpr double missing = std::numeric_limits<double>::quiet_NaN();
+constexpr double fugacityClosureCompositionTolerance = 1.0e-14;
 
 inline const std::array<std::string, N> names{
     "H2O", "OIL_GASOLINE", "OIL_DIESEL", "OIL_MIDDLE", "OIL_HEAVY"};
@@ -396,6 +397,7 @@ double maxLogFugacitySpread(
     const Eos &eos,
     double pressure,
     double temperature,
+    const Composition &overallComposition,
     const Flash::Result &result)
 {
     if (result.presence.count() <= 1)
@@ -415,6 +417,15 @@ double maxLogFugacitySpread(
     double maximum = 0.0;
     for (std::size_t component = 0; component < N; ++component)
     {
+        // Fugacity equality is an equilibrium condition only for components
+        // present in the overall feed. A component with zero total inventory
+        // satisfies a complementarity condition instead; forcing equality of
+        // trace numerical fugacities across phases is ill-conditioned and
+        // incorrectly rejects lower-dimensional (e.g. H2O-Heavy) mixtures.
+        if (overallComposition[component] <=
+            fugacityClosureCompositionTolerance)
+            continue;
+
         double lo = std::numeric_limits<double>::infinity();
         double hi = -std::numeric_limits<double>::infinity();
         int count = 0;
@@ -496,7 +507,8 @@ StateEvaluation evaluateState(
     state.missingPhaseUnstable = stability.missingPhaseUnstable;
     state.massClosure = massClosure(z, state.flash);
     state.maxLogFugacitySpread =
-        maxLogFugacitySpread(eos, pressure, temperature, state.flash);
+        maxLogFugacitySpread(
+            eos, pressure, temperature, z, state.flash);
     state.waterRoleConsistent = waterRoleConsistent(state.flash);
     state.phaseCompositionsValid = phaseCompositionsValid(state.flash);
 
