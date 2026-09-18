@@ -71,21 +71,6 @@ double compositionL1(const Composition &a, const Composition &b)
     return value;
 }
 
-double owStateGap(const OwStabilityState &a, const OwStabilityState &b)
-{
-    if (!a.valid || !b.valid)
-        return std::numeric_limits<double>::infinity();
-    double gap = 0.0;
-    for (std::size_t phase : {std::size_t(0), std::size_t(2)})
-        for (std::size_t i = 0; i < a.phaseComposition[phase].size(); ++i)
-            gap = std::max(
-                gap,
-                std::abs(
-                    a.phaseComposition[phase][i] -
-                    b.phaseComposition[phase][i]));
-    return gap;
-}
-
 double dimensionlessGibbs(
     const Eos &eos,
     double pressureMPa,
