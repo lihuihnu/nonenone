@@ -141,6 +141,14 @@ jobs:
           fields = rows[0].keys()
           for prefix in required_prefixes:
               assert any(f.startswith(prefix) for f in fields), prefix
+          assert 'm_dot_Light_group_produced_kg_s' in fields
+          assert 'Y_Light_group_mass_fraction' in fields
+          assert 'cum_Light_group_produced_kg' in fields
+          assert 'RF_Light_group' in fields
+          assert 'm_dot_Heavy_group_produced_kg_s' in fields
+          assert 'Y_Heavy_group_mass_fraction' in fields
+          assert 'cum_Heavy_group_produced_kg' in fields
+          assert 'RF_Heavy_group' in fields
           assert 'RF_total_hydrocarbon' in fields
           assert 'E_L_over_H_instant_mass' in fields
           assert 'E_L_over_H_cumulative_mass' in fields
@@ -153,9 +161,17 @@ jobs:
           assert all(v == v for v in y), y
           assert abs(sum(y) - 1.0) < 1e-10, sum(y)
 
+          light_y = float(accepted['Y_Light_group_mass_fraction'])
+          heavy_y = float(accepted['Y_Heavy_group_mass_fraction'])
+          rf_light = float(accepted['RF_Light_group'])
+          rf_heavy = float(accepted['RF_Heavy_group'])
           rf_total = float(accepted['RF_total_hydrocarbon'])
           e_inst = float(accepted['E_L_over_H_instant_mass'])
           e_cum = float(accepted['E_L_over_H_cumulative_mass'])
+          assert light_y == light_y and light_y >= 0.0, light_y
+          assert heavy_y == heavy_y and heavy_y >= 0.0, heavy_y
+          assert rf_light == rf_light and rf_light >= 0.0, rf_light
+          assert rf_heavy == rf_heavy and rf_heavy >= 0.0, rf_heavy
           assert rf_total == rf_total and rf_total >= 0.0, rf_total
           assert e_inst == e_inst and e_inst > 0.0, e_inst
           assert e_cum == e_cum and e_cum > 0.0, e_cum
