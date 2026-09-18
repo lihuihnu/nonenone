@@ -166,6 +166,18 @@ Consequently the porous-medium gate cannot pass until either:
 
 Because SCW has low viscosity and published Berea entry pressures are on the kPa scale, this issue should not be dismissed automatically.
 
+## Pseudo-3D slab discretization
+
+The laboratory slab uses a fixed `60×20×1` regular Cartesian topology while leaving all physical dimensions apparatus-defined.
+
+See `12_LAB_PSEUDO3D_SLAB_DESIGN.md` and `porous_media/pseudo3d_slab_geometry_contract.csv`.
+
+Only the topology is fixed. The old numerical benchmark dimensions and point-well locations are not inherited.
+
+Stage 1 is spatially homogeneous by design; stochastic permeability/porosity fields are deferred until the homogeneous experiment has been validated.
+
+Because `nz=1`, the slab is thickness-averaged. It can resolve in-plane buoyancy if a model in-plane axis is aligned with physical gravity, but it cannot resolve or support claims about true out-of-plane/3-D vertical gravity segregation.
+
 ## 2-D slab strategy
 
 For the eventual visual 2-D experiment, two defensible routes exist.
