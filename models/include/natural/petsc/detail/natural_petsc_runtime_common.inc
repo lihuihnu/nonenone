@@ -5,6 +5,26 @@
  * 本文件是类体内实现片段，只能由对应公共头文件 include，不应独立包含。
  */
 
+    /**
+     * @brief Query PETSc Vec object state when the public API exists.
+     *
+     * PETSc 3.19 (Ubuntu 24.04 distro package used by CI) exposes neither
+     * VecGetState nor PetscObjectStateGet publicly.  On those older versions
+     * return a fresh synthetic state on every query.  This deliberately
+     * disables cache reuse while preserving correctness; no private PETSc
+     * headers or object-layout assumptions are used.
+     */
+    PetscErrorCode vectorState_(Vec vector, PetscObjectState *state) const noexcept
+    {
+#if PETSC_VERSION_GE(3,24,0)
+        return VecGetState(vector, state);
+#else
+        (void)vector;
+        *state = ++compatibilityVectorStateCounter_;
+        return 0;
+#endif
+    }
+
     void validateOptions_() const
     {
         if (!(options_.timeStep > 0.0) ||
