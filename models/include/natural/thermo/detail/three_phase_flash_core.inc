@@ -108,7 +108,11 @@
         if (eos_.usesCubicPlusAssociation())
         {
             return eos_.phaseResult(
-                pressure, temperature, composition, thermodynamicPhase, false);
+                pressure,
+                temperature,
+                composition,
+                thermodynamicPhase,
+                options_.cpaSelectGibbsMinimumRoot);
         }
 
         // 性能：一次 P–T flash 会重复计算逸度。PR 只有一套参数矩阵，SW 额外有一套水相矩阵；
