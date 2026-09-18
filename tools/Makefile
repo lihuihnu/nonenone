@@ -105,6 +105,7 @@ run-cpa-athabasca-bitumen-water: $(BIN_DIR)/cpa_athabasca_bitumen_water
 	@mkdir -p example/cpa_athabasca_bitumen_water/results
 	@$(BIN_DIR)/cpa_athabasca_bitumen_water \
 		../case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_athabasca_water_proxy.csv \
+		../case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_figure7_wlv_wl_boundary.csv \
 		example/cpa_athabasca_bitumen_water/results
 	@echo "[PASS] Athabasca bitumen/water CPA external proxy benchmark completed"
 
