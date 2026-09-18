@@ -1,10 +1,10 @@
 name: SCW H02 native 2D runner
 on:
   pull_request:
-    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', 'test/src/unit/three_phase_flash_test.cpp', '.github/workflows/scw-h02-native.yml']
   push:
     branches: [docs/scw-kerogen-acs2023-data]
-    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', 'test/src/unit/three_phase_flash_test.cpp', '.github/workflows/scw-h02-native.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -49,6 +49,11 @@ jobs:
           # Adapt only this CI working copy; retain an exact patch as provenance.
           sed -i 's/^clean::/clean:/' case/Makefile
           git diff -- case/Makefile > h02-results/distro_make_compatibility.patch
+      - name: Verify trace-phase active-set regression
+        run: |
+          set -euo pipefail
+          make -C test bin/three_phase_flash_test
+          test/bin/three_phase_flash_test
       - name: Verify opt-in constitutive closure and build actual case
         run: |
           set -euo pipefail
