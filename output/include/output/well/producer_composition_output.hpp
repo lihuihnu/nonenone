@@ -314,6 +314,7 @@ private:
         {
             initial[c] =
                 inventory.fluidComponentMass[c] +
+                inventory.trappedComponentMass[c] +
                 inventory.adsorbedComponentMass[c];
         }
 
