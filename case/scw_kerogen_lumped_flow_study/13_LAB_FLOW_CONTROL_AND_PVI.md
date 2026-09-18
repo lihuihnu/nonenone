@@ -191,6 +191,20 @@ Therefore plots/tables should use:
 
 “Days” must not be the sole normalization for an experimental slab.
 
+## Paired 360/380 °C control rule
+
+For the formal SCW control experiment, the target dimensionless injection intensity is identical:
+
+`r_PVI,360 = r_PVI,380`.
+
+The physical rate is derived independently from the measured operating-condition pore volume:
+
+`Q(T) = r_PVI * PV_eff(T,p)`.
+
+The pressure drop is **not** forced to be equal between the two temperatures. The difference in injector BHP and slab pressure drop at matched PVI is an experimental response because density, viscosity, phase split and mobility are temperature dependent.
+
+Likewise, the producer BHP/control rule and injector maximum-BHP rule are identical between the pair; they are not retuned separately to force equal production.
+
 ## Required outputs
 
 At minimum record:
