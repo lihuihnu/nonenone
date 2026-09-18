@@ -260,6 +260,80 @@ void checkKerogenCpaCoincidentNonaqueousOnsetRecovery()
 }
 
 
+void checkCpaCrossAssociationOnlySiteContract()
+{
+    using LocalMixture = MPMC::CompositionalMixture<Indices>;
+    using LocalEos = MPMC::CubicEquationOfState<Indices>;
+
+    const std::array<double, 5> tc{
+        647.096, 612.8, 700.0, 800.0, 900.0};
+    const std::array<double, 5> pc{
+        22.064e6, 2.2871e6, 2.0e6, 1.5e6, 1.0e6};
+    const std::array<double, 5> vc{
+        55.95e-6, 7.5e-4, 9.0e-4, 1.1e-3, 1.5e-3};
+    const std::array<double, 5> omega{
+        0.3443, 0.9673, 1.0, 1.1, 1.2};
+    const std::array<double, 5> mw{
+        0.01801528, 0.35243, 0.45, 0.60, 0.80};
+    std::array<std::array<double, 5>, 5> kij{};
+    kij[0][1] = kij[1][0] = -0.0293;
+
+    auto makeEos = [&]() {
+        return LocalEos(
+            0.42748, 0.08664,
+            LocalMixture(tc, pc, vc, omega, mw, kij),
+            1, 1.0, 0.0, 1.0e-30);
+    };
+
+    LocalEos::CubicPlusAssociationOptions cpa;
+    cpa.a0 = {0.12277, 4.0, 8.0, 14.0, 24.0};
+    cpa.b = {1.4515e-5, 1.2e-4, 2.0e-4, 3.0e-4, 5.0e-4};
+    cpa.c1 = {0.67359, 1.0, 1.1, 1.2, 1.3};
+    cpa.associationEnergy[0] = 16655.0;
+    cpa.associationVolume[0] = 0.0692;
+    cpa.donorSites[0] = 2;
+    cpa.acceptorSites[0] = 2;
+
+    // A Jia/Okuno-style inert solvating pseudo-component: no pure
+    // self-association energy, one acceptor site, and one explicit
+    // water-donor -> hydrocarbon-acceptor cross-association.
+    cpa.associationEnergy[1] = 0.0;
+    cpa.associationVolume[1] = 0.07;
+    cpa.donorSites[1] = 0;
+    cpa.acceptorSites[1] = 1;
+    cpa.crossAssociationEnergy[0][1] = 0.5 * 16655.0;
+    cpa.crossAssociationVolume[0][1] =
+        std::sqrt(0.0692 * 0.07);
+    cpa.physicalTerm = MPMC::CpaCubicPhysicalTerm::SoaveRedlichKwong;
+    cpa.radialDistribution = MPMC::CpaRadialDistribution::Simplified;
+
+    auto eos = makeEos();
+    eos.configureCubicPlusAssociation(cpa);
+    const Composition z{0.6, 0.4, 0.0, 0.0, 0.0};
+    const auto phase = eos.phaseResult(
+        10.0e6, 550.0, z, MPMC::CompositionalPhase::Water, false);
+    require(std::isfinite(phase.fugacity[0]) && phase.fugacity[0] > 0.0 &&
+                std::isfinite(phase.fugacity[1]) && phase.fugacity[1] > 0.0,
+            "CPA cross-association-only sites must be usable in phase evaluation");
+
+    auto uncovered = cpa;
+    uncovered.crossAssociationEnergy[0][1] = 0.0;
+    uncovered.crossAssociationVolume[0][1] = 0.0;
+    bool rejected = false;
+    try
+    {
+        auto invalidEos = makeEos();
+        invalidEos.configureCubicPlusAssociation(uncovered);
+    }
+    catch (const std::invalid_argument &)
+    {
+        rejected = true;
+    }
+    require(rejected,
+            "CPA cross-association-only sites must reject uncovered declared sites");
+}
+
+
 void checkStaticBipSymmetryContract()
 {
     using Mixture = MPMC::CompositionalMixture<Indices>;
@@ -329,6 +403,7 @@ int main()
     {
         checkPreviouslyMissedReducedSets();
         checkKerogenCpaCoincidentNonaqueousOnsetRecovery();
+        checkCpaCrossAssociationOnlySiteContract();
         deterministicRobustnessSweep<CaseConfig::PrFactoryConfig>("PR");
         deterministicRobustnessSweep<CaseConfig::SwFactoryConfig>("SW");
         deterministicRobustnessSweep<CaseConfig::CpaFactoryConfig>("CPA");
