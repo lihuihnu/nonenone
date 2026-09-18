@@ -61,8 +61,16 @@ jobs:
           /tmp/h02_test | tee h02-results/closure.log
           make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/build_BC.log
           test -x case/scw_h02_2d/bin/scw_h02_2d
+          grep -F -- '-snes_max_it 40' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d/run.sh
           make case CASE=scw_h02_2d_a -j2 2>&1 | tee h02-results/build_A.log
           test -x case/scw_h02_2d_a/bin/scw_h02_2d_a
+          grep -F -- '-snes_max_it 40' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d_a/run.sh
       - name: Run A B C two-step smoke on the full 60x20 mesh
         run: |
           set +e
