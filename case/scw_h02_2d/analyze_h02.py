@@ -118,13 +118,18 @@ def load_mode(root, mode):
     bracket(rows,2.0)
     return rows, rates_error, cumulative_error
 
-def audit(root, out):
+def audit(root, out, mode_names="ABC"):
     out.mkdir(parents=True,exist_ok=True)
+    requested=tuple(mode_names)
+    if not requested or any(m not in "ABC" for m in requested):
+        raise ValueError("modes must be a non-empty subset of A/B/C")
+    if len(set(requested)) != len(requested):
+        raise ValueError("modes must not contain duplicates")
     modes, gates, mass_summary = {}, [], []
     def gate(mode,name,value,limit):
         passed = math.isfinite(value) and value <= limit
         gates.append(dict(mode=mode,gate=name,value=value,limit=limit,status="PASS" if passed else "FAIL"))
-    for mode in "ABC":
+    for mode in requested:
         rows, rate_err, cumulative_err = load_mode(root,mode)
         modes[mode] = rows
         gate(mode,"phase_component_rate_closure_kg_s",rate_err,1e-14)
@@ -157,7 +162,8 @@ def audit(root, out):
                 normalization="abs(M-M0-Min+Mout)/(M0+Min)"))
     summary = []
     for target in (1.0,2.0):
-        for mode,rows in modes.items():
+        for mode in requested:
+            rows = modes[mode]
             a,b,f = bracket(rows,target)
             rec = dict(scope=SCOPE,target_pvi=target,mode=mode,
                        lower_actual_pvi=a["pvi"],upper_actual_pvi=b["pvi"],fraction=f,
@@ -168,14 +174,15 @@ def audit(root, out):
             rec["water_carried_fraction"] = rec["cum_Heavy_Water_kg"]/rec["cum_Heavy_kg"]
             summary.append(rec)
     bc = []
-    for i in range(101):
-        pvi = i/50
-        b = interpolate(modes["B"],pvi,"mu_Heavy_carrier_Pa_s")
-        c = interpolate(modes["C"],pvi,"mu_Heavy_carrier_Pa_s")
-        bc.append(dict(scope=SCOPE,pvi=pvi,mu_B_Heavy_carrier_Pa_s=b,
-                       mu_C_Heavy_carrier_Pa_s=c,delta_mu_C_minus_B_Pa_s=c-b,
-                       relative_delta_C_minus_B=(c-b)/b if b>0 else math.nan))
-    write_csv(out/"h02_mechanism_timeseries.csv",[r for m in "ABC" for r in modes[m]])
+    if "B" in modes and "C" in modes:
+        for i in range(101):
+            pvi = i/50
+            b = interpolate(modes["B"],pvi,"mu_Heavy_carrier_Pa_s")
+            c = interpolate(modes["C"],pvi,"mu_Heavy_carrier_Pa_s")
+            bc.append(dict(scope=SCOPE,pvi=pvi,mu_B_Heavy_carrier_Pa_s=b,
+                           mu_C_Heavy_carrier_Pa_s=c,delta_mu_C_minus_B_Pa_s=c-b,
+                           relative_delta_C_minus_B=(c-b)/b if b>0 else math.nan))
+    write_csv(out/"h02_mechanism_timeseries.csv",[r for m in requested for r in modes[m]])
     write_csv(out/"h02_mechanism_at_1_2_pvi.csv",summary)
     write_csv(out/"h02_bc_viscosity_delta.csv",bc)
     write_csv(out/"h02_mass_audit.csv",mass_summary)
@@ -190,9 +197,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root",required=True,type=Path)
     parser.add_argument("--out",required=True,type=Path)
+    parser.add_argument("--modes",default="ABC")
     args = parser.parse_args()
     try:
-        status = audit(args.root,args.out)
+        status = audit(args.root,args.out,args.modes)
     except (OSError,KeyError,ValueError) as exc:
         print(f"H02_DATA_INTEGRITY=FAIL: {exc}")
         raise SystemExit(2)
