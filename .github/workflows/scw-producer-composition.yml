@@ -156,7 +156,10 @@ jobs:
           assert 'pvi' in fields
 
           accepted = producer[-1]
-          y_cols = [f for f in fields if f.startswith('Y_')]
+          y_cols = [
+              f for f in fields
+              if f.startswith('Y_') and '_group_' not in f
+          ]
           y = [float(accepted[f]) for f in y_cols]
           assert all(v == v for v in y), y
           assert abs(sum(y) - 1.0) < 1e-10, sum(y)
