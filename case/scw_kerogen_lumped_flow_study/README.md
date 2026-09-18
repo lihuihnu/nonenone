@@ -33,13 +33,18 @@
 
 ## 计划的流体表征
 
-第一阶段优先研究：
+最终 PRIMARY lump 边界仍由 Tongchuan 同一物理样品数据决定。当前不再把原先的 `C6-C14 / C15-C20 / C21+` 当成已经有实验质量分数支持的定案；其中 `C6-C14` 与 `C15-C20` 的分界无法从现有 ACS SimDist 四段数据中恢复。
+
+已恢复的 ACS 纯干酪根二级配对数据支持一个用于 sensitivity 的 SimDist-aligned 候选：
 
 - H2O；
-- Light：候选 C6–C14 lump；
-- Middle：候选 C15–C20 lump；
-- Heavy：候选 C21+ lump；
-- 如实验数据表明气体产物不可忽略，再增加 CH4/C2–C5 gas lump。
+- Light：`IBP-180 °C`，约等效于 `<=C10`；
+- Middle：`180-350 °C`，约等效于 `C11-C20`；
+- Heavy：`>350 °C`，约等效于 `C21+`；
+- 380 °C 二级配对质量分数均值分别为 `0.81 / 23.73 / 75.46 wt%`，对应两次实验范围为 `0.79-0.83 / 22.68-24.78 / 74.39-76.53 wt%`；
+- 如实验数据表明气体产物不可忽略，再增加 CH4/C2-C5 gas lump。
+
+这里的碳数是依据正构烷烃常压沸点得到的 boiling-equivalent carbon number，不表示复杂裂解油的真实化学组成。ACS 数据仍是 `SECONDARY_PAIRED`，不能替代 Tongchuan 主样品的 M1 最终质量分数。
 
 现有 `nC4 / nC10 / squalane` 体系可作为代码和机理筛选基线，但不直接等同于 380 °C 干酪根裂解产物的最终实验表征。
 
