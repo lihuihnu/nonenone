@@ -129,6 +129,10 @@ struct Output
     static constexpr bool printWells = true;
     static constexpr bool printWellPhaseDetails = true;
     static constexpr bool writeWellHistory = true;
+    // First-class producer composition/recovery output.  Legacy cases do not
+    // define a measured experimental PV, so producer_composition.csv leaves
+    // PVI as NaN rather than inventing one.
+    static constexpr bool writeProducerComposition = true;
     static constexpr bool printInventory = true;
     static constexpr bool enableComponentMassBalance = true;
     static constexpr bool printComponentMassBalance = true;
