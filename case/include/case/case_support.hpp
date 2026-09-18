@@ -124,6 +124,17 @@ struct HasSingleLightHeavyComponents<
         decltype(Fluid::heavyComponent)>> : std::true_type
 {};
 
+
+template <class Fluid, class = void>
+struct HasWaterComponentIndex : std::false_type
+{};
+
+template <class Fluid>
+struct HasWaterComponentIndex<
+    Fluid,
+    std::void_t<decltype(Fluid::waterComponent)>> : std::true_type
+{};
+
 /** @brief 构造非线性平台早停配置，并允许 PETSc 命令行临时覆盖。 */
 template <class Config>
 MPMC::NonlinearStagnationConfig makeNonlinearStagnationConfig()
@@ -856,6 +867,13 @@ private:
                 Config::Fluid::lightComponent};
             options.heavyComponents = {
                 Config::Fluid::heavyComponent};
+        }
+
+        if constexpr (HasWaterComponentIndex<
+                          typename Config::Fluid>::value)
+        {
+            options.waterComponent =
+                Config::Fluid::waterComponent;
         }
 
         if constexpr (HasProducerEffectivePoreVolume<
