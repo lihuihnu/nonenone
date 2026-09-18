@@ -32,7 +32,7 @@ Flash::Result continuedOwAt(
         return state;
     while (p > targetPressureMPa)
     {
-        p = std::max(targetPressureMPa, p - 0.25);
+        p = std::max(targetPressureMPa, p - 0.05);
         state = flash.flashRestricted(
             p * 1.0e6, temperatureK, z, ow, state.composition);
         if (!state.converged)
@@ -380,10 +380,16 @@ int main(int argc, char **argv)
                 lowBetaGas > options.phaseFractionTolerance &&
                 highBetaGas <= options.phaseFractionTolerance;
 
+            // A vapor-like incipient phase need not have two distinct density
+            // roots. In a one-root region the Gas-role vapor evaluation and
+            // liquid evaluation legitimately coincide. Phase identity is
+            // certified by the nontrivial missing-Gas TPD direction plus the
+            // released global Gas phase retaining its Gas-role root.
             const bool gasIdentityPass =
                 lowOw.incipientFinite &&
+                lowOw.gasUnstable &&
+                lowOw.onlyGasMissingDirection &&
                 lowOw.selectedIsVapor &&
-                lowOw.vaporLiquidDistinct &&
                 lowGlobalGasRootMatch;
 
             const double gGlobalLow =
@@ -436,7 +442,7 @@ int main(int argc, char **argv)
                   << (gGlobalLow - gOwLow)
                   << ",independent_and_continued_boundary_agree;"
                      "low_side_is_certified_OGW;high_side_is_certified_OW;"
-                     "missing_candidate_is_distinct_vapor_root;"
+                     "missing_direction_is_Gas_and_candidate_uses_Gas_vapor_or_unique_root;"
                      "released_state_has_no_higher_G\n";
 
             std::cout << "Figure7 point T=" << t
