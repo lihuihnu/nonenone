@@ -1,0 +1,7 @@
+dependency,current_status,required_status,hard_block,notes
+PR_BINARY_CALIBRATION,RESERVOIR_GATE_BLOCKED,RESERVOIR_GATE_PASS,yes,"All four H2O-lump PR binaries must pass physical validation."
+CPA_CALIBRATION,CPA_GATE_BLOCKED,CPA_GATE_PASS,yes,"CPA physical/BIP/association validation must pass independently."
+DENSITY_VALIDATION,DENSITY_GATE_BLOCKED,DENSITY_GATE_PASS,yes,"Density validation must pass without fitting on validation rows."
+VISCOSITY_VALIDATION,VISCOSITY_GATE_BLOCKED,VISCOSITY_GATE_PASS,yes,"Intrinsic and coupled transport validation must pass."
+ZERO_D_PVT_RUNTIME,NOT_RUN,ZERO_D_PVT_GATE_PASS,yes,"Run both PR and CPA on the registered T-P-z scan."
+FAIR_FLOW_COMPARISON,FLOW_GATE_BLOCKED,FLOW_GATE_PASS,yes,"Requires every dependency above; flow results themselves cannot promote the EOS."
