@@ -215,6 +215,24 @@ The exact field contract is machine-readable in:
 
 \`porous_media/producer_composition_output_contract.csv\`.
 
+## Runtime smoke evidence
+
+The first-class output path has been compiled and executed through a real SCW kerogen reservoir case.
+
+A one-accepted-step \`scw_kerogen_lmh_1d\` smoke run generated \`producer_composition.csv\` from the production well-source kernel.
+
+The accepted row satisfied:
+
+- instantaneous producer mass fractions sum to 1;
+- cumulative component production is finite and non-negative;
+- each \(RF_i\) is finite for components with positive initial inventory;
+- \`RF_total_hydrocarbon\` is finite and non-negative;
+- instantaneous and cumulative \(E_{L/H}\) are finite and positive.
+
+For the homogeneous short-step regression, all hydrocarbon component recovery fractions and total hydrocarbon recovery are approximately \(2.50006\times10^{-5}\), while \(E_{L/H}=1\). This is the expected no-selectivity control behavior and demonstrates that the metric does not manufacture a lightening signal when components are produced proportionally.
+
+The formal laboratory PVI remains undefined in this legacy smoke because no measured operating-condition \(PV_\mathrm{eff}\) is supplied. The writer intentionally leaves PVI as NaN rather than inserting a geometric or literature pore volume.
+
 ## Formal paired comparison
 
 At matched PVI, the 360/380 comparison must report:
