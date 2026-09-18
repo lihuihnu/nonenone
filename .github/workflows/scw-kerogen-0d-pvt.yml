@@ -39,6 +39,7 @@ jobs:
         run: |
           cat tools/example/scw_kerogen_0d_pvt_acceptance/results/zero_d_pvt_gate.csv || true
           cat tools/example/scw_kerogen_0d_pvt_acceptance/results/cross_eos_initial_state.csv || true
+          cat tools/example/scw_kerogen_0d_pvt_acceptance/results/scw_temperature_control_0d.csv || true
 
       - name: Upload 0D PVT results
         if: always()
