@@ -192,6 +192,45 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 
 旧 `scw_kerogen_common` 中 `phi=0.35`、`kx=ky=1500 mD`、`kz=150 mD`、`L=1.2 m` 已明确降级为 legacy numerical values，不允许直接作为新的实验可复现实验参数。
 
+## 井控改为实验流量尺度反推
+
+实验 slab 的井控不再采用旧 benchmark 的“等储层体积注采”。
+
+新的控制契约见 `13_LAB_FLOW_CONTROL_AND_PVI.md` 与：
+
+- `porous_media/flow_control_contract.csv`
+- `porous_media/darcy_flow_scale.csv`
+- `porous_media/flow_control_gate.csv`
+
+控制模式固定为：
+
+- injector：`ReservoirTotalRate` 主控制 + `maximumBhp` 安全/有效域限制；
+- producer：fixed `Bhp`。
+
+设计压力中心取约 `28 MPa`，但注采压差不预设。实验装置/试件给出 `L / A / k / PV_eff` 且黏度验证通过后，先由
+
+[
+Q_{m inj}=r_{m PVI}PV_{m eff}
+]
+
+和
+
+[
+Delta p_{m Darcy}simrac{mu LQ}{kA}
+]
+
+反推实验可测的流速、压降和 residence time，再确定 producer BHP、expected injector pressure 与 injector maximum BHP。
+
+当前 0D PVT 已验证约 `25–30 MPa`，因此第一阶段井压也必须保持在该窗口内；若需要超出，则必须先扩展并重跑 0D PVT gate。
+
+最终流动结果的主时间坐标统一为**实际累计注入 PVI**：
+
+[
+mathrm{PVI}(t)=rac{int_0^t Q_{m inj,actual,res}(	au),d	au}{PV_{m eff}}.
+]
+
+如果 injector 因 maximum BHP 切换控制，PVI 使用实际注入量而不是 nominal target rate。物理时间仍保存，但不再只用“天”比较不同实验。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
@@ -214,7 +253,7 @@ ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、
 
 旧 `benchmark_2d_common.hpp` 的 `1.20 m × 0.10 m × 0.10 m`、`phi=0.35`、`1500/150 mD` 仅保留为 legacy numerical benchmark，不属于新的实验设计。
 
-**这些流动设置当前不执行。** 0D PVT 数值门禁已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation、viscosity validation，以及 laboratory porous-media/slab gate。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
+**这些流动设置当前不执行。** 0D PVT 数值门禁已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation、viscosity validation、laboratory porous-media/slab gate，以及 experiment-derived flow-control gate。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
 
 ## 当前工作顺序
 
