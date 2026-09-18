@@ -150,9 +150,17 @@ public:
                 return reduced;
         }
 
-        // SW 仍保留其专用的 exact-mass allocation basin search；PR/CPA 不进入
-        // 这一与 aqueous-role 参数化绑定的恢复层。
-        if (eos_.usesSoreideWhitson())
+        // Exact-mass allocation is a fail-only basin search. SW keeps
+        // its historical use. The Jia external CPA audit may opt in after
+        // ordinary active-set/direct/reduced paths have all failed; active
+        // phase root identities remain fixed by phaseResult_ and no EOS
+        // parameter/stability criterion is changed. Production CPA keeps the
+        // option false and therefore does not enter this recovery layer.
+        const bool useAllocationRecovery =
+            eos_.usesSoreideWhitson() ||
+            (eos_.usesCubicPlusAssociation() &&
+             options_.cpaSelectGibbsMinimumRoot);
+        if (useAllocationRecovery)
         {
             Result allocated = flashThreeAllocationFallback_(
                 pressure, temperature, z);
