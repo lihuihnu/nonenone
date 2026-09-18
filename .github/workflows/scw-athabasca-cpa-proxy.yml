@@ -1,0 +1,60 @@
+name: SCW Athabasca CPA proxy benchmark
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_athabasca_water_proxy.csv'
+      - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
+      - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-athabasca-cpa-proxy.yml'
+  pull_request:
+    paths:
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_athabasca_water_proxy.csv'
+      - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
+      - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-athabasca-cpa-proxy.yml'
+
+jobs:
+  athabasca-cpa-proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile external CPA proxy benchmark
+        run: make -C tools bin/cpa_athabasca_bitumen_water CXX=g++
+
+      - name: Run Athabasca bitumen-water benchmark
+        run: make -C tools run-cpa-athabasca-bitumen-water CXX=g++
+
+      - name: Run focused CPA contract regression
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            test/src/unit/thermodynamic_failure_modes_test.cpp \
+            -o /tmp/thermodynamic_failure_modes_test
+          /tmp/thermodynamic_failure_modes_test
+
+      - name: Show benchmark metrics
+        if: always()
+        run: |
+          cat tools/example/cpa_athabasca_bitumen_water/results/benchmark_gate.csv || true
+          cat tools/example/cpa_athabasca_bitumen_water/results/metrics.csv || true
+          cat tools/example/cpa_athabasca_bitumen_water/results/water_solubility_comparison.csv || true
+
+      - name: Upload Athabasca CPA proxy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-athabasca-cpa-proxy
+          path: tools/example/cpa_athabasca_bitumen_water/results/
+          if-no-files-found: error
