@@ -284,9 +284,13 @@ public:
 
             const bool hasPureEnergy = options.associationEnergy[idx] > 0.0;
             const bool hasPureVolume = options.associationVolume[idx] > 0.0;
-            if (hasPureEnergy != hasPureVolume)
+            if (hasPureEnergy && !hasPureVolume)
                 throw std::invalid_argument(
-                    "CPA self-association requires pure epsilon and beta together.");
+                    "CPA self-association requires a positive pure beta when epsilon is positive.");
+            // epsilon=0 with beta>0 is intentionally allowed for a
+            // cross-association-only (solvating) component.  The pure beta is
+            // then provenance for the CR-1-style solvation parameterization;
+            // it cannot create self bonds because the pure epsilon is zero.
             if (hasPureEnergy)
                 continue;
 
