@@ -111,9 +111,10 @@ jobs:
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/diag_60x20_B_200s"
           mkdir -p "$root"
-          # Four 50-s output intervals: this diagnostic intentionally stops at
-          # 200 s unless the nonlinear failure occurs first.
-          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0005787037037037037 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
+          # Preserve the production 60-s output alignment exactly. Four
+          # intervals provide a 240-s safety horizon; the run64 defect occurred
+          # near 174 s, so the diagnostic should fail before the fourth output.
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 -ksp_type preonly -pc_type lu"
           set +e
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/run.log" 2>&1
           rc=$?
