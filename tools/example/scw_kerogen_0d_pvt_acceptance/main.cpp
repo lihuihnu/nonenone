@@ -22,6 +22,8 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
