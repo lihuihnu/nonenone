@@ -6,6 +6,59 @@
  */
 
     /**
+     * @brief 对当前状态的所有 owned-cell outward internal-face flux 做 MPI 有符号和。
+     *
+     * Closed reservoir 中每个 interior face 会从两侧各出现一次。若离散面通量
+     * 严格 conservative，这些 reciprocal contributions 应逐组分相互抵消到
+     * roundoff。非零结果直接量化 internal-face pair 的全局不反对称量 [kg/s]。
+     */
+    [[nodiscard]] NaturalGlobalSignedMassResidual<Indices>
+    evaluateGlobalInternalFaceFluxImbalance(Vec solution) const
+    {
+        requireReadyForResidual_();
+        requireVector_(solution, "solution");
+
+        constexpr std::size_t n =
+            static_cast<std::size_t>(Indices::numComponents);
+        constexpr std::size_t waterOffset = n;
+        constexpr std::size_t count =
+            n + (Indices::hasIndependentWaterConservation ? std::size_t(1) : std::size_t(0));
+        std::array<double, count> local{};
+        std::array<double, count> global{};
+
+        const auto &cache = buildCellCache_(solution);
+        const auto &map = backend_.dofMap(
+            static_cast<PetscInt>(Indices::numPrimaryVariables));
+
+        for (const Cell cell : ownedCells_)
+        {
+            const PetscInt localBlock = map.localBlockIndex(cell);
+            FaceMassFlux<Indices, double> outward{};
+            accumulateOutwardFaceFluxValue_(
+                cell, localBlock, cache, outward);
+
+            for (std::size_t c = 0; c < n; ++c)
+                local[c] += outward.component[c];
+            if constexpr (Indices::hasIndependentWaterConservation)
+                local[waterOffset] += outward.water;
+        }
+
+        PetscCallMPIAbort(
+            backend_.communicator(),
+            MPI_Allreduce(
+                local.data(), global.data(), static_cast<int>(count),
+                MPI_DOUBLE, MPI_SUM, backend_.communicator()));
+
+        NaturalGlobalSignedMassResidual<Indices> result;
+        for (std::size_t c = 0; c < n; ++c)
+            result.component[c] = global[c];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            result.independentWater = global[waterOffset];
+        return result;
+    }
+
+
+    /**
      * @brief 对当前 PETSc residual 的守恒质量行做 MPI 全局有符号求和。
      *
      * PETSc Vec 中保存的是生产求解器实际使用的 scaled residual；这里按每行
