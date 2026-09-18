@@ -11,7 +11,7 @@ The mandatory pair is:
 - **control:** 360 °C / 28 MPa;
 - **SCW test:** 380 °C / 28 MPa.
 
-Water's critical point is approximately 373.946 °C and 22.064 MPa. At 360 °C the temperature is below the critical temperature; because 28 MPa is above the saturation pressure for any subcritical temperature this close to the critical point, the water reference state is compressed liquid. At 380 °C and 28 MPa, both temperature and pressure exceed the critical values, so the water reference state is supercritical.
+Water's critical point is approximately 373.946 °C and 22.064 MPa. At 360 °C the temperature is below the critical temperature; because 28 MPa is above the saturation pressure for a subcritical state this close to the critical point, the water reference state is compressed liquid. At 380 °C and 28 MPa, both temperature and pressure exceed the critical values, so the water reference state is supercritical.
 
 The experiment is therefore a controlled crossing of the water critical temperature at the same nominal pressure.
 
@@ -46,7 +46,7 @@ The formal pair shares:
 
 The only prescribed state-variable change is temperature.
 
-The machine-readable definition is `porous_media/scw_temperature_control_pair.csv`.
+The machine-readable definition is \`porous_media/scw_temperature_control_pair.csv\`.
 
 ## Two levels of interpretation
 
@@ -96,29 +96,31 @@ This separation lets the project distinguish:
 
 The formal pair uses the same target **PVI rate**:
 
-[
-r_mathrm{PVI,360}=r_mathrm{PVI,380}.
-]
+\[
+r_{\mathrm{PVI},360}
+=
+r_{\mathrm{PVI},380}.
+\]
 
 For each run,
 
-[
-Q_mathrm{inj,target}(T)
+\[
+Q_\mathrm{inj,target}(T)
 =
-r_mathrm{PVI}PV_mathrm{eff}(T,p).
-]
+r_\mathrm{PVI}PV_\mathrm{eff}(T,p).
+\]
 
-If measured (PV_mathrm{eff}) changes slightly with temperature, the physical volumetric rate may therefore differ correspondingly. This is not an independent tuning variable; it is the consequence of holding the dimensionless residence/PVI scale fixed.
+If measured \(PV_\mathrm{eff}\) changes slightly with temperature, the physical volumetric rate may therefore differ correspondingly. This is not an independent tuning variable; it is the consequence of holding the dimensionless residence/PVI scale fixed.
 
-A supplementary same-(Q) engineering comparison may be reported, but it does not replace the primary matched-PVI experiment.
+A supplementary same-\(Q\) engineering comparison may be reported, but it does not replace the primary matched-PVI experiment.
 
 ## Pressure-control matching
 
 Both runs use the same design pressure center:
 
-[
-p_c = 28 mathrm{MPa}.
-]
+\[
+p_c=28\ \mathrm{MPa}.
+\]
 
 The same control law is used in both experiments:
 
@@ -133,21 +135,23 @@ Because viscosity changes strongly with temperature, the injector BHP and slab p
 
 The formal pair requires a dedicated 0D anchor before flow:
 
-[
-z=z_mathrm{BASE},quad z_mathrm{H2O}=0.20,quad p=28 mathrm{MPa}
-]
+\[
+z=z_\mathrm{BASE},\qquad
+z_\mathrm{H2O}=0.20,\qquad
+p=28\ \mathrm{MPa}
+\]
 
 at both:
 
-[
-T=633.15 mathrm{K}
-]
+\[
+T=633.15\ \mathrm{K}
+\]
 
 and
 
-[
-T=653.15 mathrm{K}.
-]
+\[
+T=653.15\ \mathrm{K}.
+\]
 
 PR and CPA must each independently pass:
 
@@ -158,11 +162,11 @@ PR and CPA must each independently pass:
 - fugacity closure;
 - finite positive density and viscosity.
 
-The existing broad 25–30 MPa scan already contains these states, but the formal experiment records them as named paired anchors rather than relying only on their membership in a large scan.
+The existing broad 25–30 MPa scan contains these states, but the formal experiment now records them as named paired anchors rather than relying only on their membership in a large scan.
 
 ## Primary observables
 
-The required observables are registered in `porous_media/scw_temperature_control_observables.csv`.
+The required observables are registered in \`porous_media/scw_temperature_control_observables.csv\`.
 
 ### Thermodynamic observables
 
@@ -187,41 +191,41 @@ At matched PVI:
 
 ### Component-selective transport
 
-For each conserved pseudo-component (i), define
+For each conserved pseudo-component \(i\), define
 
-[
-RF_i(mathrm{PVI})
+\[
+RF_i(\mathrm{PVI})
 =
-rac{M_{i,mathrm{produced,cumulative}}}
-     {M_{i,mathrm{initial in place}}}.
-]
+\frac{M_{i,\mathrm{produced,cumulative}}}
+     {M_{i,\mathrm{initial\ in\ place}}}.
+\]
 
 A simple effluent enrichment metric is
 
-[
+\[
 E_i
 =
-rac{w_{i,mathrm{produced}}}
-     {w_{i,mathrm{initial}}},
-]
+\frac{w_{i,\mathrm{produced}}}
+     {w_{i,\mathrm{initial}}},
+\]
 
 reported only where the denominator is nonzero.
 
 Pairwise selective transport may be summarized as
 
-[
+\[
 S_{ij}
 =
-rac{RF_i}{RF_j}.
-]
+\frac{RF_i}{RF_j}.
+\]
 
 The temperature effect is then compared at the same PVI, for example
 
-[
-Delta RF_i
+\[
+\Delta RF_i
 =
 RF_{i,380}-RF_{i,360}.
-]
+\]
 
 This directly addresses whether light, middle and heavy pseudo-components are transported differently after crossing the water critical state.
 
@@ -234,7 +238,7 @@ A formal laboratory claim requires control of specimen history.
 Preferred practice is:
 
 - specimens cut/packed from the same characterized batch;
-- matched (phi), (k) and PV before the run;
+- matched \(\phi\), \(k\) and PV before the run;
 - identical feed preparation;
 - identical pressure and flow-control protocol;
 - record run order and thermal exposure;
@@ -248,15 +252,15 @@ PR and CPA are each evaluated with the same 360/380 pair.
 
 The scientific comparisons are therefore:
 
-[
-mathrm{PR}_{380}-mathrm{PR}_{360}
-]
+\[
+\mathrm{PR}_{380}-\mathrm{PR}_{360}
+\]
 
 and
 
-[
-mathrm{CPA}_{380}-mathrm{CPA}_{360}.
-]
+\[
+\mathrm{CPA}_{380}-\mathrm{CPA}_{360}.
+\]
 
 Only after those within-EOS temperature effects are established should the project compare whether PR and CPA predict different magnitudes or mechanisms.
 
@@ -266,7 +270,7 @@ A visually appealing 380 °C flow result is not evidence that an EOS is more phy
 
 The formal temperature-control gate is in:
 
-`porous_media/scw_temperature_control_gate.csv`.
+\`porous_media/scw_temperature_control_gate.csv\`.
 
 The pair definition is accepted, but flow remains blocked until:
 
