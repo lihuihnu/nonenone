@@ -146,7 +146,21 @@ jobs:
           assert 'E_L_over_H_cumulative_mass' in fields
           assert 'cumulative_injected_reservoir_m3' in fields
           assert 'pvi' in fields
-          print('[PASS] producer_composition.csv first-class columns present')
+
+          accepted = producer[-1]
+          y_cols = [f for f in fields if f.startswith('Y_')]
+          y = [float(accepted[f]) for f in y_cols]
+          assert all(v == v for v in y), y
+          assert abs(sum(y) - 1.0) < 1e-10, sum(y)
+
+          rf_total = float(accepted['RF_total_hydrocarbon'])
+          e_inst = float(accepted['E_L_over_H_instant_mass'])
+          e_cum = float(accepted['E_L_over_H_cumulative_mass'])
+          assert rf_total == rf_total and rf_total >= 0.0, rf_total
+          assert e_inst == e_inst and e_inst > 0.0, e_inst
+          assert e_cum == e_cum and e_cum > 0.0, e_cum
+
+          print('[PASS] producer_composition.csv first-class values are finite and normalized')
           PY
 
       - name: Upload producer output smoke artifact
