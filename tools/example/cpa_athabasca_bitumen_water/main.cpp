@@ -270,14 +270,22 @@ Eos makeJiaCase1Cpa()
             0.480 + 1.574 * omega[i] - 0.176 * omega[i] * omega[i];
     }
 
-    // Standard 4C water.
-    cpa.a0[water] = MPMC::StandardCpaWater4C::a0;
-    cpa.b[water] = MPMC::StandardCpaWater4C::b;
-    cpa.c1[water] = MPMC::StandardCpaWater4C::c1;
-    cpa.associationEnergy[water] = MPMC::StandardCpaWater4C::epsilon;
-    cpa.associationVolume[water] = MPMC::StandardCpaWater4C::beta;
-    cpa.donorSites[water] = MPMC::StandardCpaWater4C::donorSites;
-    cpa.acceptorSites[water] = MPMC::StandardCpaWater4C::acceptorSites;
+    // Jia & Okuno (2018) Case-1 water parameters as printed in the
+    // article.  Keep these rounded publication values isolated in this
+    // external reproduction benchmark rather than silently substituting the
+    // repository's higher-precision StandardCpaWater4C constants.
+    constexpr double jiaWaterA0 = 0.1227;   // 0.0001227 kPa m6/mol2
+    constexpr double jiaWaterB = 1.45e-5;  // m3/mol
+    constexpr double jiaWaterC1 = 0.6735;
+    constexpr double jiaWaterEpsilon = 16655.0; // J/mol
+    constexpr double jiaWaterBeta = 0.0692;
+    cpa.a0[water] = jiaWaterA0;
+    cpa.b[water] = jiaWaterB;
+    cpa.c1[water] = jiaWaterC1;
+    cpa.associationEnergy[water] = jiaWaterEpsilon;
+    cpa.associationVolume[water] = jiaWaterBeta;
+    cpa.donorSites[water] = 2;
+    cpa.acceptorSites[water] = 2;
 
     // Jia & Okuno Table 4 asphaltene: 4C self association.
     cpa.a0[asphaltene] = 0.05202 * 1000.0; // kPa m6/mol2 -> Pa m6/mol2
@@ -300,9 +308,9 @@ Eos makeJiaCase1Cpa()
         cpa.donorSites[pc] = 0;
         cpa.acceptorSites[pc] = 1;
         cpa.crossAssociationEnergy[water][pc] =
-            0.5 * MPMC::StandardCpaWater4C::epsilon;
+            0.5 * jiaWaterEpsilon;
         cpa.crossAssociationVolume[water][pc] =
-            std::sqrt(MPMC::StandardCpaWater4C::beta * 0.07);
+            std::sqrt(jiaWaterBeta * 0.07);
     }
 
     // Water/asphaltene cross association is intentionally left to the
