@@ -61,7 +61,7 @@ squalane 仅保留为**重饱和烃 benchmark**，其参考数据独立保存在
 
 ## 零流动 PR 标定是进入储层前的硬门槛
 
-在任何 60×20×1 或其它储层流动算例开始前，必须分别完成：
+在任何 60×20×1 实验尺度 slab 或其它流动算例开始前，必须分别完成：
 
 - `H2O–OIL_GASOLINE`
 - `H2O–OIL_DIESEL`
@@ -198,11 +198,23 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 
 ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、paired mass-fraction prior 和内部 carbon-number characterization。两套样品身份保持隔离，不能把 secondary paired 数据重新标成 primary raw-shale measurement。
 
-## 储层数值实验（冻结）
+## 实验尺度 pseudo-3D slab（冻结）
 
-计划中的伪三维单层结构仍保留为后续目标：`60 x 20 x 1`、均质岩石、等温全组分多相流、左侧注水右侧生产、380 °C / 25 MPa 主工况及 360 °C / 25 MPa 对照。
+后续流动模型保留规则 `60×20×1` 拓扑，但**不再预设物理尺寸**。完整定义见 `12_LAB_PSEUDO3D_SLAB_DESIGN.md`。
 
-**这些流动设置当前不执行。** 0D PVT 数值门禁已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation、viscosity validation，以及新的 laboratory porous-media gate。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
+- `nx=60, ny=20, nz=1`：固定离散拓扑；
+- `Lx/Ly/Lz`：由实际高温高压 slab/core-holder 的有效流动尺寸决定；
+- `dx=Lx/60, dy=Ly/20, dz=Lz`：装置尺寸确定后自动派生；
+- 第一阶段全部单元使用同一实测 `phi` 与 `k`，或同一实测常量各向异性张量；
+- 第一阶段禁止随机渗透率/孔隙度场，地质非均质性后置；
+- inlet/outlet manifold、压力测点与有效流动截面均由实验装置决定，不继承旧 point-well 几何；
+- `nz=1` 仅代表厚度平均的 pseudo-3D slab，不能用于宣称解析真实三维垂向重力分异。
+
+如果 slab 竖直且把模型 `y` 方向定义为物理竖直，可以研究 `ny=20` 网格上的**二维平面内浮力分异**；若重力方向垂直于 slab 平面，则 `nz=1` 无法解析厚度方向的饱和度/组分分层，必须改用 `nz>1` 的真正 3-D 模型。
+
+旧 `benchmark_2d_common.hpp` 的 `1.20 m × 0.10 m × 0.10 m`、`phi=0.35`、`1500/150 mD` 仅保留为 legacy numerical benchmark，不属于新的实验设计。
+
+**这些流动设置当前不执行。** 0D PVT 数值门禁已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation、viscosity validation，以及 laboratory porous-media/slab gate。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
 
 ## 当前工作顺序
 
