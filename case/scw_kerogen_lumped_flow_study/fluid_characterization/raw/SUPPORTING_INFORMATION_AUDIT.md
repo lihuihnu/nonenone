@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit follows the locked research object in `01_RESEARCH_OBJECT.md`: the Tongchuan Chang 7 low-maturity raw shale studied by Zhao et al. at 380 °C, 25 MPa and 4 h. The purpose is to recover primary supplementary data before any Light/Middle/Heavy lumping.
+This audit follows the locked research object used by this case: the Tongchuan Chang 7 low-maturity raw shale studied by Zhao et al. at 380 °C, 25 MPa and 4 h. The purpose is to recover primary supplementary data before any Light/Middle/Heavy lumping.
 
 ## 1. RSC ESI — recovered
 
@@ -25,7 +25,7 @@ The article text reports an H2 proportion of 26.9% at 380 °C. The ESI Table S3 
 - no CH4/CO2/C2/C3+ percentages are invented by normalization until the reporting basis is reconciled;
 - this discrepancy is a data-basis audit item, not a license to alter either source value.
 
-## 2. ACS 2023 Supporting Information — existence verified, full numeric tables not recovered here
+## 2. ACS 2023 Supporting Information — public record located, numeric PDF not yet recovered
 
 Paired study: Zhao et al., *Industrial & Engineering Chemistry Research* (2023), DOI `10.1021/acs.iecr.3c02759`.
 
@@ -37,9 +37,16 @@ The ACS article explicitly states that its Supporting Information contains:
 - detailed syngas-component data;
 - detailed generated-oil data.
 
-The ACS page exposes the SI as a PDF/figshare item, but the complete numerical SI content was not retrievable through the current connected research interface. Therefore no table values have been guessed or transcribed from unavailable material.
+A 2026-09-18 access re-check located the public ACS Figshare records:
 
-This study uses acid-pickled Type-II kerogen rather than the locked raw-shale sample. Even after the SI is obtained, its generated-oil/simulated-distillation data must remain a secondary paired dataset and cannot replace the primary raw-shale composition.
+- collection: `6876126`;
+- journal-contribution record: `24291372`;
+- collection URL: `https://acs.figshare.com/collections/Experimental_Study_on_Hydrocarbon_Generation_Characteristics_of_Type_II_Kerogen_from_Low-Maturity_Shale_in_Supercritical_Water/6876126`;
+- journal-contribution URL: `https://acs.figshare.com/articles/journal_contribution/Experimental_Study_on_Hydrocarbon_Generation_Characteristics_of_Type_II_Kerogen_from_Low-Maturity_Shale_in_Supercritical_Water/24291372`.
+
+This improves the previous access state: the SI object is no longer merely known to exist on the publisher page; its public Figshare records are now uniquely identified. However, the connected research interface did not expose the underlying `sifile1` PDF bytes or a machine-readable file download during this re-check, so no SI table values are transcribed here.
+
+The study uses acid-pickled Type-II kerogen rather than the locked raw-shale sample. Even after its SI is recovered, generated-oil/simulated-distillation data must remain a secondary paired dataset and cannot replace the primary raw-shale composition.
 
 ## 3. Search for same-team / same-sample GC, GC-MS or simulated-distillation data
 
@@ -57,8 +64,21 @@ DOI `10.1016/j.geoen.2023.211553` studies related low-maturity shale in sub/supe
 
 DOI `10.1016/j.jaap.2026.107757` includes a Chang-7 Type-II1 source-rock sample and reports a 380 °C oil yield of 234.1 mg/g TOC. This differs materially from the locked primary sample's approximately 352 mg/g TOC, so it cannot be assumed to be the same physical sample or product dataset. It is retained as contextual evidence only until its sample table is matched explicitly.
 
+### 2026-09-18 targeted literature re-check
+
+Targeted searches using the locked Tongchuan identifiers (`Tongchuan`, `TOC 15.11 wt%`, Zhao/Dong/Xie/Jin/Guo authorship, the exact RSC DOI and the reported 352.1 mg/g TOC oil-yield anchor) did not locate an additional publication that exposes a machine-readable 380 °C carbon-number distribution or simulated-distillation table for the same physical raw-shale sample.
+
+This is evidence of a search attempt, not proof that unpublished or inaccessible data do not exist. The acceptance rule remains: a different Chang-7 sample cannot be promoted to primary evidence by similarity alone.
+
 ## 4. Current conclusion
 
 The RSC ESI resolves the primary sample's exact 380 °C SARA and gas-yield observations, including duplicate spread. However, no same-physical-sample 380 °C machine-readable carbon-number distribution, GC/GC-MS oil table, or simulated-distillation table has yet been located.
 
 Therefore the remaining critical characterization gap is not SARA; it is the boiling/carbon-number distribution needed to turn the real recovered oil into defensible EOS pseudo-components.
+
+For M1, the next useful evidence-producing action is one of:
+
+1. recover author/publisher same-sample GC or simulated-distillation data;
+2. obtain the raw generated-oil characterization directly from the authors;
+3. measure carbon-number/simulated-distillation data on the same experimental product;
+4. if only secondary data are available, keep them as labelled priors/sensitivity ranges rather than claiming the M1 mass-fraction gate is passed.
