@@ -6,6 +6,7 @@
  * This executable reuses production CubicEquationOfState,
  * CubicThreePhaseFlash, stabilityTest and phase-diagram utilities.
  */
+#include <common/math.hpp>
 #include <common/units.hpp>
 #include <indices/indices.hpp>
 #include <indices/model_config.hpp>
