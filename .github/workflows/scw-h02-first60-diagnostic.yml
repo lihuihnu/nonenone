@@ -1,0 +1,78 @@
+name: H02 first-60s mass diagnosis
+on:
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths:
+      - 'case/scw_h02_2d/diagnose_first60.py'
+      - '.github/workflows/scw-h02-first60-diagnostic.yml'
+      - 'case/scw_h02_2d/**'
+      - 'case/scw_h02_2d_a/**'
+      - 'models/include/natural/**'
+      - 'models/include/well/**'
+      - 'AdaptiveTimeStepper/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+      - name: Configure and build B/C
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_ROOT}
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := ${RUNNER_TEMP}/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          sed -i 's/^clean::/clean:/' case/Makefile
+          make case CASE=scw_h02_2d -j2
+      - name: Run 60-second differential matrix
+        run: |
+          set -euo pipefail
+          mkdir -p h02-first60
+          BASE="-h02_nx 20 -h02_ny 8 -numSteps 1 -dt 0.0006944444444444445 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu -out_step 1"
+          run_case () {
+            name=$1; mode=$2; extra=$3
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-first60/$name" RUN_ARGS="-h02_mode $mode $BASE $extra" > "h02-first60/$name.log" 2>&1
+          }
+          run_case B_base B ""
+          run_case C_base C ""
+          run_case B_no_stol B "-snes_stol 1e-100"
+          run_case C_no_stol C "-snes_stol 1e-100"
+          run_case B_dt1 B "-dt_max 0.000011574074074074073"
+          run_case C_dt1 C "-dt_max 0.000011574074074074073"
+          run_case B_no_stol_dt1 B "-snes_stol 1e-100 -dt_max 0.000011574074074074073"
+          run_case C_no_stol_dt1 C "-snes_stol 1e-100 -dt_max 0.000011574074074074073"
+      - name: Summarize
+        run: |
+          python3 case/scw_h02_2d/diagnose_first60.py h02-first60 h02-first60/summary.csv
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: h02-first60-diagnostic
+          path: h02-first60/
+          if-no-files-found: error
