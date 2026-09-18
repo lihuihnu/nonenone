@@ -1,5 +1,9 @@
 item,status,blocking_for_flow,acceptance_rule
 physical_medium_identity,PASS_REFERENCE_DEFINED,yes,"Choose actual fired Berea core/slab batch or explicitly choose a packed-sand slab; record batch/preparation."
+pseudo3d_grid_topology,PASS_DESIGN,yes,"Use fixed 60x20x1 topology with apparatus-defined Lx/Ly/Lz and uniform cells."
+apparatus_dimensions,OPEN,yes,"Measure effective slab Lx/Ly/Lz; numerical geometry must follow the apparatus."
+uniform_stage1_rock_field,PASS_DESIGN,yes,"Stage 1 forbids stochastic phi/k heterogeneity; use one measured value or constant measured tensor."
+gravity_scope_nz1,PASS_SCOPE,yes,"Only in-plane 2D buoyancy or gravity-off claims are allowed; true out-of-plane/3D vertical segregation claims are prohibited for nz=1."
 specimen_geometry,OPEN,yes,"Use measured cell/specimen dimensions; old 1.2 m x 0.1 m x 0.1 m abstract geometry is forbidden."
 specimen_porosity,OPEN,yes,"Measure the actual specimen/pack; literature values are priors only."
 absolute_permeability_ambient,OPEN,yes,"Measure actual specimen by Darcy flow."
