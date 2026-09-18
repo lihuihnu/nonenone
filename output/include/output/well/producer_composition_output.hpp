@@ -112,6 +112,16 @@ public:
                     << ",cum_" << token << "_produced_kg"
                     << ",RF_" << token;
             }
+            if (!options_.lightComponents.empty())
+                out << ",m_dot_Light_group_produced_kg_s"
+                    << ",Y_Light_group_mass_fraction"
+                    << ",cum_Light_group_produced_kg"
+                    << ",RF_Light_group";
+            if (!options_.heavyComponents.empty())
+                out << ",m_dot_Heavy_group_produced_kg_s"
+                    << ",Y_Heavy_group_mass_fraction"
+                    << ",cum_Heavy_group_produced_kg"
+                    << ",RF_Heavy_group";
             out << ",RF_total_hydrocarbon"
                 << ",E_L_over_H_instant_mass"
                 << ",E_L_over_H_cumulative_mass\n";
@@ -176,6 +186,10 @@ public:
                     << ',' << snapshot.cumulativeProducedKg[c]
                     << ',' << snapshot.recoveryFraction[c];
             }
+            if (!options_.lightComponents.empty())
+                writeGroup_(out, snapshot, options_.lightComponents);
+            if (!options_.heavyComponents.empty())
+                writeGroup_(out, snapshot, options_.heavyComponents);
             out << ',' << totalHydrocarbonRecovery_(snapshot)
                 << ',' << snapshot.instantaneousLightHeavyEnrichment
                 << ',' << snapshot.cumulativeLightHeavyEnrichment
@@ -256,6 +270,40 @@ private:
         if (options_.componentNames.size() != N)
             throw std::invalid_argument(
                 "Producer-composition component-name count mismatch.");
+    }
+
+    static void writeGroup_(
+        std::ostream &out,
+        const ProducerCompositionSnapshot<N> &snapshot,
+        const std::vector<int> &components)
+    {
+        double rate = 0.0;
+        double instantaneousFraction = 0.0;
+        double cumulative = 0.0;
+        double initial = 0.0;
+        for (int component : components)
+        {
+            if (component < 0 || component >= static_cast<int>(N))
+                throw std::out_of_range(
+                    "Producer composition group index is out of range.");
+            const std::size_t c = static_cast<std::size_t>(component);
+            rate += snapshot.instantaneousProducedRateKgPerS[c];
+            if (std::isfinite(snapshot.instantaneousMassFraction[c]))
+                instantaneousFraction += snapshot.instantaneousMassFraction[c];
+            else
+                instantaneousFraction =
+                    std::numeric_limits<double>::quiet_NaN();
+            cumulative += snapshot.cumulativeProducedKg[c];
+            initial += snapshot.initialInventoryKg[c];
+        }
+        const double recovery =
+            initial > 0.0
+                ? cumulative / initial
+                : std::numeric_limits<double>::quiet_NaN();
+        out << ',' << rate
+            << ',' << instantaneousFraction
+            << ',' << cumulative
+            << ',' << recovery;
     }
 
     [[nodiscard]] double totalHydrocarbonRecovery_(
