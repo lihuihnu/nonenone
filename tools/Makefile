@@ -22,13 +22,13 @@ MPMC_INCLUDES := \
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror $(MPMC_INCLUDES)
 
 BIN_DIR := bin
-EXAMPLES := pr_c2_c3_nc5 h2o_co2_ch4_nc16_three_eos three_eos_public_benchmark five_component_common_fit cpa_dme_co2_water_vlle heringer2025_bsb_three_phase scw_binary_calibration scw_pseudocomponent_binary_regression scw_kerogen_0d_pvt_acceptance
+EXAMPLES := pr_c2_c3_nc5 h2o_co2_ch4_nc16_three_eos three_eos_public_benchmark five_component_common_fit cpa_dme_co2_water_vlle heringer2025_bsb_three_phase scw_binary_calibration scw_pseudocomponent_binary_regression scw_kerogen_0d_pvt_acceptance scw_cpa_onset_audit
 EXAMPLE_BINS := $(addprefix $(BIN_DIR)/,$(EXAMPLES))
 
 PUBLIC_HEADERS := $(shell find include $(PROJECT_ROOT)/models/include $(PROJECT_ROOT)/indices/include \
 	$(PROJECT_ROOT)/common/include $(PROJECT_ROOT)/ad/include -type f \( -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
 
-.PHONY: all examples example run-example run-three-eos run-public-benchmark run-public-phase-diagrams redraw-public-phase-diagrams run-five-component-common-fit run-cpa-dme-vlle run-heringer2025-bsb run-scw-binary-calibration run-scw-pseudocomponent-binary-regression run-scw-kerogen-0d-pvt-acceptance require-scw-kerogen-0d-pvt-acceptance plot-cpa-dme-vlle plot-cpa-dme-vlle-by-pressure reference reference-three-eos clean
+.PHONY: all examples example run-example run-three-eos run-public-benchmark run-public-phase-diagrams redraw-public-phase-diagrams run-five-component-common-fit run-cpa-dme-vlle run-heringer2025-bsb run-scw-binary-calibration run-scw-pseudocomponent-binary-regression run-scw-kerogen-0d-pvt-acceptance require-scw-kerogen-0d-pvt-acceptance run-scw-cpa-onset-audit plot-cpa-dme-vlle plot-cpa-dme-vlle-by-pressure reference reference-three-eos clean
 
 all: examples
 
@@ -133,7 +133,7 @@ run-scw-pseudocomponent-binary-regression: $(BIN_DIR)/scw_pseudocomponent_binary
 
 
 run-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
-	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results
+	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results example/scw_cpa_onset_audit/results
 	@$(BIN_DIR)/scw_kerogen_0d_pvt_acceptance \
 		../case/scw_kerogen_lumped_flow_study \
 		example/scw_kerogen_0d_pvt_acceptance/results
@@ -141,6 +141,13 @@ run-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
 
 require-scw-kerogen-0d-pvt-acceptance: run-scw-kerogen-0d-pvt-acceptance
 	@echo "[PASS] hard prerequisite satisfied: zero-flow PVT is self-consistent"
+
+run-scw-cpa-onset-audit: $(BIN_DIR)/scw_cpa_onset_audit
+	@rm -rf example/scw_cpa_onset_audit/results
+	@$(BIN_DIR)/scw_cpa_onset_audit \
+		../case/scw_kerogen_lumped_flow_study \
+		example/scw_cpa_onset_audit/results
+	@echo "[PASS] frozen-parameter CPA onset audit completed"
 
 plot-cpa-dme-vlle: run-cpa-dme-vlle
 	@$(PYTHON) example/cpa_dme_co2_water_vlle/plot_results.py \
