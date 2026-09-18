@@ -247,6 +247,20 @@ Only the **cell-count topology** `60×20×1` is retained.
 
 A future executable laboratory case should read or compile in apparatus/specimen measurements explicitly and should fail if those values remain `TBD`.
 
+## Well-control coupling
+
+The apparatus geometry does not merely set cell dimensions; it also sets the experimental flow scale.
+
+Once (L_x,L_y,L_z), effective open area, measured (PV_{m eff}), (k) and validated viscosity are available, the well-control design follows `13_LAB_FLOW_CONTROL_AND_PVI.md`.
+
+The slab does not use equal injection and production rates.
+
+- injector: rate control with maximum-BHP limit;
+- producer: fixed BHP;
+- target rate: derived from PVI/residence-time scale;
+- pressure drop: checked first with a Darcy order-of-magnitude estimate;
+- final comparison coordinate: actual cumulative PVI.
+
 ## Entry-gate effect
 
 The geometry concept itself is accepted:
