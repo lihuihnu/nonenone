@@ -141,6 +141,7 @@ jobs:
           fields = rows[0].keys()
           for prefix in required_prefixes:
               assert any(f.startswith(prefix) for f in fields), prefix
+          assert 'RF_total_hydrocarbon' in fields
           assert 'E_L_over_H_instant_mass' in fields
           assert 'E_L_over_H_cumulative_mass' in fields
           assert 'cumulative_injected_reservoir_m3' in fields
