@@ -393,7 +393,7 @@ private:
         PetscInt globalEquationCount{0};
     };
 
-    static PetscErrorCode meshNormalizedConvergence_(
+    static PetscErrorCode meshNormalizedConvergenceTest_(
         SNES snes,
         PetscInt iteration,
         PetscReal xNorm,
@@ -507,17 +507,17 @@ private:
                 maxIterations,
                 maxFunctions));
 
-        meshNormalizedConvergence_.rmsAbsoluteTolerance = rmsTolerance;
-        meshNormalizedConvergence_.infinityAbsoluteTolerance =
+        meshNormalizedContext_.rmsAbsoluteTolerance = rmsTolerance;
+        meshNormalizedContext_.infinityAbsoluteTolerance =
             infinityTolerance;
-        meshNormalizedConvergence_.globalEquationCount = globalRows;
+        meshNormalizedContext_.globalEquationCount = globalRows;
 
         PetscCallAbort(
             PETSC_COMM_WORLD,
             SNESSetConvergenceTest(
                 snes_,
-                meshNormalizedConvergence_,
-                &meshNormalizedConvergence_,
+                meshNormalizedConvergenceTest_,
+                &meshNormalizedContext_,
                 nullptr));
 
         PetscPrintf(
@@ -532,7 +532,7 @@ private:
     SNES snes_{nullptr};
     Vec residual_{nullptr};
     Mat jacobian_{nullptr};
-    MeshNormalizedConvergenceContext meshNormalizedConvergence_{};
+    MeshNormalizedConvergenceContext meshNormalizedContext_{};
 };
 
 /**
