@@ -64,6 +64,12 @@ struct BoundaryPoint
     double pressureUncertaintyMPa{};
 };
 
+struct CalibrationPoint
+{
+    double temperatureK{};
+    double pressureMPa{};
+};
+
 struct OwStabilityState
 {
     bool valid{false};
@@ -189,6 +195,36 @@ std::vector<BoundaryPoint> readBoundaryReference(
     return points;
 }
 
+CalibrationPoint readCalibrationPoint(
+    const std::filesystem::path &path)
+{
+    std::ifstream in(path);
+    if (!in)
+        throw std::runtime_error(
+            "Cannot open Jia Step-4 calibration CSV: " + path.string());
+    std::string line;
+    if (!std::getline(in, line))
+        throw std::runtime_error("Jia Step-4 calibration CSV is empty.");
+    const auto header = splitCsv(line);
+    auto column = [&](const std::string &name) {
+        const auto it = std::find(header.begin(), header.end(), name);
+        if (it == header.end())
+            throw std::runtime_error(
+                "Missing calibration CSV column: " + name);
+        return static_cast<std::size_t>(std::distance(header.begin(), it));
+    };
+    const auto cT = column("T_K");
+    const auto cP = column("P_MPa");
+    if (!std::getline(in, line) || line.empty())
+        throw std::runtime_error(
+            "Jia Step-4 calibration CSV contains no data row.");
+    const auto row = splitCsv(line);
+    CalibrationPoint point;
+    point.temperatureK = std::stod(row.at(cT));
+    point.pressureMPa = std::stod(row.at(cP));
+    return point;
+}
+
 Composition bitumenComposition()
 {
     Composition z{0.0, 0.2664, 0.4925, 0.1360, 0.1041};
@@ -226,10 +262,11 @@ Composition feedFromWaterMassFraction(double waterMassFraction)
 
 Composition experimentalFeed()
 {
-    // Jia & Okuno Figure 7 caption states 55.9 wt% water + 44.1 wt%
-    // Athabasca bitumen.  The Amani thesis Table 2.5 labels the same six
-    // boundary points as 55.9 wt% bitumen + 44.1 wt% water.  Table-5 branch
-    // parity retains the Jia convention; Figure-7 boundary parity audits both.
+    // Table 5 reports equilibrium liquid compositions at fixed T/P rather than
+    // one unique global feed.  Retain the historical 55.9 wt% water numerical
+    // branch selector here so the Table-5 regression stays comparable.  This
+    // value is NOT used as the authoritative Figure-7 feed; Amani Table 2.5
+    // establishes that Figure-7 series as 55.9 wt% bitumen + 44.1 wt% water.
     return feedFromWaterMassFraction(0.559);
 }
 
@@ -701,6 +738,7 @@ BoundaryMetrics evaluateBoundaryConvention(
 int run(
     const std::filesystem::path &referencePath,
     const std::filesystem::path &boundaryPath,
+    const std::filesystem::path &calibrationPath,
     const std::filesystem::path &outputDir)
 {
     const auto points = readReference(referencePath);
@@ -710,6 +748,7 @@ int run(
     if (boundaryPoints.empty())
         throw std::runtime_error(
             "Athabasca Figure-7 boundary table contains no rows.");
+    const auto calibrationPoint = readCalibrationPoint(calibrationPath);
     std::filesystem::create_directories(outputDir);
 
     Eos eos = makeJiaCase1Cpa();
@@ -731,7 +770,10 @@ int run(
         outputDir / "figure7_boundary_comparison.csv");
     std::ofstream boundaryMetrics(
         outputDir / "figure7_boundary_metrics.csv");
-    if (!rows || !metrics || !gate || !boundaryRows || !boundaryMetrics)
+    std::ofstream calibrationAudit(
+        outputDir / "figure7_calibration_audit.csv");
+    if (!rows || !metrics || !gate || !boundaryRows || !boundaryMetrics ||
+        !calibrationAudit)
         throw std::runtime_error("Cannot create Athabasca benchmark outputs.");
 
     boundaryRows << std::scientific << std::setprecision(12)
@@ -930,12 +972,43 @@ int run(
             << maxAbsExperimental << ',' << maxUnrestrictedClosure << ','
             << maxOwBranchClosure << '\n';
 
-    const auto jiaCaptionBoundary = evaluateBoundaryConvention(
-        flash, boundaryPoints, "JIA_FIGURE7_CAPTION",
-        0.559, boundaryRows);
+    // Authoritative source: Amani Table 2.5 identifies this Figure-7
+    // series as 55.9 wt% Athabasca bitumen + 44.1 wt% water.  Jia Figure 7
+    // reverses those labels in its caption; retain that literal interpretation
+    // only as a typo-sensitivity diagnostic.
     const auto amaniTableBoundary = evaluateBoundaryConvention(
-        flash, boundaryPoints, "AMANI_TABLE_2_5",
+        flash, boundaryPoints, "AMANI_TABLE_2_5_AUTHORITATIVE",
         0.441, boundaryRows);
+    const auto jiaCaptionBoundary = evaluateBoundaryConvention(
+        flash, boundaryPoints, "JIA_FIGURE7_CAPTION_LITERAL_TYPO_DIAGNOSTIC",
+        0.559, boundaryRows);
+
+    const Composition authoritativeFeed = feedFromWaterMassFraction(0.441);
+    const auto calibrationIndependent = findWlvWlBoundary(
+        flash, calibrationPoint.temperatureK, authoritativeFeed);
+    const auto calibrationContinuation = findWlvWlBoundaryContinuation(
+        flash, calibrationPoint.temperatureK, authoritativeFeed);
+    const double calibrationIndependentResidual = calibrationIndependent.found
+        ? calibrationIndependent.pressureMPa - calibrationPoint.pressureMPa
+        : std::numeric_limits<double>::quiet_NaN();
+    const double calibrationContinuationResidual = calibrationContinuation.found
+        ? calibrationContinuation.pressureMPa - calibrationPoint.pressureMPa
+        : std::numeric_limits<double>::quiet_NaN();
+
+    calibrationAudit << std::scientific << std::setprecision(12)
+        << "T_K,experimental_P_MPa,independent_found,"
+           "independent_P_MPa,independent_signed_residual_MPa,"
+           "continuation_found,continuation_P_MPa,"
+           "continuation_signed_residual_MPa,interpretation\n"
+        << calibrationPoint.temperatureK << ','
+        << calibrationPoint.pressureMPa << ','
+        << (calibrationIndependent.found ? 1 : 0) << ','
+        << calibrationIndependent.pressureMPa << ','
+        << calibrationIndependentResidual << ','
+        << (calibrationContinuation.found ? 1 : 0) << ','
+        << calibrationContinuation.pressureMPa << ','
+        << calibrationContinuationResidual << ','
+        << "printed_Table4_parameters_audit_not_refit\n";
 
     constexpr double publishedBoundaryAadMPa = 0.771;
     // Jia & Okuno report only the aggregate boundary AAD, not the individual
@@ -972,11 +1045,11 @@ int run(
     writeBoundaryMetric(amaniTableBoundary);
 
     const bool boundaryRowsComplete =
-        jiaCaptionBoundary.found == boundaryPoints.size() &&
         amaniTableBoundary.found == boundaryPoints.size();
     const bool continuationRowsComplete =
-        jiaCaptionBoundary.continuationFound == boundaryPoints.size() &&
         amaniTableBoundary.continuationFound == boundaryPoints.size();
+    const bool calibrationRowsComplete =
+        calibrationIndependent.found && calibrationContinuation.found;
 
     // Table 5 is a branch-composition benchmark at experimental WLV-WL
     // transition points.  Therefore Stage 1 hard-gates reproducibility of the
@@ -996,49 +1069,45 @@ int run(
          << ",O+W branch MAE versus experiment; report-only until a preregistered parity tolerance is fixed\n";
     gate << "CPA_ATHABASCA_FIGURE7_BOUNDARY_ROWS,"
          << (boundaryRowsComplete ? "PASS" : "FAIL") << ','
-         << (jiaCaptionBoundary.found + amaniTableBoundary.found) << '/'
-         << (2 * boundaryPoints.size())
-         << ",both conflicting source feed conventions must yield one traceable WLV-WL boundary at every experimental temperature\n";
+         << amaniTableBoundary.found << '/' << boundaryPoints.size()
+         << ",authoritative Amani 55.9 wt% bitumen + 44.1 wt% water feed must yield one traceable WLV-WL boundary at every experimental temperature\n";
     gate << "CPA_ATHABASCA_FIGURE7_CONTINUATION_ROWS,"
          << (continuationRowsComplete ? "PASS" : "FAIL") << ','
-         << (jiaCaptionBoundary.continuationFound +
-             amaniTableBoundary.continuationFound) << '/'
-         << (2 * boundaryPoints.size())
-         << ",high-pressure-to-low-pressure seeded O+W continuation must trace a WLV-WL boundary at every source temperature\n";
-    gate << "CPA_ATHABASCA_FIGURE7_CALIBRATION_POINT,OBSERVE,"
-         << amaniTableBoundary.calibrationContinuationPressureMPa
-         << ",paper states one ~593.1 K boundary point was matched; original Amani table gives 593.0 K / 12.8 MPa, so report the frozen-parameter prediction without retuning\n";
-    gate << "CPA_ATHABASCA_FIGURE7_JIA_CAPTION_AAD,OBSERVE,"
-         << jiaCaptionBoundary.aadMPa
-         << ",audit against published 0.771 MPa AAD; Jia caption composition conflicts with the original Amani table\n";
-    gate << "CPA_ATHABASCA_FIGURE7_AMANI_TABLE_AAD,OBSERVE,"
+         << amaniTableBoundary.continuationFound << '/'
+         << boundaryPoints.size()
+         << ",metastable-branch diagnostic: seeded O+W continuation must remain traceable for all authoritative source temperatures\n";
+    gate << "CPA_ATHABASCA_FIGURE7_STEP4_CALIBRATION_POINT,"
+         << (calibrationRowsComplete ? "OBSERVE" : "FAIL") << ','
+         << calibrationIndependent.pressureMPa
+         << ",Amani Table-5.5 gives 593.1 K / 12.77 MPa; compare the frozen printed-Table4 CPA prediction without retuning\n";
+    gate << "CPA_ATHABASCA_FIGURE7_STEP4_CALIBRATION_RESIDUAL,OBSERVE,"
+         << calibrationIndependentResidual
+         << ",signed MPa residual at the separately registered Jia Step-4 calibration point; likely sensitive to printed-parameter rounding\n";
+    gate << "CPA_ATHABASCA_FIGURE7_AMANI_AAD,OBSERVE,"
          << amaniTableBoundary.aadMPa
-         << ",independent-solve audit against published 0.771 MPa AAD using the original Amani Table-2.5 composition label\n";
-    gate << "CPA_ATHABASCA_FIGURE7_AMANI_TABLE_CONTINUATION_AAD,OBSERVE,"
-         << amaniTableBoundary.continuationAadMPa
-         << ",seeded branch-continuation AAD using the original Amani Table-2.5 composition label\n";
-    gate << "CPA_ATHABASCA_FIGURE7_JIA_CAPTION_CONTINUATION_AAD,OBSERVE,"
-         << jiaCaptionBoundary.continuationAadMPa
-         << ",seeded branch-continuation AAD using the conflicting Jia Figure-7 caption composition\n";
+         << ",authoritative independent/global-root audit against Jia reported 0.771 MPa AAD\n";
     gate << "CPA_ATHABASCA_FIGURE7_PUBLISHED_AAD_DIFFERENCE,OBSERVE,"
-         << std::min(
-                jiaCaptionBoundary.publishedAadDifferenceMPa,
-                amaniTableBoundary.publishedAadDifferenceMPa)
-         << ",no hard tolerance until the source composition and CPA convention are reconciled; never tune parameters to match aggregate AAD\n";
+         << amaniTableBoundary.publishedAadDifferenceMPa
+         << ",absolute difference between authoritative production-CPA AAD and Jia reported 0.771 MPa; no parameter tuning\n";
+    gate << "CPA_ATHABASCA_FIGURE7_METASTABLE_CONTINUATION_AAD,OBSERVE,"
+         << amaniTableBoundary.continuationAadMPa
+         << ",seeded branch continuation is retained only to expose metastable-path behavior and is not the Jia global-root parity metric\n";
+    gate << "CPA_ATHABASCA_FIGURE7_CAPTION_TYPO_AAD,OBSERVE,"
+         << jiaCaptionBoundary.aadMPa
+         << ",literal reversed Jia caption feed retained only as a documented typo sensitivity diagnostic\n";
 
     std::cout << "Athabasca CPA proxy: O+W branch "
               << owBranchPassed << '/' << points.size()
               << ", unrestricted equilibrium " << unrestrictedPassed << '/'
               << points.size() << ", Table5 MAE(exp)=" << std::scientific
-              << maeExperimental << ", Figure7 independent AAD Jia-caption="
-              << jiaCaptionBoundary.aadMPa << " MPa, Amani-table="
+              << maeExperimental
+              << ", Figure7 authoritative AAD="
               << amaniTableBoundary.aadMPa
-              << " MPa; continuation AAD Jia-caption="
-              << jiaCaptionBoundary.continuationAadMPa
-              << " MPa, Amani-table="
-              << amaniTableBoundary.continuationAadMPa
-              << " MPa, published=0.771 MPa\n";
-    return (owBranchGate && boundaryRowsComplete && continuationRowsComplete)
+              << " MPa, published=0.771 MPa, Step4 printed-parameter "
+                 "calibration residual="
+              << calibrationIndependentResidual << " MPa\n";
+    return (owBranchGate && boundaryRowsComplete && continuationRowsComplete &&
+            calibrationRowsComplete)
         ? 0 : 2;
 }
 } // namespace
@@ -1047,14 +1116,14 @@ int main(int argc, char **argv)
 {
     try
     {
-        if (argc != 4)
+        if (argc != 5)
         {
             std::cerr
                 << "usage: cpa_athabasca_bitumen_water "
-                   "SOLUBILITY_CSV BOUNDARY_CSV OUTPUT_DIR\n";
+                   "SOLUBILITY_CSV BOUNDARY_CSV CALIBRATION_CSV OUTPUT_DIR\n";
             return 1;
         }
-        return run(argv[1], argv[2], argv[3]);
+        return run(argv[1], argv[2], argv[3], argv[4]);
     }
     catch (const std::exception &error)
     {
