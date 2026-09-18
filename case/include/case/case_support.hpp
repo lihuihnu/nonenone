@@ -1143,6 +1143,17 @@ private:
         options.printState = Config::Output::printComponentMassBalance;
         options.writeHistory = Config::Output::writeComponentMassBalance;
         options.printEveryOutputSteps = run.outputEvery;
+
+        PetscBool auditInternalFaces = PETSC_FALSE;
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetBool(
+                nullptr, nullptr,
+                "-audit_internal_face_conservation",
+                &auditInternalFaces, nullptr));
+        options.auditInternalFaceConservation =
+            auditInternalFaces == PETSC_TRUE;
+
         options.componentNames.reserve(static_cast<std::size_t>(Indices::numComponents));
         for (int c = 0; c < Indices::numComponents; ++c)
             options.componentNames.emplace_back(
