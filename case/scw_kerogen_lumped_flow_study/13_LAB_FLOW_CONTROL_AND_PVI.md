@@ -9,17 +9,17 @@ The control policy is:
 - injector: **reservoir-volume rate control + maximum BHP**;
 - producer: **fixed BHP**.
 
-The existing Natural well-control implementation already supports this mode. A rate-controlled injector may carry a `maximumBhp` limit; after a converged state violates that limit it switches to BHP control. The producer may remain under `Bhp` control.
+The existing Natural well-control implementation already supports this mode. A rate-controlled injector may carry a \`maximumBhp\` limit; after a converged state violates that limit it switches to BHP control. The producer may remain under \`Bhp\` control.
 
-The old SCW kerogen benchmark used equal reservoir injection/production rates to suppress bulk pressure depletion. That is a useful legacy numerical experiment, but it is not an experimental boundary condition and is rejected for the laboratory slab.
+The old SCW kerogen benchmark used equal reservoir injection/production rates to suppress bulk pressure depletion. That remains a useful legacy numerical experiment, but it is not an experimental boundary condition and is rejected for the laboratory slab.
 
 ## Pressure center
 
 The design pressure center is
 
-[
-p_c approx 28 mathrm{MPa}.
-]
+\[
+p_c \approx 28\ \mathrm{MPa}.
+\]
 
 This is a **reference center**, not an imposed pressure difference.
 
@@ -27,13 +27,17 @@ The current strict 0D PVT acceptance covers approximately 25–30 MPa. Therefore
 
 A convenient pressure bookkeeping form is
 
-[
-p_mathrm{prod}=p_c-rac{Delta p_mathrm{design}}{2},
-]
+\[
+p_\mathrm{prod}
+=
+p_c-\frac{\Delta p_\mathrm{design}}{2},
+\]
 
-[
-p_mathrm{inj,expected}=p_c+rac{Delta p_mathrm{design}}{2}.
-]
+\[
+p_\mathrm{inj,expected}
+=
+p_c+\frac{\Delta p_\mathrm{design}}{2}.
+\]
 
 This symmetric notation does not imply equal flow rates or symmetric physical boundary conditions. It merely keeps the intended pressure profile centered near 28 MPa.
 
@@ -41,44 +45,41 @@ The actual injector pressure is a solution of the rate-controlled flow problem.
 
 ## Rate target comes from pore-volume scale
 
-Let
-
-- (PV_mathrm{eff}) be the measured accessible pore volume at operating T/P;
-- (r_mathrm{PVI}) be the desired injected pore volumes per second.
+Let \(PV_\mathrm{eff}\) be the measured accessible pore volume at operating T/P and \(r_\mathrm{PVI}\) the desired injected pore volumes per second.
 
 Then the injector reservoir-volume rate target is
 
-[
-Q_mathrm{inj,target}
+\[
+Q_\mathrm{inj,target}
 =
-r_mathrm{PVI}PV_mathrm{eff}.
-]
+r_\mathrm{PVI}PV_\mathrm{eff}.
+\]
 
 The corresponding nominal residence time is
 
-[
-t_mathrm{res}
+\[
+t_\mathrm{res}
 =
-rac{PV_mathrm{eff}}{Q_mathrm{inj,target}}
+\frac{PV_\mathrm{eff}}{Q_\mathrm{inj,target}}
 =
-rac{1}{r_mathrm{PVI}}.
-]
+\frac{1}{r_\mathrm{PVI}}.
+\]
 
-Thus the experimental rate should be selected by specifying a meaningful residence/PVI scale, not by copying the old `0.25 PV/day` numerical benchmark.
+Thus the experimental rate should be selected by specifying a meaningful residence/PVI scale, not by copying the old \`0.25 PV/day\` numerical benchmark.
 
 ## Darcy velocity
 
-For measured effective open flow area (A),
+For measured effective open flow area \(A\),
 
-[
-u_D=rac{Q}{A}.
-]
+\[
+u_D=\frac{Q}{A}.
+\]
 
-For measured effective porosity (phi_mathrm{eff}), an interstitial/pore-velocity estimate is
+For measured effective porosity \(\phi_\mathrm{eff}\), an interstitial/pore-velocity estimate is
 
-[
-u_papproxrac{Q}{phi_mathrm{eff}A}.
-]
+\[
+u_p\approx\frac{Q}{\phi_\mathrm{eff}A}.
+\]
 
 Both quantities should be reported because a pump flow rate alone is not transferable between slab geometries.
 
@@ -86,38 +87,40 @@ Both quantities should be reported because a pump flow rate alone is not transfe
 
 Before any multiphase simulation is used to set well pressures, perform a single-phase Darcy estimate:
 
-[
-Delta p_mathrm{sp}
+\[
+\Delta p_\mathrm{sp}
 =
-rac{mu_mathrm{ref}LQ}
-     {k_mathrm{abs}A}.
-]
+\frac{\mu_\mathrm{ref}LQ}
+     {k_\mathrm{abs}A}.
+\]
 
 All quantities must correspond to the actual experiment:
 
-- (L): measured effective flow length;
-- (A): measured effective open flow area;
-- (k_mathrm{abs}): measured specimen permeability, preferably checked at operating T/P;
-- (mu_mathrm{ref}): validated target-T/P viscosity for the intended initial/injected single-phase reference;
-- (Q): proposed experimental rate.
+- \(L\): measured effective flow length;
+- \(A\): measured effective open flow area;
+- \(k_\mathrm{abs}\): measured specimen permeability, preferably checked at operating T/P;
+- \(\mu_\mathrm{ref}\): validated target-T/P viscosity for the intended initial/injected single-phase reference;
+- \(Q\): proposed experimental rate.
 
 This is an order-of-magnitude design relation, not a fitted multiphase pressure drop.
 
-Only after this estimate is available should (p_mathrm{prod}), expected injector pressure and BHP cap be fixed.
+Only after this estimate is available should \(p_\mathrm{prod}\), expected injector pressure and BHP cap be fixed.
 
 ## Multiphase correction
 
 After the single-phase scale is understood, a mobility estimate may be formed:
 
-[
-lambda_t=sum_alpharac{k_{r,alpha}}{mu_alpha},
-]
+\[
+\lambda_t
+=
+\sum_\alpha\frac{k_{r,\alpha}}{\mu_\alpha},
+\]
 
-[
-Delta p_mathrm{mp}
-sim
-rac{QL}{k_mathrm{abs}Alambda_t}.
-]
+\[
+\Delta p_\mathrm{mp}
+\sim
+\frac{QL}{k_\mathrm{abs}A\lambda_t}.
+\]
 
 Because the first-stage relative-permeability curves are Corey sensitivity assumptions rather than SCW calibrations, this multiphase estimate is also a sensitivity range.
 
@@ -125,19 +128,17 @@ It must not be used to retroactively tune the Corey curves to a desired pressure
 
 ## Injector maximum BHP
 
-The maximum injector BHP is a constraint, not the nominal driving pressure.
+The maximum injector BHP is a constraint, not the nominal driving pressure:
 
-It must satisfy all relevant limits:
-
-[
-p_mathrm{inj,max}
+\[
+p_\mathrm{inj,max}
 =
-min(
-p_mathrm{apparatus,safe},
-p_mathrm{PVT,validated,max},
-p_mathrm{experiment,design cap}
-).
-]
+\min\left(
+p_\mathrm{apparatus,safe},
+p_\mathrm{PVT,validated,max},
+p_\mathrm{experiment,design\ cap}
+\right).
+\]
 
 No numerical value is committed until the apparatus pressure rating, pump limit and Darcy-scale calculation are documented.
 
@@ -173,16 +174,16 @@ The mass-balance/inventory diagnostics remain mandatory.
 
 All final flow comparisons should use cumulative **actual** injected pore volumes:
 
-[
-mathrm{PVI}(t)
+\[
+\mathrm{PVI}(t)
 =
-rac{
-int_0^t Q_{mathrm{inj,actual,res}}(	au),d	au
+\frac{
+\int_0^t Q_\mathrm{inj,actual,res}(\tau)\,d\tau
 }
-{PV_mathrm{eff}}.
-]
+{PV_\mathrm{eff}}.
+\]
 
-The word `actual` is important. If the injector switches from rate control to maximum-BHP control, nominal target rate no longer represents injected volume.
+The word \`actual\` is important. If the injector switches from rate control to maximum-BHP control, nominal target rate no longer represents injected volume.
 
 Therefore plots/tables should use:
 
@@ -195,11 +196,19 @@ Therefore plots/tables should use:
 
 For the formal SCW control experiment, the target dimensionless injection intensity is identical:
 
-`r_PVI,360 = r_PVI,380`.
+\[
+r_{\mathrm{PVI},360}
+=
+r_{\mathrm{PVI},380}.
+\]
 
 The physical rate is derived independently from the measured operating-condition pore volume:
 
-`Q(T) = r_PVI * PV_eff(T,p)`.
+\[
+Q(T)
+=
+r_\mathrm{PVI}PV_\mathrm{eff}(T,p).
+\]
 
 The pressure drop is **not** forced to be equal between the two temperatures. The difference in injector BHP and slab pressure drop at matched PVI is an experimental response because density, viscosity, phase split and mobility are temperature dependent.
 
@@ -229,9 +238,9 @@ The control **policy** is accepted, but the numerical targets are intentionally 
 
 Missing inputs are:
 
-- actual slab (L,A);
-- (PV_mathrm{eff}(T,p));
-- (k_mathrm{abs}(T,p));
+- actual slab \(L,A\);
+- \(PV_\mathrm{eff}(T,p)\);
+- \(k_\mathrm{abs}(T,p)\);
 - validated reference viscosity;
 - pump-rate range;
 - apparatus safe pressure;
@@ -239,6 +248,6 @@ Missing inputs are:
 
 Until those exist:
 
-`FLOW_CONTROL_GATE_BLOCKED`.
+\`FLOW_CONTROL_GATE_BLOCKED\`.
 
 This is a design-data block, not a numerical-solver block.
