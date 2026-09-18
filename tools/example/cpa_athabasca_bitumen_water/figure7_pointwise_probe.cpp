@@ -229,6 +229,205 @@ double dimensionlessGibbs(
     return g;
 }
 
+
+double interphaseLogFugacitySpread(
+    const Eos &eos,
+    double pressureMPa,
+    double temperatureK,
+    const Composition &z,
+    const Flash::Result &r)
+{
+    if (!r.converged || r.presence.bits() != oilWaterPresence().bits())
+        return std::numeric_limits<double>::infinity();
+    const double p = pressureMPa * 1.0e6;
+    const auto oilThermo = eos.phaseResult(
+        p, temperatureK, r.composition[0],
+        MPMC::CompositionalPhase::Oil, false);
+    const auto waterThermo = eos.phaseResult(
+        p, temperatureK, r.composition[2],
+        MPMC::CompositionalPhase::Water, false);
+    double spread = 0.0;
+    for (std::size_t i = 0; i < z.size(); ++i)
+    {
+        if (z[i] <= 1.0e-14)
+            continue;
+        const double fo = oilThermo.fugacity[i];
+        const double fw = waterThermo.fugacity[i];
+        if (!(fo > 0.0) || !(fw > 0.0) ||
+            !std::isfinite(fo) || !std::isfinite(fw))
+            return std::numeric_limits<double>::infinity();
+        spread = std::max(spread, std::abs(std::log(fo / fw)));
+    }
+    return spread;
+}
+
+std::array<Composition, 3> deterministicOwSeed(
+    double xWaterOil,
+    double xWaterWater)
+{
+    const Composition hc = bitumenComposition();
+    std::array<Composition, 3> seed{};
+    seed[0][water] = xWaterOil;
+    seed[2][water] = xWaterWater;
+    for (std::size_t i = 1; i < 5; ++i)
+    {
+        seed[0][i] = (1.0 - xWaterOil) * hc[i];
+        seed[2][i] = (1.0 - xWaterWater) * hc[i];
+    }
+    seed[1] = seed[0];
+    return seed;
+}
+
+OwStabilityState evaluateOwStabilityMultistart(
+    const Eos &eos,
+    const Flash &flash,
+    double pressureMPa,
+    double temperatureK,
+    const Composition &z)
+{
+    const auto ow = oilWaterPresence();
+    Flash::Result best;
+    double bestG = std::numeric_limits<double>::infinity();
+
+    auto consider = [&](const Flash::Result &candidate) {
+        if (!candidate.converged ||
+            candidate.presence.bits() != ow.bits() ||
+            maxMaterialClosure(z, candidate) > 1.0e-8)
+            return;
+        const double fSpread = interphaseLogFugacitySpread(
+            eos, pressureMPa, temperatureK, z, candidate);
+        if (!std::isfinite(fSpread) || fSpread > 1.0e-7)
+            return;
+        const double g = dimensionlessGibbs(
+            eos, pressureMPa, temperatureK, candidate);
+        if (std::isfinite(g) && g < bestG)
+        {
+            bestG = g;
+            best = candidate;
+        }
+    };
+
+    // Cold generic seed is one candidate, not the privileged branch.
+    consider(flash.flashRestricted(
+        pressureMPa * 1.0e6, temperatureK, z, ow));
+
+    // Deterministic path-independent seeds span the water-rich oil liquid
+    // compositions encountered in the Figure-7 region. They do not use a
+    // neighboring pressure state, so this remains independent of continuation.
+    constexpr std::array<double, 8> oilWaterSeeds{
+        0.20, 0.40, 0.60, 0.72, 0.80, 0.88, 0.94, 0.98};
+    constexpr std::array<double, 3> aqueousWaterSeeds{
+        0.98, 0.995, 0.9999};
+    for (double xo : oilWaterSeeds)
+    {
+        for (double xw : aqueousWaterSeeds)
+        {
+            const auto seed = deterministicOwSeed(xo, xw);
+            consider(flash.flashRestricted(
+                pressureMPa * 1.0e6, temperatureK, z, ow, seed));
+        }
+    }
+
+    OwStabilityState state;
+    if (!best.converged)
+        return state;
+    const auto stability = flash.stabilityTest(
+        pressureMPa * 1.0e6, temperatureK, z,
+        best.presence, best.composition);
+    if (!stability.valid)
+        return state;
+
+    const std::size_t gas = static_cast<std::size_t>(
+        MPMC::phaseIndex(MPMC::CompositionalPhase::Gas));
+    state.valid = true;
+    state.materialClosure = maxMaterialClosure(z, best);
+    state.gasUnstable = stability.missingPhaseUnstable[gas];
+    state.gasTrialSum = stability.trialSum[gas];
+    state.phaseComposition = best.composition;
+    return state;
+}
+
+BoundaryPrediction findIndependentMultistartBoundary(
+    const Eos &eos,
+    const Flash &flash,
+    double temperatureK,
+    const Composition &z)
+{
+    constexpr double pMinMPa = 2.0;
+    constexpr double pMaxMPa = 30.0;
+    constexpr double scanStepMPa = 0.05;
+    constexpr int refinementIterations = 30;
+
+    BoundaryPrediction result;
+    bool havePrevious = false;
+    double previousPressure = 0.0;
+    OwStabilityState previous;
+    double selectedLow = std::numeric_limits<double>::quiet_NaN();
+    double selectedHigh = std::numeric_limits<double>::quiet_NaN();
+    OwStabilityState selectedLowState;
+    OwStabilityState selectedHighState;
+
+    const int scanCount = static_cast<int>(
+        std::llround((pMaxMPa - pMinMPa) / scanStepMPa));
+    for (int k = 0; k <= scanCount; ++k)
+    {
+        const double pressure = pMinMPa + scanStepMPa * k;
+        const auto state = evaluateOwStabilityMultistart(
+            eos, flash, pressure, temperatureK, z);
+        ++result.evaluations;
+        if (!state.valid)
+        {
+            havePrevious = false;
+            continue;
+        }
+        if (havePrevious &&
+            previous.gasUnstable && !state.gasUnstable)
+        {
+            ++result.transitionCount;
+            selectedLow = previousPressure;
+            selectedHigh = pressure;
+            selectedLowState = previous;
+            selectedHighState = state;
+        }
+        previousPressure = pressure;
+        previous = state;
+        havePrevious = true;
+    }
+
+    if (!std::isfinite(selectedLow) || !std::isfinite(selectedHigh))
+        return result;
+
+    double low = selectedLow;
+    double high = selectedHigh;
+    OwStabilityState lowState = selectedLowState;
+    OwStabilityState highState = selectedHighState;
+    for (int iteration = 0; iteration < refinementIterations; ++iteration)
+    {
+        const double mid = 0.5 * (low + high);
+        const auto midState = evaluateOwStabilityMultistart(
+            eos, flash, mid, temperatureK, z);
+        ++result.evaluations;
+        if (!midState.valid)
+            return BoundaryPrediction{};
+        if (midState.gasUnstable)
+        {
+            low = mid;
+            lowState = midState;
+        }
+        else
+        {
+            high = mid;
+            highState = midState;
+        }
+    }
+
+    result.found = true;
+    result.bracketLowMPa = low;
+    result.bracketHighMPa = high;
+    result.pressureMPa = 0.5 * (low + high);
+    return result;
+}
+
 bool certified(
     const Flash &flash,
     double pressureMPa,
@@ -407,7 +606,7 @@ int main(int argc, char **argv)
             const double t = point[0];
             const double pExp = point[1];
             const auto independent =
-                findIndependentCertifiedBoundary(flash, t, z);
+                findIndependentMultistartBoundary(eos, flash, t, z);
             const auto continued =
                 findWlvWlBoundaryContinuation(flash, t, z);
 
