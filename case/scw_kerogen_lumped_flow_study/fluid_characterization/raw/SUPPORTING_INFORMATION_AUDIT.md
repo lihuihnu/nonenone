@@ -155,7 +155,50 @@ Targeted searches using the locked Tongchuan identifiers (`Tongchuan`, `TOC 15.1
 
 This is evidence of a search attempt, not proof that unpublished or inaccessible data do not exist. The acceptance rule remains: a different Chang-7 sample cannot be promoted to primary evidence by similarity alone.
 
-## 4. Current conclusion
+## 4. G10 targeted search — same-sample carbon-number-resolved GC/GC-MS
+
+A dedicated 2026-09-18 search used the locked primary-sample fingerprint rather than generic `Chang-7` terms:
+
+- Tongchuan Chang-7 **outcrop**;
+- TOC `15.11 wt%`;
+- Ro `0.36-0.38%`;
+- Rock-Eval `S1 = 4.31 mg/g`, `S2 = 76.35 mg/g`, `HI = 505.29 mg/g TOC`;
+- elemental `C/H/N/S = 15.84/2.33/2.71/3.80 wt%`;
+- the Zhao/Dong/Zheng/Xie/Bawaa/Jin/Guo publication chain.
+
+### 4.1 Locked RSC sample: no published oil GC/GC-MS dataset located
+
+The primary RSC paper explicitly states that generated **gas** was characterized by an Agilent 7890a gas chromatograph, whereas generated **oil** was characterized by CHNS elemental analysis and IATROSCAN MK-6 thin-layer chromatography. The recovered RSC ESI provides exact product yields and SARA data but no generated-oil GC, GC-MS, carbon-number distribution or simulated-distillation table.
+
+Therefore the exact primary dataset currently has no published basis from which `C6-C10 / C11-C14 / C15-C20` can be reconstructed.
+
+### 4.2 Most important unrecovered original
+
+The strongest remaining lead is:
+
+> Tian Xie; Qiuyang Zhao; Yu Dong; Baercheng Bawaa; Hui Jin; Liejin Guo. **超临界水转化低成熟富有机质页岩生烃特性实验研究**. *工程热物理学报*, 2022, 43(10): 2675-2680.
+
+The title, authorship and bibliographic record are independently confirmed by the authors' institutional publication lists and later peer-reviewed references. A 2021 Chinese Society of Engineering Thermophysics conference program also lists the same contribution under submission/presentation number `216470`.
+
+However, a publicly retrievable full-text copy was **not located** in the connected search interface. Accessible metadata do not establish whether this paper used the exact `TOC 15.11 wt%` Tongchuan outcrop batch, nor whether it contains oil GC/carbon-number data. It must therefore remain `HIGHEST_PRIORITY_MISSING_ORIGINAL`, not evidence.
+
+### 4.3 Carbon-number papers that look relevant but are different samples
+
+**Xie et al., Oil Shale 2022, DOI 10.3176/oil.2022.3.02** is the closest same-team carbon-number dataset found. Its original open-access paper states that the shale came from **well F317-181**, had `TOC = 16.25 wt%`, and used 1-4 cm samples. Oil was measured using an Agilent 7890b chromatograph. The generated oil spans mainly `C8-C56`, with fractions below `C16` decreasing as temperature increases. This is valuable secondary evidence but is definitively not the locked Tongchuan outcrop sample.
+
+**Liu & Yan 2020, DOI 10.12677/jogt.2020.424106** contains true GC-MS carbon-number data from the Tongchuan area. Its original paper identifies the sample as **TC16 well, Yanchang Formation member 2**, with `TOC = 3.87 wt%` and `Ro = 0.58%`. The expelled-oil saturated fraction was analyzed by 6890N GC/5975 MSD and shows `nC13-nC32`; at 385 °C Table 2 reports a dominant carbon of `nC21` and `sum nC21-/sum nC22+ = 0.82`. This source is excluded because both stratigraphic/sample identity and geochemical fingerprint differ strongly from the locked Chang-7 outcrop.
+
+A 2025 paper from the same Xi'an Jiaotong laboratory (**Zhang et al., DOI 10.11949/0438-1157.20250403**) reports individual produced-oil compounds, but its shale elemental fingerprint (`C/H/O/N/S = 13.56/2.26/1.01/1.53/4.75 wt%`) differs from the locked sample and the oil data are at 450/550 °C. It is also excluded from primary characterization.
+
+The detailed source-by-source decisions are machine-readable in `g10_same_sample_gc_search_audit.csv`.
+
+### 4.4 G10 status after targeted search
+
+No publicly accessible paper or supplement located in this audit provides a carbon-number-resolved generated-oil dataset that can be demonstrated to come from the exact locked Tongchuan Chang-7 outcrop sample.
+
+This is a **public-evidence search result**, not proof that author-held raw chromatograms or an inaccessible Chinese full text do not contain the data. The unresolved path is now narrow: obtain the 2022 *Journal of Engineering Thermophysics* original/full text and, if it still lacks the data, request the original 380 °C oil chromatogram/data from the Zhao/Xie research group.
+
+## 5. Current conclusion
 
 The RSC ESI resolves the primary sample's exact 380 °C SARA and gas-yield observations, including duplicate spread. The recovered ACS SI now adds exact paired-kerogen 380 °C SARA and simulated-distillation constraints.
 
