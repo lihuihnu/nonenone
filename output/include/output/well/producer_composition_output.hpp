@@ -258,6 +258,23 @@ private:
                 "Producer-composition component-name count mismatch.");
     }
 
+    [[nodiscard]] double totalHydrocarbonRecovery_(
+        const ProducerCompositionSnapshot<N> &snapshot) const
+    {
+        double initial = 0.0;
+        double produced = 0.0;
+        for (std::size_t component = 0; component < N; ++component)
+        {
+            if (static_cast<int>(component) == options_.waterComponent)
+                continue;
+            initial += snapshot.initialInventoryKg[component];
+            produced += snapshot.cumulativeProducedKg[component];
+        }
+        return initial > 0.0
+            ? produced / initial
+            : std::numeric_limits<double>::quiet_NaN();
+    }
+
     void validateGroups_() const
     {
         const auto validate = [](const std::vector<int> &group) {
