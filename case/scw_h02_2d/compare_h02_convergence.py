@@ -11,7 +11,6 @@ from pathlib import Path
 
 SCOPE="CONDITIONAL_MECHANISM_EXPERIMENT_NOT_REAL_HEAVY_VALIDATION"
 TARGETS=(1.0,2.0)
-MODES=("A","B","C")
 TIME_LIMITS=dict(rf_abs=0.001, dp_rel=0.01, heavy_rel=0.002, mu_rel=0.005)
 GRID_LIMITS=dict(rf_abs=0.005, dp_rel=0.05, heavy_rel=0.01, mu_rel=0.01)
 
@@ -26,13 +25,13 @@ def num(row,key):
     if not math.isfinite(value): raise ValueError(f"nonfinite {key}")
     return value
 
-def load_summary(root):
+def load_summary(root,modes):
     rows=read_csv(Path(root)/"analysis"/"h02_mechanism_at_1_2_pvi.csv")
     out={}
     for r in rows:
         key=(r["mode"],float(r["target_pvi"]))
         out[key]=r
-    missing=[(m,t) for t in TARGETS for m in MODES if (m,t) not in out]
+    missing=[(m,t) for t in TARGETS for m in modes if (m,t) not in out]
     if missing: raise ValueError(f"missing matched-PVI rows: {missing}")
     return out
 
@@ -40,10 +39,10 @@ def rel_diff(a,b):
     scale=max(abs(a),abs(b),1e-30)
     return abs(b-a)/scale
 
-def compare(label,base,test,limits):
+def compare(label,base,test,limits,modes):
     rows=[]; gates=[]
     for target in TARGETS:
-        for mode in MODES:
+        for mode in modes:
             a,b=base[(mode,target)],test[(mode,target)]
             rf0,rf1=num(a,"RF_H"),num(b,"RF_H")
             dp0,dp1=num(a,"deltaP_MPa"),num(b,"deltaP_MPa")
@@ -72,7 +71,12 @@ def compare(label,base,test,limits):
     # Mechanism increments are reported separately; no extra threshold is invented.
     mech=[]
     for target in TARGETS:
-        for name,x,y in (("B_minus_A","B","A"),("C_minus_B","C","B")):
+        pairs=[]
+        if "A" in modes and "B" in modes:
+            pairs.append(("B_minus_A","B","A"))
+        if "B" in modes and "C" in modes:
+            pairs.append(("C_minus_B","C","B"))
+        for name,x,y in pairs:
             for tag,data in (("base",base),("test",test)):
                 rx=num(data[(x,target)],"RF_H")-num(data[(y,target)],"RF_H")
                 dp=num(data[(x,target)],"deltaP_MPa")-num(data[(y,target)],"deltaP_MPa")
@@ -94,10 +98,14 @@ def main():
     p.add_argument("--dt1",required=True,type=Path,help="20x8, dt_max=1s ensemble root")
     p.add_argument("--grid60",required=True,type=Path,help="60x20, dt_max=2s ensemble root")
     p.add_argument("--out",required=True,type=Path)
+    p.add_argument("--modes",default="ABC")
     a=p.parse_args();a.out.mkdir(parents=True,exist_ok=True)
-    dt2=load_summary(a.dt2);dt1=load_summary(a.dt1);fine=load_summary(a.grid60)
-    tr,tg,tm=compare("20x8_dt2_vs_dt1",dt2,dt1,TIME_LIMITS)
-    gr,gg,gm=compare("20x8_vs_60x20_dt2",dt2,fine,GRID_LIMITS)
+    modes=tuple(a.modes)
+    if not modes or any(m not in "ABC" for m in modes) or len(set(modes))!=len(modes):
+        raise ValueError("--modes must be a unique non-empty subset of ABC")
+    dt2=load_summary(a.dt2,modes);dt1=load_summary(a.dt1,modes);fine=load_summary(a.grid60,modes)
+    tr,tg,tm=compare("20x8_dt2_vs_dt1",dt2,dt1,TIME_LIMITS,modes)
+    gr,gg,gm=compare("20x8_vs_60x20_dt2",dt2,fine,GRID_LIMITS,modes)
     gates=tg+gg
     write_csv(a.out/"time_step_convergence.csv",tr)
     write_csv(a.out/"grid_convergence.csv",gr)
