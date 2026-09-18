@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -281,9 +282,14 @@ int run(
             "beta_oil,beta_gas,beta_water,xH2O_oil,xH2O_water,"
             "experimental_xH2O_oil,published_Jia_CPA_xH2O_oil,"
             "abs_error_vs_experiment,abs_error_vs_published_CPA,"
-            "max_material_closure,stability_valid,stability_stable\n";
+            "max_material_closure,stability_valid,stability_stable,"
+            "restricted_ow_converged,restricted_ow_phase_code,"
+            "restricted_ow_phase_count,restricted_ow_xH2O_oil,"
+            "restricted_ow_xH2O_water,restricted_ow_material_closure,"
+            "restricted_ow_stability_valid,restricted_ow_stability_stable\n";
 
     std::size_t structuralFailures = 0;
+    std::size_t restrictedOwRecoveries = 0;
     double sumAbsExperimental = 0.0;
     double sumAbsPublished = 0.0;
     double maxAbsExperimental = 0.0;
@@ -303,6 +309,15 @@ int run(
         double xOil = std::numeric_limits<double>::quiet_NaN();
         double xWater = std::numeric_limits<double>::quiet_NaN();
 
+        bool restrictedOwConverged = false;
+        int restrictedOwPhaseCode = 0;
+        int restrictedOwPhaseCount = 0;
+        double restrictedOwXOil = std::numeric_limits<double>::quiet_NaN();
+        double restrictedOwXWater = std::numeric_limits<double>::quiet_NaN();
+        double restrictedOwClosure = std::numeric_limits<double>::quiet_NaN();
+        bool restrictedOwStabilityValid = false;
+        bool restrictedOwStabilityStable = false;
+
         if (result.converged)
         {
             closure = maxMaterialClosure(z, result);
@@ -318,6 +333,54 @@ int run(
             if (hasWater)
                 xWater = result.composition[
                     MPMC::phaseIndex(MPMC::CompositionalPhase::Water)][water];
+        }
+        else
+        {
+            // Diagnostic only: if the unrestricted active-set path fails,
+            // ask whether a physically certified Oil+Water solution exists.
+            // This does not change the structural gate and does not tune any
+            // CPA parameter.  A stable restricted solution identifies a
+            // solver-path robustness issue rather than missing equilibrium.
+            const auto oilWater = MPMC::PhasePresence(
+                static_cast<std::uint8_t>(
+                    MPMC::PhasePresence::oilBit |
+                    MPMC::PhasePresence::waterBit));
+            const auto restricted = flash.flashRestricted(
+                pressure, point.temperatureK, z, oilWater);
+            restrictedOwConverged = restricted.converged;
+            if (restricted.converged)
+            {
+                restrictedOwPhaseCode =
+                    static_cast<int>(restricted.presence.bits());
+                restrictedOwPhaseCount = restricted.presence.count();
+                restrictedOwClosure = maxMaterialClosure(z, restricted);
+                if (restricted.presence.contains(
+                        MPMC::CompositionalPhase::Oil))
+                {
+                    restrictedOwXOil = restricted.composition[
+                        MPMC::phaseIndex(MPMC::CompositionalPhase::Oil)][water];
+                }
+                if (restricted.presence.contains(
+                        MPMC::CompositionalPhase::Water))
+                {
+                    restrictedOwXWater = restricted.composition[
+                        MPMC::phaseIndex(MPMC::CompositionalPhase::Water)][water];
+                }
+                const auto restrictedStability = flash.stabilityTest(
+                    pressure, point.temperatureK, z,
+                    restricted.presence, restricted.composition);
+                restrictedOwStabilityValid = restrictedStability.valid;
+                restrictedOwStabilityStable = restrictedStability.stable;
+                if (restrictedOwPhaseCode ==
+                        static_cast<int>(oilWater.bits()) &&
+                    restrictedOwStabilityValid &&
+                    restrictedOwStabilityStable &&
+                    std::isfinite(restrictedOwClosure) &&
+                    restrictedOwClosure <= 1.0e-8)
+                {
+                    ++restrictedOwRecoveries;
+                }
+            }
         }
 
         const bool structuralPass =
@@ -353,7 +416,13 @@ int run(
              << point.publishedCpaWaterInBitumen << ','
              << errorExperimental << ',' << errorPublished << ','
              << closure << ',' << (stabilityValid ? 1 : 0) << ','
-             << (stabilityStable ? 1 : 0) << '\n';
+             << (stabilityStable ? 1 : 0) << ','
+             << (restrictedOwConverged ? 1 : 0) << ','
+             << restrictedOwPhaseCode << ',' << restrictedOwPhaseCount << ','
+             << restrictedOwXOil << ',' << restrictedOwXWater << ','
+             << restrictedOwClosure << ','
+             << (restrictedOwStabilityValid ? 1 : 0) << ','
+             << (restrictedOwStabilityStable ? 1 : 0) << '\n';
     }
 
     const std::size_t passed = points.size() - structuralFailures;
@@ -366,10 +435,12 @@ int run(
 
     metrics << std::scientific << std::setprecision(12);
     metrics << "reference_points,structural_pass,structural_fail,"
-               "mae_vs_experiment,mae_vs_published_Jia_CPA,"
-               "max_abs_error_vs_experiment,max_material_closure\n";
+               "restricted_ow_recoveries,mae_vs_experiment,"
+               "mae_vs_published_Jia_CPA,max_abs_error_vs_experiment,"
+               "max_material_closure\n";
     metrics << points.size() << ',' << passed << ',' << structuralFailures
-            << ',' << maeExperimental << ',' << maePublished << ','
+            << ',' << restrictedOwRecoveries << ','
+            << maeExperimental << ',' << maePublished << ','
             << maxAbsExperimental << ',' << maxClosure << '\n';
 
     // Stage 1 is intentionally structural.  A parity threshold is not
@@ -384,9 +455,13 @@ int run(
     gate << "CPA_ATHABASCA_PARITY,OBSERVE,"
          << std::scientific << std::setprecision(12) << maeExperimental
          << ",report-only until convention audit fixes a preregistered tolerance\n";
+    gate << "CPA_ATHABASCA_RESTRICTED_OW_DIAGNOSTIC,OBSERVE,"
+         << restrictedOwRecoveries
+         << ",count unrestricted failures that have a stable certified O+W restricted solution\n";
 
     std::cout << "Athabasca CPA proxy: structural " << passed << '/'
-              << points.size() << ", MAE(exp)=" << std::scientific
+              << points.size() << ", restricted O+W recoveries="
+              << restrictedOwRecoveries << ", MAE(exp)=" << std::scientific
               << maeExperimental << ", MAE(Jia CPA)=" << maePublished
               << ", max closure=" << maxClosure << '\n';
     return structuralGate ? 0 : 2;
