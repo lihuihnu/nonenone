@@ -175,6 +175,23 @@ PR 与 CPA 现在必须在同一组零维状态上分别完成 PVT preflight，�
 
 原先 CPA 在 380 °C、`z_H2O≈0.7610625`、26.00/26.25 MPa 的两个 failure states 已在**冻结 CPA 参数**的条件下定位为 active-set/continuation 数值问题并修复。详细证据见 `10_CPA_PHASE_ONSET_AUDIT.md`。这只清除了 0D 数值阻断，不代表 CPA 参数已经实验标定。
 
+## 多孔介质已改为实验室试件定义
+
+未来流动比较不再使用抽象“储层”岩石。新的 porous-medium contract 见 `11_LAB_POROUS_MEDIA_BASELINE.md` 与 `porous_media/`。
+
+第一阶段优先参考 **fired Berea sandstone**：文献试件为直径 38 mm、长度 200 mm、孔隙度约 21%、水测绝对渗透率 212 mD、有效孔体积 47.6 mL；这些数值只用于定义实验尺度和采购/设计范围，真正进入模型时必须由实际试件重新测量。
+
+二维实验仍可采用 sandstone slab 或 water-wet quartz sand-pack slab，但 slab 的 `phi / k / PV` 必须逐次装填/逐块测量，不能复制文献砂包的 2.9 D 或 13 D。
+
+高温 SCW 条件下目前没有可接受的本体系相渗标定，因此第一阶段只允许使用 `porous_media/corey_sensitivity.csv` 中的简化 Corey **敏感性族**；任何一条都不得标成 experimental calibration。毛管压力同理，低温 Berea 的 Brooks-Corey 参数只作为 sensitivity proxy。
+
+此外，当前 Natural face-flux 尚无显式 phase capillary-pressure closure。实验尺度流动前必须满足以下二选一：
+
+1. 实现并验证 `Pc(S)`；
+2. 用所选试件、流率、黏度和界面参数证明 `Pc=0` 是可接受的实验近似。
+
+旧 `scw_kerogen_common` 中 `phi=0.35`、`kx=ky=1500 mD`、`kz=150 mD`、`L=1.2 m` 已明确降级为 legacy numerical values，不允许直接作为新的实验可复现实验参数。
+
 ## 当前数据审计状态
 
 主样品仍以 Zhao et al. (*Sustainable Energy & Fuels*, 2023, DOI `10.1039/D2SE01361D`) 的完整 Chang 7 raw-shale `380 °C / 25 MPa / 4 h` 数据作为第一优先级，用于主样品油产率、SARA 和产气约束。
@@ -185,7 +202,7 @@ ACS 2023 酸洗纯干酪根数据用于提供直接的 boiling-range topology、
 
 计划中的伪三维单层结构仍保留为后续目标：`60 x 20 x 1`、均质岩石、等温全组分多相流、左侧注水右侧生产、380 °C / 25 MPa 主工况及 360 °C / 25 MPa 对照。
 
-**这些流动设置当前不执行。** 0D PVT 数值门禁现在已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation 和 viscosity validation。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
+**这些流动设置当前不执行。** 0D PVT 数值门禁已经通过，但最终进入流动还必须同时满足：PR binary calibration、CPA calibration/association、density validation、viscosity validation，以及新的 laboratory porous-media gate。统一依赖状态见 `pvt_acceptance/flow_entry_gate.csv`。
 
 ## 当前工作顺序
 
