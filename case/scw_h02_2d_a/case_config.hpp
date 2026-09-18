@@ -44,6 +44,7 @@ struct Fluid {
  static constexpr double waterFormationVolumeFactor=1.0;
 };
 struct InitialState {
+ static constexpr bool preserveReferenceValues=false;
  static constexpr double pressure=28e6,temperature=653.15;
  static constexpr double oilSaturation=1.0,gasSaturation=0.0,waterSaturation=0.0;
  inline static constexpr std::array<double,1> oilComposition{1.0};
