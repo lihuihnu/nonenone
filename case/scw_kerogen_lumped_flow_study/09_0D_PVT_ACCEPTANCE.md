@@ -63,6 +63,29 @@ It is evaluated independently at all three target temperatures. The correspondin
 
 **The two EOS are not required to predict the same phase count.** A phase-count difference is a scientific model result, not an automatic failure. What is required is that each predicted equilibrium is internally physical.
 
+## Formal SCW temperature-control anchors
+
+In addition to the historical 25 MPa cross-EOS anchors, the formal laboratory temperature-control experiment registers a second named anchor set at:
+
+`BASE, z_H2O=0.20, p=28 MPa`.
+
+The formal pair is:
+
+- 360 °C / 28 MPa — subcritical compressed-water control;
+- 380 °C / 28 MPa — supercritical-water test.
+
+374 °C / 28 MPa is retained as a near-critical diagnostic only.
+
+PR and CPA must each independently pass the same state-level physical-consistency checks at both formal-pair temperatures. The machine-readable output is:
+
+`scw_temperature_control_0d.csv`
+
+It contains phase count, phase fractions, phase densities, LBC viscosities and phase H2O fractions for PR and CPA at 360/374/380 °C and 28 MPa.
+
+The hard zero-dimensional acceptance now explicitly includes:
+
+`SCW_360_380_CONTROL_PAIR_28MPA = PASS`.
+
 ## State-level physical consistency
 
 For every registered T–P–z state the acceptance harness requires:
@@ -139,7 +162,7 @@ The output `cross_eos_initial_state.csv` reports phase-count agreement only as a
 
 The runtime zero-dimensional gate is PASS only if:
 
-`PR registered scan PASS && CPA registered scan PASS && PR/CPA target-window P-T map health PASS && PR/CPA dense pressure-composition path PASS && both-EOS initial-state PASS`.
+`PR registered scan PASS && CPA registered scan PASS && PR/CPA target-window P-T map health PASS && PR/CPA dense pressure-composition path PASS && both-EOS 25 MPa initial-state PASS && formal 360/380 C 28 MPa control-pair PASS`.
 
 ## Reservoir-entry dependency
 
