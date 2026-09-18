@@ -364,6 +364,7 @@ public:
         PetscCallAbort(PETSC_COMM_WORLD,
                        MPMC::installNaturalCallbacks(snes_, runtime, residual_, jacobian_));
         PetscCallAbort(PETSC_COMM_WORLD, SNESSetFromOptions(snes_));
+        installMeshNormalizedConvergenceIfRequested_();
         // SNESSetFromOptions may replace the line-search implementation and
         // clear its user checks.  Bind Natural hooks to the final selected
         // line search before setup/solve.
@@ -385,9 +386,153 @@ public:
     [[nodiscard]] SNES snes() const noexcept { return snes_; }
 
 private:
+    struct MeshNormalizedConvergenceContext final
+    {
+        PetscReal rmsAbsoluteTolerance{0.0};
+        PetscReal infinityAbsoluteTolerance{0.0};
+        PetscInt globalEquationCount{0};
+    };
+
+    static PetscErrorCode meshNormalizedConvergence_(
+        SNES snes,
+        PetscInt iteration,
+        PetscReal xNorm,
+        PetscReal stepNorm,
+        PetscReal functionNorm,
+        SNESConvergedReason *reason,
+        void *context)
+    {
+        PetscFunctionBeginUser;
+        PetscCheck(
+            context != nullptr,
+            PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
+            PETSC_ERR_ARG_NULL,
+            "Mesh-normalized SNES convergence context is null.");
+
+        auto &cfg =
+            *static_cast<MeshNormalizedConvergenceContext *>(context);
+
+        SNESConvergedReason defaultReason = SNES_CONVERGED_ITERATING;
+        PetscCall(SNESConvergedDefault(
+            snes,
+            iteration,
+            xNorm,
+            stepNorm,
+            functionNorm,
+            &defaultReason,
+            nullptr));
+
+        *reason = defaultReason;
+        if (defaultReason == SNES_CONVERGED_FNORM_ABS)
+        {
+            Vec residual = nullptr;
+            PetscCall(SNESGetFunction(snes, &residual, nullptr, nullptr));
+            PetscCheck(
+                residual != nullptr,
+                PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
+                PETSC_ERR_ARG_NULL,
+                "SNES residual is unavailable for infinity-norm convergence gate.");
+
+            PetscReal infinityNorm = 0.0;
+            PetscCall(VecNorm(residual, NORM_INFINITY, &infinityNorm));
+            if (infinityNorm > cfg.infinityAbsoluteTolerance)
+                *reason = SNES_CONVERGED_ITERATING;
+        }
+
+        PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+    void installMeshNormalizedConvergenceIfRequested_()
+    {
+        PetscReal rmsTolerance = 0.0;
+        PetscReal infinityTolerance = 0.0;
+        PetscBool rmsSet = PETSC_FALSE;
+        PetscBool infinitySet = PETSC_FALSE;
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_rms_atol",
+                &rmsTolerance, &rmsSet));
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_linf_atol",
+                &infinityTolerance, &infinitySet));
+
+        if (rmsSet != infinitySet)
+            throw std::invalid_argument(
+                "-snes_rms_atol and -snes_linf_atol must be supplied together.");
+        if (rmsSet != PETSC_TRUE)
+            return;
+        if (!(rmsTolerance > 0.0) || !std::isfinite(rmsTolerance) ||
+            !(infinityTolerance > 0.0) || !std::isfinite(infinityTolerance))
+        {
+            throw std::invalid_argument(
+                "Mesh-normalized SNES tolerances must be finite and positive.");
+        }
+
+        PetscInt globalRows = 0;
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            VecGetSize(residual_, &globalRows));
+        if (globalRows <= 0)
+            throw std::logic_error(
+                "Mesh-normalized SNES convergence requires a non-empty residual vector.");
+
+        PetscReal oldAtol = 0.0;
+        PetscReal rtol = 0.0;
+        PetscReal stol = 0.0;
+        PetscInt maxIterations = 0;
+        PetscInt maxFunctions = 0;
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            SNESGetTolerances(
+                snes_,
+                &oldAtol,
+                &rtol,
+                &stol,
+                &maxIterations,
+                &maxFunctions));
+
+        const PetscReal l2Tolerance =
+            rmsTolerance * std::sqrt(static_cast<PetscReal>(globalRows));
+
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            SNESSetTolerances(
+                snes_,
+                l2Tolerance,
+                rtol,
+                stol,
+                maxIterations,
+                maxFunctions));
+
+        meshNormalizedConvergence_.rmsAbsoluteTolerance = rmsTolerance;
+        meshNormalizedConvergence_.infinityAbsoluteTolerance =
+            infinityTolerance;
+        meshNormalizedConvergence_.globalEquationCount = globalRows;
+
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            SNESSetConvergenceTest(
+                snes_,
+                meshNormalizedConvergence_,
+                &meshNormalizedConvergence_,
+                nullptr));
+
+        PetscPrintf(
+            PETSC_COMM_WORLD,
+            "[SNES][MESH-NORM] N=%lld RMS_ATOL=%.12e L2_ATOL=%.12e LINF_ATOL=%.12e\n",
+            static_cast<long long>(globalRows),
+            static_cast<double>(rmsTolerance),
+            static_cast<double>(l2Tolerance),
+            static_cast<double>(infinityTolerance));
+    }
+
     SNES snes_{nullptr};
     Vec residual_{nullptr};
     Mat jacobian_{nullptr};
+    MeshNormalizedConvergenceContext meshNormalizedConvergence_{};
 };
 
 /**
