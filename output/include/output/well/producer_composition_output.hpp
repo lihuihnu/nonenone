@@ -197,6 +197,18 @@ public:
         }
     }
 
+    [[nodiscard]] double cumulativeInjectedReservoirM3() const noexcept
+    {
+        return cumulativeInjectedReservoirM3_;
+    }
+
+    [[nodiscard]] double pvi() const noexcept
+    {
+        return std::isfinite(options_.effectivePoreVolumeM3)
+            ? cumulativeInjectedReservoirM3_ / options_.effectivePoreVolumeM3
+            : std::numeric_limits<double>::quiet_NaN();
+    }
+
     void acceptedStep(
         Runtime &runtime,
         Vec solution,
