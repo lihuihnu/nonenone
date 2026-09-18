@@ -1,0 +1,68 @@
+name: SCW temperature-control contract
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/14_SCW_TEMPERATURE_CONTROL_EXPERIMENT.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_*.csv'
+      - 'tools/example/scw_kerogen_0d_pvt_acceptance/main.cpp'
+      - '.github/workflows/scw-temperature-control.yml'
+  pull_request:
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/14_SCW_TEMPERATURE_CONTROL_EXPERIMENT.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_*.csv'
+      - 'tools/example/scw_kerogen_0d_pvt_acceptance/main.cpp'
+      - '.github/workflows/scw-temperature-control.yml'
+
+jobs:
+  paired-control-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify formal 360/380 pair differs only by temperature/state label
+        run: |
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+
+          path = Path('case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_pair.csv')
+          with path.open(newline='', encoding='utf-8') as f:
+              rows = list(csv.DictReader(f))
+
+          formal = {r['run_id']: r for r in rows if r['formal_pair'] == 'yes'}
+          assert set(formal) == {'CTRL_360', 'CTRL_380'}, formal.keys()
+          a, b = formal['CTRL_360'], formal['CTRL_380']
+
+          assert a['temperature_C'] == '360'
+          assert b['temperature_C'] == '380'
+          assert a['pressure_center_MPa'] == b['pressure_center_MPa'] == '28.0'
+
+          allowed_differences = {
+              'run_id', 'role', 'temperature_C', 'temperature_K',
+              'water_state_class', 'status', 'notes'
+          }
+          for key in a:
+              if key in allowed_differences:
+                  continue
+              assert a[key] == b[key], f'{key}: {a[key]} != {b[key]}'
+
+          assert a['locked_geometry'] == 'yes'
+          assert a['locked_initial_composition'] == 'yes'
+          assert a['locked_injection_composition'] == 'yes'
+          assert a['locked_pvi_rate'] == 'yes'
+          assert a['locked_well_control'] == 'yes'
+          assert a['locked_gravity'] == 'yes'
+          assert a['locked_corey_pc_for_mechanism_isolation'] == 'yes'
+          print('[PASS] formal SCW pair changes temperature only')
+          PY
+
+      - name: Verify required control-pair artifacts
+        run: |
+          test -f case/scw_kerogen_lumped_flow_study/14_SCW_TEMPERATURE_CONTROL_EXPERIMENT.md
+          test -f case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_locked_inputs.csv
+          test -f case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_observables.csv
+          test -f case/scw_kerogen_lumped_flow_study/porous_media/scw_temperature_control_gate.csv
+          echo '[PASS] formal SCW control-pair artifacts present'
