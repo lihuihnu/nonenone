@@ -8,5 +8,6 @@
 #include <output/simulation/model_inventory_output.hpp>
 #include <output/simulation/component_mass_balance_output.hpp>
 #include <output/well/detailed_well_output.hpp>
+#include <output/well/producer_composition_output.hpp>
 #include <output/simulation/reservoir_diagnostics.hpp>
 #include <output/well/control_switch_output.hpp>
