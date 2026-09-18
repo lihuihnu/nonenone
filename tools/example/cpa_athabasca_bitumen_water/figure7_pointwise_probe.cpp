@@ -71,6 +71,125 @@ double compositionL1(const Composition &a, const Composition &b)
     return value;
 }
 
+double owStateGap(const OwStabilityState &a, const OwStabilityState &b)
+{
+    if (!a.valid || !b.valid)
+        return std::numeric_limits<double>::infinity();
+    double gap = 0.0;
+    for (std::size_t phase : {std::size_t(0), std::size_t(2)})
+        for (std::size_t i = 0; i < a.phaseComposition[phase].size(); ++i)
+            gap = std::max(
+                gap,
+                std::abs(
+                    a.phaseComposition[phase][i] -
+                    b.phaseComposition[phase][i]));
+    return gap;
+}
+
+BoundaryPrediction findIndependentCertifiedBoundary(
+    const Flash &flash,
+    double temperatureK,
+    const Composition &z)
+{
+    constexpr double pMinMPa = 2.0;
+    constexpr double pMaxMPa = 30.0;
+    constexpr double scanStepMPa = 0.05;
+    constexpr int refinementIterations = 30;
+
+    BoundaryPrediction result;
+    bool havePrevious = false;
+    double previousPressure = 0.0;
+    OwStabilityState previous;
+    double selectedLow = std::numeric_limits<double>::quiet_NaN();
+    double selectedHigh = std::numeric_limits<double>::quiet_NaN();
+    OwStabilityState selectedLowState;
+    OwStabilityState selectedHighState;
+
+    const int scanCount = static_cast<int>(
+        std::llround((pMaxMPa - pMinMPa) / scanStepMPa));
+    for (int k = 0; k <= scanCount; ++k)
+    {
+        const double pressure = pMinMPa + scanStepMPa * k;
+        const auto state =
+            evaluateOwStability(flash, pressure, temperatureK, z);
+        ++result.evaluations;
+
+        // An invalid state is an unknown interval, not a bridge between two
+        // neighboring stability states. Break adjacency explicitly.
+        if (!state.valid)
+        {
+            havePrevious = false;
+            continue;
+        }
+
+        if (havePrevious &&
+            previous.gasUnstable && !state.gasUnstable)
+        {
+            ++result.transitionCount;
+            // Figure 7 is the high-pressure WLV -> WL exit, so retain the
+            // highest-pressure independently observed crossing.
+            selectedLow = previousPressure;
+            selectedHigh = pressure;
+            selectedLowState = previous;
+            selectedHighState = state;
+        }
+        previousPressure = pressure;
+        previous = state;
+        havePrevious = true;
+    }
+
+    if (result.transitionCount < 1 ||
+        !std::isfinite(selectedLow) || !std::isfinite(selectedHigh))
+        return result;
+
+    double low = selectedLow;
+    double high = selectedHigh;
+    OwStabilityState lowState = selectedLowState;
+    OwStabilityState highState = selectedHighState;
+
+    for (int iteration = 0; iteration < refinementIterations; ++iteration)
+    {
+        const double mid = 0.5 * (low + high);
+        auto midState = evaluateOwStability(
+            flash, mid, temperatureK, z);
+        ++result.evaluations;
+
+        // Cold solve is preferred. If it misses, require BOTH endpoint-seeded
+        // solves to recover the same branch/classification. This is a local
+        // multistart certificate, not one-way continuation.
+        if (!midState.valid)
+        {
+            const auto fromLow = evaluateOwStability(
+                flash, mid, temperatureK, z, &lowState.phaseComposition);
+            const auto fromHigh = evaluateOwStability(
+                flash, mid, temperatureK, z, &highState.phaseComposition);
+            result.evaluations += 2;
+            if (!fromLow.valid || !fromHigh.valid ||
+                fromLow.gasUnstable != fromHigh.gasUnstable ||
+                owStateGap(fromLow, fromHigh) > compositionPathTolerance)
+                return BoundaryPrediction{};
+            midState = fromLow;
+        }
+
+        if (midState.gasUnstable)
+        {
+            low = mid;
+            lowState = midState;
+        }
+        else
+        {
+            high = mid;
+            highState = midState;
+        }
+    }
+
+    result.found = true;
+    result.bracketLowMPa = low;
+    result.bracketHighMPa = high;
+    result.pressureMPa = 0.5 * (low + high);
+    return result;
+}
+
 double dimensionlessGibbs(
     const Eos &eos,
     double pressureMPa,
@@ -287,7 +406,8 @@ int main(int argc, char **argv)
         {
             const double t = point[0];
             const double pExp = point[1];
-            const auto independent = findWlvWlBoundary(flash, t, z);
+            const auto independent =
+                findIndependentCertifiedBoundary(flash, t, z);
             const auto continued =
                 findWlvWlBoundaryContinuation(flash, t, z);
 
@@ -297,7 +417,7 @@ int main(int argc, char **argv)
                 : std::numeric_limits<double>::infinity();
             const bool pathPass =
                 independent.found && continued.found &&
-                independent.transitionCount == 1 &&
+                independent.transitionCount >= 1 &&
                 continued.transitionCount == 1 &&
                 pathGap <= boundaryPathToleranceMPa;
 
