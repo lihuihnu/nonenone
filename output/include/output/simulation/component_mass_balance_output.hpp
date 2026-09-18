@@ -44,6 +44,7 @@ struct ComponentMassBalanceOutputOptions final
     bool printState{true};
     bool writeHistory{true};
     bool writeInitialState{true};
+    bool auditInternalFaceConservation{false};
     std::size_t printEveryOutputSteps{1};
 
     std::vector<std::string> componentNames{};
@@ -118,7 +119,14 @@ public:
                 << ",component_index,component"
                 << ",initial_inventory_kg,current_inventory_kg"
                 << ",cumulative_injected_kg,cumulative_produced_kg"
-                << ",expected_inventory_kg,balance_error_kg,relative_error\n";
+                << ",expected_inventory_kg,balance_error_kg,relative_error";
+            if (options_.auditInternalFaceConservation)
+            {
+                stream
+                    << ",internal_face_flux_imbalance_kg_s"
+                    << ",cumulative_internal_face_imbalance_kg";
+            }
+            stream << '\n';
         }
     }
 
@@ -149,6 +157,30 @@ public:
             injected[componentCount] = rates.waterInjected;
             produced[componentCount] = rates.waterProduced;
         }
+
+        const double dt =
+            acceptedTimeSeconds - ledger_.lastAcceptedTime();
+
+        if (options_.auditInternalFaceConservation)
+        {
+            const auto face =
+                runtime.evaluateGlobalInternalFaceFluxImbalance(solution);
+            for (std::size_t comp = 0; comp < componentCount; ++comp)
+            {
+                lastInternalFaceImbalance_[comp] =
+                    face.component[comp];
+                cumulativeInternalFaceImbalance_[comp] +=
+                    face.component[comp] * dt;
+            }
+            if constexpr (Indices::hasIndependentWaterConservation)
+            {
+                lastInternalFaceImbalance_[componentCount] =
+                    face.independentWater;
+                cumulativeInternalFaceImbalance_[componentCount] +=
+                    face.independentWater * dt;
+            }
+        }
+
         ledger_.accept(acceptedTimeSeconds, injected, produced);
     }
 
@@ -357,13 +389,22 @@ private:
                 << s.cumulativeProduced[c] << ','
                 << s.expected[c] << ','
                 << s.error[c] << ','
-                << s.relativeError[c] << '\n';
+                << s.relativeError[c];
+            if (options_.auditInternalFaceConservation)
+            {
+                stream
+                    << ',' << lastInternalFaceImbalance_[c]
+                    << ',' << cumulativeInternalFaceImbalance_[c];
+            }
+            stream << '\n';
         }
     }
 
     ComponentMassBalanceOutputOptions options_;
     PetscMPIInt rank_{0};
     Ledger ledger_{};
+    Array lastInternalFaceImbalance_{};
+    Array cumulativeInternalFaceImbalance_{};
 };
 
 } // namespace MPMC
