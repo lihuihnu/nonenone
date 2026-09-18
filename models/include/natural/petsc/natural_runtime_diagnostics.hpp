@@ -134,6 +134,42 @@ struct NaturalGlobalDiagnostics final
 
 
 /**
+ * @brief 失败 Newton 的完整 scaled residual 最大行诊断。
+ *
+ * residualNorm2 / residualNormInfinity / maximumAbsoluteScaledResidual 都是
+ * PETSc 实际收敛判据看到的“缩放后”残差。residualRms 用全局方程数归一化，
+ * 用于判断固定 L2 absolute tolerance 是否存在网格尺寸效应。
+ *
+ * winning row 同时保存 equationScale 和反缩放后的 residual，便于区分
+ * mass/fugacity/closure/well-control 各方程自身量纲。该结构只做诊断。
+ */
+template <class Indices>
+struct NaturalFullResidualFailureDiagnostic final
+{
+    bool valid{false};
+    long long globalEquationCount{0};
+    double residualNorm2{0.0};
+    double residualRms{0.0};
+    double residualNormInfinity{0.0};
+
+    double maximumAbsoluteScaledResidual{0.0};
+    double signedScaledResidual{0.0};
+    double equationScale{1.0};
+    double signedUnscaledResidual{0.0};
+
+    PetscInt currentCellId{-1};
+    PetscInt inputCellId{-1};
+    int equationIndex{-1};
+    double pressure{0.0};
+    std::array<double, Indices::numPhases> saturation{};
+    std::array<std::array<double, Indices::numComponents>, Indices::numPhases>
+        moleFraction{};
+    std::uint8_t phasePresenceBits{0};
+    std::uint8_t phaseSuppressionBits{0};
+};
+
+
+/**
  * @brief 失败 Newton 中一个面的守恒/上游诊断。
  *
  * 所有通量均采用“从诊断单元流出为正”的残差符号约定。
