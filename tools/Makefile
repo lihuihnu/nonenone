@@ -134,23 +134,13 @@ run-scw-pseudocomponent-binary-regression: $(BIN_DIR)/scw_pseudocomponent_binary
 
 run-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
 	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results
-	@set +e; \
-	$(BIN_DIR)/scw_kerogen_0d_pvt_acceptance \
-		../case/scw_kerogen_lumped_flow_study \
-		example/scw_kerogen_0d_pvt_acceptance/results; \
-	status=$?; \
-	if [ $status -eq 3 ]; then \
-		echo "[PASS] 0D PVT harness executed; scientific gate remains blocked"; \
-		exit 0; \
-	fi; \
-	exit $status
-
-require-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
-	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results
 	@$(BIN_DIR)/scw_kerogen_0d_pvt_acceptance \
 		../case/scw_kerogen_lumped_flow_study \
 		example/scw_kerogen_0d_pvt_acceptance/results
 	@echo "[PASS] PR and CPA 0D PVT acceptance gate passed"
+
+require-scw-kerogen-0d-pvt-acceptance: run-scw-kerogen-0d-pvt-acceptance
+	@echo "[PASS] hard prerequisite satisfied: zero-flow PVT is self-consistent"
 
 plot-cpa-dme-vlle: run-cpa-dme-vlle
 	@$(PYTHON) example/cpa_dme_co2_water_vlle/plot_results.py \
