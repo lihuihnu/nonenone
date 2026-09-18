@@ -263,6 +263,19 @@ This directly addresses whether light, middle and heavy pseudo-components are tr
 
 Any breakthrough definition must preregister its threshold before looking at the final curves.
 
+## Producer composition is a primary paired endpoint
+
+The formal 360/380 comparison must consume the first-class producer output defined in \`15_PRODUCER_COMPOSITION_AND_SELECTIVITY.md\`.
+
+At every matched PVI the analysis separates:
+
+1. total hydrocarbon recovery;
+2. component-resolved recovery fractions \(RF_i\);
+3. instantaneous producer mass fractions \(Y_i\);
+4. instantaneous and cumulative \(E_{L/H}\).
+
+A higher total recovery at 380 °C is not, by itself, evidence for selective SCW transport. Selectivity requires a component-resolved change after normalization to the initial in-place composition.
+
 ## Experimental pairing and history control
 
 A formal laboratory claim requires control of specimen history.
