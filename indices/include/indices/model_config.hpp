@@ -49,12 +49,16 @@ template <
 struct CompositionalModelConfig final
 {
     static_assert(
-        NumComponents >= 2,
-        "CompositionalModelConfig requires at least two components.");
+        NumComponents >= 1,
+        "CompositionalModelConfig requires at least one EOS component.");
 
     static constexpr PhaseBehaviorModel phaseBehavior = PhaseBehavior;
     static constexpr bool fullyCompositionalThreePhase =
         phaseBehavior == PhaseBehaviorModel::FullyCompositionalThreePhase;
+
+    static_assert(
+        !fullyCompositionalThreePhase || NumComponents >= 2,
+        "Fully compositional three-phase mode requires at least two shared components.");
 
     static_assert(
         !fullyCompositionalThreePhase || HasWater,
