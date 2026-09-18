@@ -562,18 +562,8 @@
 
         constexpr std::array<double, 8> anchorRatios{{
             0.95, 1.05, 0.90, 1.10, 0.80, 1.25, 0.65, 1.50}};
-        // The Jia boundary audit can contain very narrow CPA three-phase
-        // basins. Once the ordinary flash has already failed, use a finer
-        // fail-only pressure homotopy for the opt-in CPA candidate-Gibbs
-        // policy. Production/default CPA, PR and SW retain the historical
-        // continuation spacing and iteration cap.
-        const bool fineCpaBoundaryContinuation =
-            eos_.usesCubicPlusAssociation() &&
-            options_.cpaSelectGibbsMinimumRoot;
-        const double maximumLogPressureStep =
-            fineCpaBoundaryContinuation ? 0.005 : 0.025;
-        const int maximumContinuationSteps =
-            fineCpaBoundaryContinuation ? 40 : 12;
+        constexpr double maximumLogPressureStep = 0.025;
+        constexpr int maximumContinuationSteps = 12;
 
         // 数值：锚点可使用既有恢复分支，但禁止再次启动压力延拓或角色枚举，避免递归搜索。
         CubicThreePhaseFlash anchorSolver(
