@@ -40,6 +40,8 @@ struct Numerics:ScwKerogen1D::Numerics {static constexpr double massResidualScal
 struct Time:ScwKerogen1D::Time {
  static constexpr int numberOfSteps=200; // 12000 s safety horizon at 60 s output spacing
  static constexpr double dtDays=60.0/86400.0;
+ // Report every 60 s, but keep nonlinear transport steps at <=2 s.
+ static constexpr double maximumDtDays=2.0/86400.0;
  static constexpr double minimumDtDays=1e-5/86400.0;
  static constexpr int maximumRetries=12;
  static constexpr double targetPVI=2.0;
