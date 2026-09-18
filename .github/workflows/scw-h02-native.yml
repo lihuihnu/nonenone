@@ -1,7 +1,7 @@
 name: SCW H02 native 2D runner
 on:
   push:
-    branches: [docs/scw-kerogen-acs2023-data]
+    branches: [docs/scw-kerogen-acs2023-data, scw-h02-runner-20260918]
     paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/fluid_system.hpp', 'models/include/natural/petsc/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', '.github/workflows/scw-h02-native.yml']
   workflow_dispatch:
 permissions:
