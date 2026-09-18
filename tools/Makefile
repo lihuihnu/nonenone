@@ -22,13 +22,13 @@ MPMC_INCLUDES := \
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror $(MPMC_INCLUDES)
 
 BIN_DIR := bin
-EXAMPLES := pr_c2_c3_nc5 h2o_co2_ch4_nc16_three_eos three_eos_public_benchmark five_component_common_fit cpa_dme_co2_water_vlle heringer2025_bsb_three_phase scw_binary_calibration scw_pseudocomponent_binary_regression
+EXAMPLES := pr_c2_c3_nc5 h2o_co2_ch4_nc16_three_eos three_eos_public_benchmark five_component_common_fit cpa_dme_co2_water_vlle heringer2025_bsb_three_phase scw_binary_calibration scw_pseudocomponent_binary_regression scw_kerogen_0d_pvt_acceptance
 EXAMPLE_BINS := $(addprefix $(BIN_DIR)/,$(EXAMPLES))
 
 PUBLIC_HEADERS := $(shell find include $(PROJECT_ROOT)/models/include $(PROJECT_ROOT)/indices/include \
 	$(PROJECT_ROOT)/common/include $(PROJECT_ROOT)/ad/include -type f \( -name '*.hpp' -o -name '*.h' \) 2>/dev/null)
 
-.PHONY: all examples example run-example run-three-eos run-public-benchmark run-public-phase-diagrams redraw-public-phase-diagrams run-five-component-common-fit run-cpa-dme-vlle run-heringer2025-bsb run-scw-binary-calibration run-scw-pseudocomponent-binary-regression plot-cpa-dme-vlle plot-cpa-dme-vlle-by-pressure reference reference-three-eos clean
+.PHONY: all examples example run-example run-three-eos run-public-benchmark run-public-phase-diagrams redraw-public-phase-diagrams run-five-component-common-fit run-cpa-dme-vlle run-heringer2025-bsb run-scw-binary-calibration run-scw-pseudocomponent-binary-regression run-scw-kerogen-0d-pvt-acceptance require-scw-kerogen-0d-pvt-acceptance plot-cpa-dme-vlle plot-cpa-dme-vlle-by-pressure reference reference-three-eos clean
 
 all: examples
 
@@ -131,6 +131,27 @@ run-scw-pseudocomponent-binary-regression: $(BIN_DIR)/scw_pseudocomponent_binary
 	fi; \
 	exit $$status
 
+
+run-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
+	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results
+	@set +e; \
+	$(BIN_DIR)/scw_kerogen_0d_pvt_acceptance \
+		../case/scw_kerogen_lumped_flow_study \
+		example/scw_kerogen_0d_pvt_acceptance/results; \
+	status=$?; \
+	if [ $status -eq 3 ]; then \
+		echo "[PASS] 0D PVT harness executed; scientific gate remains blocked"; \
+		exit 0; \
+	fi; \
+	exit $status
+
+require-scw-kerogen-0d-pvt-acceptance: $(BIN_DIR)/scw_kerogen_0d_pvt_acceptance
+	@rm -rf example/scw_kerogen_0d_pvt_acceptance/results
+	@$(BIN_DIR)/scw_kerogen_0d_pvt_acceptance \
+		../case/scw_kerogen_lumped_flow_study \
+		example/scw_kerogen_0d_pvt_acceptance/results
+	@echo "[PASS] PR and CPA 0D PVT acceptance gate passed"
+
 plot-cpa-dme-vlle: run-cpa-dme-vlle
 	@$(PYTHON) example/cpa_dme_co2_water_vlle/plot_results.py \
 		--input example/cpa_dme_co2_water_vlle/results/phase_comparison.csv \
@@ -162,4 +183,4 @@ reference-three-eos: $(BIN_DIR)/h2o_co2_ch4_nc16_three_eos
 	@echo "[PASS] three-EOS aqueous reference data regenerated"
 
 clean:
-	@rm -rf $(BIN_DIR) example/pr_c2_c3_nc5/results example/h2o_co2_ch4_nc16_three_eos/results example/three_eos_public_benchmark/results example/five_component_common_fit/results example/cpa_dme_co2_water_vlle/results example/heringer2025_bsb_three_phase/results example/scw_binary_calibration/results example/scw_pseudocomponent_binary_regression/results
+	@rm -rf $(BIN_DIR) example/pr_c2_c3_nc5/results example/h2o_co2_ch4_nc16_three_eos/results example/three_eos_public_benchmark/results example/five_component_common_fit/results example/cpa_dme_co2_water_vlle/results example/heringer2025_bsb_three_phase/results example/scw_binary_calibration/results example/scw_pseudocomponent_binary_regression/results example/scw_kerogen_0d_pvt_acceptance/results
