@@ -1,0 +1,134 @@
+name: SCW kerogen five-component 2D screening
+
+on:
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths:
+      - 'case/scw_kerogen_5c_2d/**'
+      - '.github/workflows/scw-kerogen-5c-flow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  five-component-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native solver dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+
+      - name: Configure dependency profile
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := $PETSC_ROOT
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := $RUNNER_TEMP/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          mkdir -p five-component-results
+          git rev-parse HEAD > five-component-results/checkout.txt
+          pkg-config --modversion PETSc > five-component-results/petsc_version.txt
+          sed -i 's/^clean::/clean:/' case/Makefile
+          git diff -- case/Makefile > five-component-results/distro_make_compatibility.patch
+
+      - name: Build experiment-driven five-component case
+        run: |
+          set -euo pipefail
+          make case CASE=scw_kerogen_5c_2d -j2 2>&1 | tee five-component-results/build.log
+          test -x case/scw_kerogen_5c_2d/bin/scw_kerogen_5c_2d
+          grep -F 'OIL_GASOLINE' case/scw_kerogen_5c_2d/case_config.hpp
+          grep -F 'OIL_DIESEL' case/scw_kerogen_5c_2d/case_config.hpp
+          grep -F 'OIL_MIDDLE' case/scw_kerogen_5c_2d/case_config.hpp
+          grep -F 'OIL_HEAVY' case/scw_kerogen_5c_2d/case_config.hpp
+
+      - name: Short 20x8 five-component onset check
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/five-component-results/smoke_20x8"
+          mkdir -p "$root"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          make run CASE=scw_kerogen_5c_2d NP=1 RESULT_DIR="$root" \
+            RUN_ARGS="-mc_nx 20 -mc_ny 8 -target_pvi 0.02 -numSteps 3 \
+            -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 \
+            -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 \
+            -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE \
+            -ksp_type preonly -pc_type lu" \
+            > five-component-results/smoke_20x8.log 2>&1
+          tail -30 five-component-results/smoke_20x8.log
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+          p=Path("five-component-results/smoke_20x8/producer_composition.csv")
+          rows=list(csv.DictReader(p.open(encoding="utf-8-sig")))
+          if not rows or float(rows[-1]["pvi"]) < 0.02:
+              raise SystemExit("20x8 smoke did not reach 0.02 PVI")
+          required=[
+              "RF_OIL_GASOLINE","RF_OIL_DIESEL","RF_OIL_MIDDLE","RF_OIL_HEAVY",
+              "RF_Light_group","RF_Heavy_group","RF_total_hydrocarbon",
+              "E_L_over_H_instant_mass","E_L_over_H_cumulative_mass"
+          ]
+          missing=[x for x in required if x not in rows[0]]
+          if missing:
+              raise SystemExit(f"missing producer fields: {missing}")
+          print("FIVE_COMPONENT_PRODUCER_OUTPUT_SMOKE=PASS")
+          print("final_pvi",rows[-1]["pvi"])
+          PY
+
+      - name: Run 60x20 PR five-component baseline to 1 PVI
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/five-component-results/pr_380c_28mpa_60x20"
+          mkdir -p "$root"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          make run CASE=scw_kerogen_5c_2d NP=1 RESULT_DIR="$root" \
+            RUN_ARGS="-mc_nx 60 -mc_ny 20 -target_pvi 1.0 -numSteps 75 \
+            -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 \
+            -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 \
+            -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE \
+            -ksp_type preonly -pc_type lu" \
+            > five-component-results/pr_380c_28mpa_60x20.log 2>&1
+          grep -F '[SNES][MESH-NORM]' five-component-results/pr_380c_28mpa_60x20.log | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' five-component-results/pr_380c_28mpa_60x20.log | head -1
+          tail -40 five-component-results/pr_380c_28mpa_60x20.log
+
+      - name: Audit five-component recovery selectivity and mass closure
+        run: |
+          set -euo pipefail
+          python3 case/scw_kerogen_5c_2d/analyze_5c.py \
+            --root five-component-results/pr_380c_28mpa_60x20 \
+            --out five-component-results/pr_380c_28mpa_60x20/analysis \
+            | tee five-component-results/pr_380c_28mpa_60x20/analysis.log
+          cat five-component-results/pr_380c_28mpa_60x20/analysis/status.json
+          cat five-component-results/pr_380c_28mpa_60x20/analysis/five_component_mass_gate.csv
+          cat five-component-results/pr_380c_28mpa_60x20/analysis/five_component_at_matched_pvi.csv
+
+      - name: Upload exact five-component outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-kerogen-5c-pr-380c-28mpa
+          path: five-component-results/
+          if-no-files-found: error
