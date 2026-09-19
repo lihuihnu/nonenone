@@ -1,0 +1,185 @@
+name: SCW H02 84x28 C-only short grid check
+
+on:
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths: ['.github/workflows/scw-h02-84x28-c.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  c-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native solver dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+
+      - name: Configure dependency profile
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := $PETSC_ROOT
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := $RUNNER_TEMP/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          mkdir -p h02-results/84x28_c_short
+          git rev-parse HEAD > h02-results/84x28_c_short/checkout.txt
+          pkg-config --modversion PETSc > h02-results/84x28_c_short/petsc_version.txt
+          sed -i 's/^clean::/clean:/' case/Makefile
+          git diff -- case/Makefile > h02-results/84x28_c_short/distro_make_compatibility.patch
+
+      - name: Build frozen H02 C case
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include -Icase/include \
+            case/scw_h02_2d/test_closure.cpp -o /tmp/h02_test
+          /tmp/h02_test | tee h02-results/84x28_c_short/closure.log
+          make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/84x28_c_short/build_C.log
+          test -x case/scw_h02_2d/bin/scw_h02_2d
+
+      - name: Run 84x28 C to 1.2 actual PVI
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/84x28_c_short"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 84 -h02_ny 28 -target_pvi 1.2 -numSteps 100 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/C" \
+            RUN_ARGS="-h02_mode C $COMMON_ARGS" > "$root/C.log" 2>&1
+          grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/C.log" | head -1
+          tail -25 "$root/C.log"
+
+      - name: Audit C trajectory and matched-PVI metrics
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import csv, json, math
+          from pathlib import Path
+
+          root=Path("h02-results/84x28_c_short/C")
+          out=Path("h02-results/84x28_c_short/analysis")
+          out.mkdir(exist_ok=True)
+          phases=("Oil","Gas","Water")
+
+          def read(path):
+              with path.open(newline="",encoding="utf-8-sig") as f:
+                  rows=list(csv.DictReader(f))
+              if not rows:
+                  raise RuntimeError(f"empty: {path}")
+              return rows
+
+          def num(row,key):
+              x=float(row[key])
+              if not math.isfinite(x):
+                  raise RuntimeError(f"nonfinite {key}")
+              return x
+
+          def mu(w):
+              return math.exp(math.log(0.002)+w*math.log(5e-5/0.002))
+
+          raw=read(root/"producer_composition.csv")
+          wells=read(root/"well_history.csv")
+          lookup={(int(r["step"]),r["name"]):r for r in wells}
+          series=[]
+          for r in raw:
+              step=int(r["step"])
+              inj=lookup[(step,"SCW_INJ")]
+              prod=lookup[(step,"PROD")]
+              weighted=0.0; total=0.0
+              for ph in phases:
+                  hr=num(r,f"m_dot_{ph}_OIL_HEAVY_produced_kg_s")
+                  wr=num(r,f"m_dot_{ph}_H2O_produced_kg_s")
+                  if hr>0:
+                      weighted += hr*mu(wr/(wr+hr))
+                  total += hr
+              series.append({
+                  "pvi":num(r,"pvi"),
+                  "RF_H":num(r,"RF_OIL_HEAVY"),
+                  "cum_Heavy_kg":num(r,"cum_OIL_HEAVY_produced_kg"),
+                  "deltaP_MPa":(num(inj,"bhp")-num(prod,"bhp"))*0.1,
+                  "mu_Heavy_carrier_Pa_s":weighted/total if total>0 else math.nan,
+              })
+
+          if series[-1]["pvi"] < 1.2:
+              raise RuntimeError(f"C stopped at {series[-1]['pvi']} PVI")
+
+          def interp(target,key):
+              for i,r in enumerate(series):
+                  if r["pvi"]==target: return r[key]
+                  if r["pvi"]>target:
+                      a,b=series[i-1],r
+                      f=(target-a["pvi"])/(b["pvi"]-a["pvi"])
+                      return a[key]+f*(b[key]-a[key])
+              raise RuntimeError("target outside coverage")
+
+          mb=read(root/"component_mass_balance.csv")
+          mass=[]
+          worst=0.0
+          for comp in ("H2O","OIL_HEAVY"):
+              comp_worst=0.0
+              for r in (x for x in mb if x["component"]==comp):
+                  initial=num(r,"initial_inventory_kg")
+                  injected=num(r,"cumulative_injected_kg")
+                  produced=num(r,"cumulative_produced_kg")
+                  current=num(r,"current_inventory_kg")
+                  err=current-initial-injected+produced
+                  budget=initial+injected
+                  rel=abs(err)/budget if budget>1e-24 else (0.0 if abs(err)<1e-24 else math.inf)
+                  comp_worst=max(comp_worst,rel)
+              mass.append({"component":comp,"max_relative_error":comp_worst})
+              worst=max(worst,comp_worst)
+          if worst>1e-6:
+              raise RuntimeError(f"mass gate failed: {worst}")
+
+          metrics=[]
+          for t in (0.5,1.0,1.2):
+              metrics.append({"mode":"C","target_pvi":t,
+                              "RF_H":interp(t,"RF_H"),
+                              "cum_Heavy_kg":interp(t,"cum_Heavy_kg"),
+                              "deltaP_MPa":interp(t,"deltaP_MPa"),
+                              "mu_Heavy_carrier_Pa_s":interp(t,"mu_Heavy_carrier_Pa_s")})
+
+          for name,rows in (("short_grid_metrics.csv",metrics),("short_mass_gate.csv",mass)):
+              with (out/name).open("w",newline="",encoding="utf-8") as f:
+                  w=csv.DictWriter(f,fieldnames=list(rows[0]))
+                  w.writeheader(); w.writerows(rows)
+
+          status={"scope":"CONDITIONAL_MECHANISM_EXPERIMENT_NOT_REAL_HEAVY_VALIDATION",
+                  "grid":"84x28","mode":"C","final_pvi":series[-1]["pvi"],
+                  "mass_gate":"PASS","max_relative_component_mass_error":worst}
+          (out/"status.json").write_text(json.dumps(status,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps(status,indent=2))
+          print((out/"short_grid_metrics.csv").read_text())
+          PY
+
+      - name: Upload exact 84x28 C outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-h02-84x28-c-short
+          path: h02-results/84x28_c_short/
+          if-no-files-found: error
