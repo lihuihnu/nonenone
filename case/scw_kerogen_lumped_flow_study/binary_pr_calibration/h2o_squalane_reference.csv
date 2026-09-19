@@ -1,0 +1,5 @@
+id,proxy_role,source_table,temperature_K,pressure_MPa,x_water_water_rich,x_water_hydrocarbon_rich,fit_role,reported_accuracy_water_rich,reported_accuracy_hydrocarbon_rich,source,doi,production_lump_identity
+SQ6372P2688,saturated_heavy_benchmark,Stevenson1994_Table3,637.2,26.88,0.9997,0.809,calibration,0.0005,0.002,"Stevenson et al. 1994",10.1016/0378-3812(94)87016-0,"none; benchmark only"
+SQ6532P2705,saturated_heavy_benchmark,Stevenson1994_Table5,653.2,27.05,0.9938,0.932,validation,0.0005,0.002,"Stevenson et al. 1994",10.1016/0378-3812(94)87016-0,"none; benchmark only"
+SQ6532P2774,saturated_heavy_benchmark,Stevenson1994_Table5,653.2,27.74,0.9966,0.911,calibration,0.0005,0.002,"Stevenson et al. 1994",10.1016/0378-3812(94)87016-0,"none; benchmark only"
+SQ6532P2947,saturated_heavy_benchmark,Stevenson1994_Table5,653.2,29.47,0.9983,0.885,validation,0.0005,0.002,"Stevenson et al. 1994",10.1016/0378-3812(94)87016-0,"none; benchmark only"

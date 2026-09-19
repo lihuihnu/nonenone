@@ -49,7 +49,8 @@ public:
     {
         validate_();
         const std::size_t phase = liquid ? 0u : 1u;
-        const std::size_t selector = liquid ? 0u : 1u;
+        const std::size_t selector =
+            (liquid || Indices::numComponents == 1) ? 0u : 1u;
         const ValueType result = densityFunctions_[phase](
             ValueType(pressure), ValueType(composition[selector]));
         if constexpr (std::is_same_v<Scalar, double>)
@@ -71,7 +72,8 @@ public:
     {
         validate_();
         const std::size_t phase = liquid ? 0u : 1u;
-        const std::size_t selector = liquid ? 0u : 1u;
+        const std::size_t selector =
+            (liquid || Indices::numComponents == 1) ? 0u : 1u;
         const ValueType result = viscosityFunctions_[phase](
             ValueType(pressure), ValueType(composition[selector]));
         if constexpr (std::is_same_v<Scalar, double>)

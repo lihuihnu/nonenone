@@ -1,0 +1,11 @@
+component_i,component_j,kij_constant_initial,temperature_law,fit_policy,parameter_status,source,rationale
+H2O,OIL_GASOLINE,0.044,CONSTANT_FIRST_PASS,FIT_WHEN_NHEXANE_ROWS_READY,NHEXANE_CPA_PROXY_PRIOR,"Oliveira et al. 2007 Table 2, water+n-hexane CPA kij=0.044","Gasoline EACN is close to n-hexane; direct CPA proxy prior, not pseudo-component calibration."
+H2O,OIL_DIESEL,-0.054,CONSTANT_FIRST_PASS,FIT_WHEN_DODECANE_ROWS_READY,NDECANE_CPA_ANCHOR_PRIOR,"Oliveira et al. 2007 Table 2, water+n-decane CPA kij=-0.054","Nearest directly tabulated heavy n-alkane CPA anchor retained as optimizer seed; not called dodecane or Diesel calibration."
+H2O,OIL_MIDDLE,0.0,CONSTANT_FIRST_PASS,FIT_ONLY_WITH_ADMISSIBLE_PROXY_ROWS,NEUTRAL_CPA_PRIOR,"No admissible direct pseudo-fraction CPA BIP recovered","Do not extrapolate Oliveira C1-C10 carbon-number correlation to EACN~29."
+H2O,OIL_HEAVY,0.0,CONSTANT_DIAGNOSTIC_ONLY,NO_FIT,HEAVY_CPA_BIP_UNRESOLVED,"Heavy-oil target-window data inadequate","Zero is a neutral diagnostic baseline only; forbidden to tune for flash convergence."
+OIL_GASOLINE,OIL_DIESEL,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","Classical one-fluid physical mixing baseline."
+OIL_GASOLINE,OIL_MIDDLE,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","No arbitrary HC-HC CPA BIP."
+OIL_GASOLINE,OIL_HEAVY,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","Heavy chemistry uncertainty is not hidden in HC-HC kij."
+OIL_DIESEL,OIL_MIDDLE,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","No arbitrary HC-HC CPA BIP."
+OIL_DIESEL,OIL_HEAVY,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","No arbitrary HC-HC CPA BIP."
+OIL_MIDDLE,OIL_HEAVY,0.0,CONSTANT,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_CPA_BASELINE,"same recovered oil","No arbitrary HC-HC CPA BIP."

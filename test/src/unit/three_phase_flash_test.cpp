@@ -236,6 +236,65 @@ void testPhaseRemovalAndStabilityReappearance()
     }
 }
 
+void testTraceAppearanceHoldPreventsImmediateDeletion()
+{
+    auto fluid = makeFluid();
+    MPMC::FullyCompositionalThreePhaseEquilibrium<Indices> equilibrium(fluid);
+
+    const Composition z{0.75, 0.025, 0.025, 0.20};
+    const auto flash = equilibrium.flashPTZ(50.0e5, fluid.temperature, z);
+    require(flash.converged && flash.presence.count() == 3,
+            "trace appearance-hold regression requires a three-phase reference state");
+
+    std::array<double, Indices::numPrimaryVariables> primary{};
+    primary[Indices::Primary::pressure] = 50.0e5;
+    MPMC::PhaseStateData<Indices> phaseState;
+    equilibrium.assignFlashResult(primary, phaseState, flash);
+
+    constexpr double traceWaterSaturation = 2.5e-7;
+    const double gasSaturation = primary[Indices::Primary::vaporSaturation];
+    primary[Indices::Primary::waterSaturation] = traceWaterSaturation;
+    primary[Indices::Primary::liquidSaturation] =
+        1.0 - gasSaturation - traceWaterSaturation;
+    phaseState.phaseSuppression.add(MPMC::CompositionalPhase::Water);
+
+    const auto held =
+        equilibrium.updatePhaseState(primary, phaseState);
+    require(!held.phaseRemoved,
+            "a certified trace reappearance inside the probe band must not be deleted again");
+    require(phaseState.phasePresence.contains(MPMC::CompositionalPhase::Water),
+            "trace water phase must remain active while its appearance hold is active");
+    require(phaseState.phaseSuppression.contains(MPMC::CompositionalPhase::Water),
+            "trace reappearance hold must persist while saturation remains inside the probe band");
+    near(primary[Indices::Primary::waterSaturation],
+         traceWaterSaturation, 1.0e-12,
+         "appearance hold must not inflate the physical trace saturation");
+
+    // Once the phase grows beyond the probe band it becomes an ordinary active
+    // phase and the transition-memory bit is cleared.
+    constexpr double grownWaterSaturation = 2.0e-4;
+    primary[Indices::Primary::waterSaturation] = grownWaterSaturation;
+    primary[Indices::Primary::liquidSaturation] =
+        1.0 - gasSaturation - grownWaterSaturation;
+    const auto grown =
+        equilibrium.updatePhaseState(primary, phaseState);
+    require(!grown.phaseRemoved,
+            "a grown reappeared phase must remain active");
+    require(!phaseState.phaseSuppression.contains(MPMC::CompositionalPhase::Water),
+            "appearance hold must clear after saturation leaves the probe band");
+
+    // The hold is not a residual-saturation floor: a non-positive Newton
+    // saturation can still trigger the normal restricted/stability transition.
+    phaseState.phaseSuppression.add(MPMC::CompositionalPhase::Water);
+    primary[Indices::Primary::waterSaturation] = -1.0e-6;
+    primary[Indices::Primary::liquidSaturation] =
+        1.0 - gasSaturation + 1.0e-6;
+    const auto negative =
+        equilibrium.updatePhaseState(primary, phaseState);
+    require(negative.phaseRemoved,
+            "appearance hold must never protect a zero/negative phase saturation");
+}
+
 void testFlowPhysicsUsesAllThreeCompositionalPhases()
 {
     auto fluid = makeFluid();
@@ -572,6 +631,7 @@ int main()
     {
         testThreePhasePTzFlash();
         testPhaseRemovalAndStabilityReappearance();
+        testTraceAppearanceHoldPreventsImmediateDeletion();
         testFlowPhysicsUsesAllThreeCompositionalPhases();
         testRecoverablePhaseUpdateFailureIsTransactional();
         testInvalidStabilityFailureIsDistinguishedFromInstability();

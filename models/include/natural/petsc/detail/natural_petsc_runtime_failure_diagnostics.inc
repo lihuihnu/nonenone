@@ -6,6 +6,322 @@
  */
 
     /**
+     * @brief 对当前状态的所有 owned-cell outward internal-face flux 做 MPI 有符号和。
+     *
+     * Closed reservoir 中每个 interior face 会从两侧各出现一次。若离散面通量
+     * 严格 conservative，这些 reciprocal contributions 应逐组分相互抵消到
+     * roundoff。非零结果直接量化 internal-face pair 的全局不反对称量 [kg/s]。
+     */
+    [[nodiscard]] NaturalGlobalSignedMassResidual<Indices>
+    evaluateGlobalInternalFaceFluxImbalance(Vec solution) const
+    {
+        requireReadyForResidual_();
+        requireVector_(solution, "solution");
+
+        constexpr std::size_t n =
+            static_cast<std::size_t>(Indices::numComponents);
+        constexpr std::size_t waterOffset = n;
+        constexpr std::size_t count =
+            n + (Indices::hasIndependentWaterConservation ? std::size_t(1) : std::size_t(0));
+        std::array<double, count> local{};
+        std::array<double, count> global{};
+
+        const auto &cache = buildCellCache_(solution);
+        const auto &map = backend_.dofMap(
+            static_cast<PetscInt>(Indices::numPrimaryVariables));
+
+        for (const Cell cell : ownedCells_)
+        {
+            const PetscInt localBlock = map.localBlockIndex(cell);
+            FaceMassFlux<Indices, double> outward{};
+            accumulateOutwardFaceFluxValue_(
+                cell, localBlock, cache, outward);
+
+            for (std::size_t c = 0; c < n; ++c)
+                local[c] += outward.component[c];
+            if constexpr (Indices::hasIndependentWaterConservation)
+                local[waterOffset] += outward.water;
+        }
+
+        PetscCallMPIAbort(
+            backend_.communicator(),
+            MPI_Allreduce(
+                local.data(), global.data(), static_cast<int>(count),
+                MPI_DOUBLE, MPI_SUM, backend_.communicator()));
+
+        NaturalGlobalSignedMassResidual<Indices> result;
+        for (std::size_t c = 0; c < n; ++c)
+            result.component[c] = global[c];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            result.independentWater = global[waterOffset];
+        return result;
+    }
+
+
+    /**
+     * @brief 对当前 PETSc residual 的守恒质量行做 MPI 全局有符号求和。
+     *
+     * PETSc Vec 中保存的是生产求解器实际使用的 scaled residual；这里按每行
+     * production equationScaleFactor_ 精确反缩放回 kg/s，再对 owned cells
+     * 求和。该量可直接约束一个 accepted Newton state 对全局离散质量守恒的
+     * 瞬时缺口，不包含 fugacity/closure/well-control 行。
+     */
+    [[nodiscard]] NaturalGlobalSignedMassResidual<Indices>
+    evaluateGlobalSignedMassResidual(Vec residual) const
+    {
+        requireVector_(residual, "residual");
+
+        constexpr std::size_t n =
+            static_cast<std::size_t>(Indices::numComponents);
+        constexpr std::size_t waterOffset = n;
+        constexpr std::size_t count =
+            n + (Indices::hasIndependentWaterConservation ? std::size_t(1) : std::size_t(0));
+
+        std::array<double, count> local{};
+        std::array<double, count> global{};
+
+        const auto &map = backend_.dofMap(
+            static_cast<PetscInt>(Indices::numPrimaryVariables));
+        PetscOwnedReadView residualView(residual);
+
+        for (std::size_t ownedIndex = 0;
+             ownedIndex < ownedCells_.size();
+             ++ownedIndex)
+        {
+            const Cell cell = ownedCells_[ownedIndex];
+            const PetscInt localBlock = ownedLocalBlockCache_[ownedIndex];
+
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                const std::size_t c = static_cast<std::size_t>(component);
+                const int equation = Indices::Equation::massConservation[c];
+                const PetscInt row = map.globalIndex(cell, equation);
+                if (row < residualView.begin() || row >= residualView.end())
+                    throw std::runtime_error(
+                        "Owned Natural mass residual row is outside PETSc ownership range.");
+
+                const double scaled = PetscRealPart(
+                    residualView.data()[row - residualView.begin()]);
+                const double scale = options_.scaling.enabled
+                    ? equationScaleFactor_(equation, localBlock)
+                    : 1.0;
+                local[c] += scale != 0.0 ? scaled / scale : scaled;
+            }
+
+            if constexpr (Indices::hasIndependentWaterConservation)
+            {
+                constexpr int equation = Indices::Equation::waterConservation;
+                const PetscInt row = map.globalIndex(cell, equation);
+                if (row < residualView.begin() || row >= residualView.end())
+                    throw std::runtime_error(
+                        "Owned Natural water residual row is outside PETSc ownership range.");
+
+                const double scaled = PetscRealPart(
+                    residualView.data()[row - residualView.begin()]);
+                const double scale = options_.scaling.enabled
+                    ? equationScaleFactor_(equation, localBlock)
+                    : 1.0;
+                local[waterOffset] += scale != 0.0 ? scaled / scale : scaled;
+            }
+        }
+
+        PetscCallMPIAbort(
+            backend_.communicator(),
+            MPI_Allreduce(
+                local.data(),
+                global.data(),
+                static_cast<int>(count),
+                MPI_DOUBLE,
+                MPI_SUM,
+                backend_.communicator()));
+
+        NaturalGlobalSignedMassResidual<Indices> result;
+        for (std::size_t c = 0; c < n; ++c)
+            result.component[c] = global[c];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            result.independentWater = global[waterOffset];
+        return result;
+    }
+
+
+    /**
+     * @brief 识别失败 Newton 中 PETSc scaled residual 的全局最大方程行。
+     *
+     * 与质量守恒分解诊断不同，本函数扫描每个 owned cell 的全部 Natural
+     * 方程，包括 fugacity blocks、volume closure 和 well-control。它同时
+     * 返回全局 L2/RMS/Linf，便于区分“单一方程卡死”和“固定全局 L2 容差随
+     * 网格 DOF 增长而变严”。
+     */
+    [[nodiscard]] NaturalFullResidualFailureDiagnostic<Indices>
+    evaluateFullResidualFailureDiagnostic(
+        Vec solution,
+        Vec residual) const
+    {
+        requireVector_(solution, "solution");
+        requireVector_(residual, "residual");
+
+        NaturalFullResidualFailureDiagnostic<Indices> diagnostic;
+        const MPI_Comm comm = backend_.communicator();
+
+        PetscReal norm2 = 0.0;
+        PetscReal normInf = 0.0;
+        PetscInt globalSize = 0;
+        PetscCallAbort(comm, VecNorm(residual, NORM_2, &norm2));
+        PetscCallAbort(comm, VecNorm(residual, NORM_INFINITY, &normInf));
+        PetscCallAbort(comm, VecGetSize(residual, &globalSize));
+        diagnostic.globalEquationCount = static_cast<long long>(globalSize);
+        diagnostic.residualNorm2 = static_cast<double>(norm2);
+        diagnostic.residualNormInfinity = static_cast<double>(normInf);
+        diagnostic.residualRms = globalSize > 0
+            ? diagnostic.residualNorm2 /
+                std::sqrt(static_cast<double>(globalSize))
+            : 0.0;
+
+        const auto globalMass =
+            evaluateGlobalSignedMassResidual(residual);
+        diagnostic.globalSignedComponentMassResidual =
+            globalMass.component;
+        if constexpr (Indices::hasIndependentWaterConservation)
+        {
+            diagnostic.globalSignedIndependentWaterResidual =
+                globalMass.independentWater;
+        }
+
+        PetscMPIInt rank = 0;
+        PetscCallMPIAbort(comm, MPI_Comm_rank(comm, &rank));
+        const auto &map = backend_.dofMap(
+            static_cast<PetscInt>(Indices::numPrimaryVariables));
+        PetscOwnedReadView residualView(residual);
+
+        double localMaximum = -1.0;
+        double localSigned = 0.0;
+        Cell localMaximumCell = Cell(-1);
+        int localMaximumEquation = -1;
+
+        for (const Cell cell : ownedCells_)
+        {
+            for (int equation = 0; equation < Indices::numEquations; ++equation)
+            {
+                const PetscInt global = map.globalIndex(cell, equation);
+                if (global < residualView.begin() || global >= residualView.end())
+                    throw std::runtime_error(
+                        "Owned Natural residual row is outside PETSc ownership range.");
+                const double signedValue = PetscRealPart(
+                    residualView.data()[global - residualView.begin()]);
+                const double absoluteValue = std::abs(signedValue);
+                if (absoluteValue > localMaximum)
+                {
+                    localMaximum = absoluteValue;
+                    localSigned = signedValue;
+                    localMaximumCell = cell;
+                    localMaximumEquation = equation;
+                }
+            }
+        }
+
+        double globalMaximum = -1.0;
+        PetscCallMPIAbort(
+            comm,
+            MPI_Allreduce(&localMaximum, &globalMaximum, 1, MPI_DOUBLE, MPI_MAX, comm));
+        if (!(globalMaximum >= 0.0) || !std::isfinite(globalMaximum))
+            return diagnostic;
+
+        int candidateRank = localMaximum == globalMaximum
+            ? static_cast<int>(rank)
+            : std::numeric_limits<int>::max();
+        int winningRank = 0;
+        PetscCallMPIAbort(
+            comm,
+            MPI_Allreduce(&candidateRank, &winningRank, 1, MPI_INT, MPI_MIN, comm));
+
+        PetscInt winningCell = -1;
+        int winningEquation = -1;
+        double winningSigned = 0.0;
+        if (static_cast<int>(rank) == winningRank)
+        {
+            winningCell = static_cast<PetscInt>(localMaximumCell);
+            winningEquation = localMaximumEquation;
+            winningSigned = localSigned;
+        }
+        PetscCallMPIAbort(comm, MPI_Bcast(&winningCell, 1, MPIU_INT, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(&winningEquation, 1, MPI_INT, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(&winningSigned, 1, MPI_DOUBLE, winningRank, comm));
+
+        diagnostic.valid = true;
+        diagnostic.maximumAbsoluteScaledResidual = globalMaximum;
+        diagnostic.signedScaledResidual = winningSigned;
+        diagnostic.currentCellId = winningCell;
+        diagnostic.equationIndex = winningEquation;
+
+        const auto &cache = buildCellCache_(solution);
+        if (static_cast<int>(rank) == winningRank)
+        {
+            const Cell cell = static_cast<Cell>(winningCell);
+            const PetscInt block = map.localBlockIndex(cell);
+            const auto &entry = cache[static_cast<std::size_t>(block)];
+            diagnostic.inputCellId = backend_.inputCellIndex(cell);
+            diagnostic.pressure = scalarValue(entry.state.pressure);
+            diagnostic.equationScale = options_.scaling.enabled
+                ? equationScaleFactor_(winningEquation, block)
+                : 1.0;
+            diagnostic.signedUnscaledResidual =
+                diagnostic.equationScale != 0.0
+                    ? diagnostic.signedScaledResidual / diagnostic.equationScale
+                    : diagnostic.signedScaledResidual;
+
+            for (int phase = 0; phase < Indices::numPhases; ++phase)
+            {
+                const std::size_t p = static_cast<std::size_t>(phase);
+                diagnostic.saturation[p] =
+                    scalarValue(entry.properties.saturation[p]);
+            }
+
+            const auto copyComposition = [&](int phase, const auto &composition)
+            {
+                const std::size_t p = static_cast<std::size_t>(phase);
+                for (int component = 0; component < Indices::numComponents; ++component)
+                    diagnostic.moleFraction[p][static_cast<std::size_t>(component)] =
+                        scalarValue(composition[static_cast<std::size_t>(component)]);
+            };
+            copyComposition(Indices::Phase::liquid, entry.state.liquidMoleFraction);
+            copyComposition(Indices::Phase::vapor, entry.state.vaporMoleFraction);
+            if constexpr (Indices::hasWater)
+                copyComposition(Indices::Phase::water, entry.state.aqueousMoleFraction);
+
+            if constexpr (Indices::fullyCompositionalThreePhase)
+            {
+                diagnostic.phasePresenceBits = entry.state.phasePresence.bits();
+                diagnostic.phaseSuppressionBits = entry.state.phaseSuppression.bits();
+            }
+        }
+
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.inputCellId, 1, MPIU_INT, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.pressure, 1, MPI_DOUBLE, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.equationScale, 1, MPI_DOUBLE, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.signedUnscaledResidual, 1, MPI_DOUBLE, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            diagnostic.saturation.data(), Indices::numPhases,
+            MPI_DOUBLE, winningRank, comm));
+        for (int phase = 0; phase < Indices::numPhases; ++phase)
+        {
+            PetscCallMPIAbort(comm, MPI_Bcast(
+                diagnostic.moleFraction[static_cast<std::size_t>(phase)].data(),
+                Indices::numComponents, MPI_DOUBLE, winningRank, comm));
+        }
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.phasePresenceBits, 1, MPI_UINT8_T, winningRank, comm));
+        PetscCallMPIAbort(comm, MPI_Bcast(
+            &diagnostic.phaseSuppressionBits, 1, MPI_UINT8_T, winningRank, comm));
+
+        return diagnostic;
+    }
+
+
+    /**
      * @brief 在失败 Newton 状态上分解 MPI 全局最大组分质量守恒残差。
      *
      * 必须在 rejected attempt 回滚之前调用。函数复用生产 residual 的 cell

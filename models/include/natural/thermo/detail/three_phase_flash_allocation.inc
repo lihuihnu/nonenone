@@ -828,16 +828,129 @@
             }
 
             bool added = false;
-            for (CompositionalPhase p : phases_)
+            bool reuseStagedCpaPair = false;
+
+            // CPA can enter a one-density-root region in which a Water-only
+            // equilibrium reports numerically identical missing Oil and Gas
+            // TPD directions.  They are one nonaqueous bifurcation direction,
+            // not automatically two distinct new phases.  First try the
+            // liquid-root O+W branch using the Oil incipient composition.  If
+            // that pair is a real two-phase basin, keep it and rerun stability;
+            // if the pair collapses back to one phase, restore the original
+            // simultaneous O+G release so genuine three-phase onsets are not
+            // suppressed.
+            bool handledCoincidentCpaNonaqueousDirections = false;
+            if (eos_.usesCubicPlusAssociation() &&
+                active.count() == 1 &&
+                active.contains(CompositionalPhase::Water) &&
+                stability.missingPhaseUnstable[static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Oil))] &&
+                stability.missingPhaseUnstable[static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Gas))])
             {
-                const int pi = phaseIndex(p);
-                if (!active.contains(p) &&
-                    stability.missingPhaseUnstable.at(static_cast<std::size_t>(pi)))
+                const std::size_t oilSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Oil));
+                const std::size_t gasSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Gas));
+                const std::size_t waterSlot = static_cast<std::size_t>(
+                    phaseIndex(CompositionalPhase::Water));
+                const double oilTrial = stability.trialSum[oilSlot];
+                const double gasTrial = stability.trialSum[gasSlot];
+                const double trialScale = std::max({
+                    1.0, std::abs(oilTrial), std::abs(gasTrial)});
+                const double trialTolerance = std::max(
+                    10.0 * options_.stabilityTolerance * trialScale,
+                    1.0e-12);
+
+                double incipientL1 = 0.0;
+                for (int i = 0; i < N; ++i)
                 {
-                    active.add(p);
-                    seed.composition[static_cast<std::size_t>(pi)] =
-                        stability.incipientComposition.at(static_cast<std::size_t>(pi));
-                    added = true;
+                    const std::size_t component =
+                        static_cast<std::size_t>(i);
+                    incipientL1 += std::abs(
+                        stability.incipientComposition[oilSlot][component] -
+                        stability.incipientComposition[gasSlot][component]);
+                }
+                const double compositionTolerance = std::max(
+                    10.0 * options_.coincidentPhaseCompositionTolerance,
+                    1.0e-10);
+
+                if (std::isfinite(oilTrial) &&
+                    std::isfinite(gasTrial) &&
+                    std::abs(oilTrial - gasTrial) <= trialTolerance &&
+                    incipientL1 <= compositionTolerance)
+                {
+                    Composition K = pairInitialK_(
+                        CompositionalPhase::Oil,
+                        CompositionalPhase::Water,
+                        pressure, temperature, z);
+                    const Composition &oilIncipient =
+                        stability.incipientComposition[oilSlot];
+                    const Composition &waterComposition =
+                        current.composition[waterSlot];
+                    for (int i = 0; i < N; ++i)
+                    {
+                        const std::size_t component =
+                            static_cast<std::size_t>(i);
+                        K[component] = std::clamp(
+                            waterComposition[component] /
+                                std::max(
+                                    oilIncipient[component],
+                                    options_.compositionFloor),
+                            1.0e-100, 1.0e100);
+                    }
+
+                    Result staged = flashTwo_(
+                        pressure, temperature, z,
+                        CompositionalPhase::Oil,
+                        CompositionalPhase::Water, K);
+                    if (staged.converged)
+                    {
+                        canonicalize_(pressure, temperature, staged);
+                        if (staged.presence.count() == 2 &&
+                            staged.presence.contains(
+                                CompositionalPhase::Oil) &&
+                            staged.presence.contains(
+                                CompositionalPhase::Water))
+                        {
+                            active = staged.presence;
+                            seed = staged;
+                            lastPhysical = staged;
+                            added = true;
+                            reuseStagedCpaPair = true;
+                            handledCoincidentCpaNonaqueousDirections = true;
+                        }
+                    }
+
+                    if (!handledCoincidentCpaNonaqueousDirections)
+                    {
+                        active.add(CompositionalPhase::Oil);
+                        active.add(CompositionalPhase::Gas);
+                        seed.composition[oilSlot] =
+                            stability.incipientComposition[oilSlot];
+                        seed.composition[gasSlot] =
+                            stability.incipientComposition[gasSlot];
+                        added = true;
+                        handledCoincidentCpaNonaqueousDirections = true;
+                    }
+                }
+            }
+
+            if (!handledCoincidentCpaNonaqueousDirections)
+            {
+                for (CompositionalPhase p : phases_)
+                {
+                    const int pi = phaseIndex(p);
+                    if (!active.contains(p) &&
+                        stability.missingPhaseUnstable.at(
+                            static_cast<std::size_t>(pi)))
+                    {
+                        active.add(p);
+                        seed.composition[static_cast<std::size_t>(pi)] =
+                            stability.incipientComposition.at(
+                                static_cast<std::size_t>(pi));
+                        added = true;
+                    }
                 }
             }
             if (!added)
@@ -851,7 +964,7 @@
 
             deriveReferenceK_(seed);
             seed.presence = active;
-            useConvergedSeed = false;
+            useConvergedSeed = reuseStagedCpaPair;
         }
         canonicalize_(pressure, temperature, seed);
         return seed;

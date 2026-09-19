@@ -13,21 +13,15 @@
         PetscObjectState maximumGasState{};
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(
-                solution,
-                &solutionState));
+            vectorState_(solution, &solutionState));
         PetscCallAbort(
             backend_.communicator(),
-            VecGetState(
-                phaseState_,
-                &phaseStateState));
+            vectorState_(phaseState_, &phaseStateState));
         if constexpr (Indices::hasLandTrapping)
         {
             PetscCallAbort(
                 backend_.communicator(),
-                VecGetState(
-                    maximumGasSaturation_,
-                    &maximumGasState));
+                vectorState_(maximumGasSaturation_, &maximumGasState));
         }
 
         if (currentCacheValid_ &&

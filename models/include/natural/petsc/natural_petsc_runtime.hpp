@@ -485,6 +485,9 @@ private:
     mutable PetscObjectState cachedMaximumGasState_{};
     mutable bool currentCacheValid_{false};
     mutable NaturalVecScatterStatistics vecScatterStatistics_{};
+    // PETSc < 3.24 compatibility: synthetic ever-changing Vec state disables
+    // cache reuse when no public Vec state-query API is available.
+    mutable PetscObjectState compatibilityVectorStateCounter_{};
 
     int resolvedCO2ComponentCache_{-1};
 

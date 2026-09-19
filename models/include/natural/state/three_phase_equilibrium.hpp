@@ -292,16 +292,31 @@ public:
             transitionOverallComposition_(primary, phaseState);
 
         PhasePresence active = phaseState.phasePresence;
-        for (CompositionalPhase phase : phases_)
-        {
-            if (active.contains(phase))
-                phaseState.phaseSuppression.remove(phase);
-        }
         bool removed = false;
         const std::array<double, 3> newtonSaturation{
             primary[Indices::Primary::liquidSaturation],
             primary[Indices::Primary::vaporSaturation],
             primary[Indices::Primary::waterSaturation]};
+
+        // phaseSuppression also carries the short-lived appearance hold for a
+        // phase that stability has legitimately reintroduced inside the probe
+        // band.  Do not clear that memory merely because the phase is active:
+        // otherwise a flash returning S << phaseBoundaryProbeSaturation is
+        // deleted again at the very next post-check and Newton chatters across
+        // two different active sets.  Once the phase grows outside the probe
+        // band it becomes an ordinary active phase and the hold is released.
+        for (CompositionalPhase phase : phases_)
+        {
+            const std::size_t p =
+                static_cast<std::size_t>(phaseIndex(phase));
+            if (active.contains(phase) &&
+                phaseState.phaseSuppression.contains(phase) &&
+                newtonSaturation[p] >
+                    NaturalNumerics::phaseBoundaryProbeSaturation)
+            {
+                phaseState.phaseSuppression.remove(phase);
+            }
+        }
 
         for (CompositionalPhase phase : phases_)
         {
@@ -312,8 +327,13 @@ public:
                 Indices::Primary::waterSaturation);
             const double saturation =
                 newtonSaturation[static_cast<std::size_t>(phaseIndex(phase))];
+            const bool appearanceHold =
+                phaseState.phaseSuppression.contains(phase) &&
+                saturation > 0.0 &&
+                saturation <= NaturalNumerics::phaseBoundaryProbeSaturation;
             if (active.contains(phase) &&
-                saturation <= NaturalNumerics::phaseBoundaryProbeSaturation)
+                saturation <= NaturalNumerics::phaseBoundaryProbeSaturation &&
+                !appearanceHold)
             {
                 active.remove(phase);
                 phaseState.phaseSuppression.add(phase);
@@ -413,7 +433,8 @@ public:
                 transitionOverall);
             if (reflashed.converged)
             {
-                assignFlashResult(primary, phaseState, reflashed);
+                assignReappearingFlashResult_(
+                    primary, phaseState, active, reflashed);
                 updateResult.phaseRemoved = true;
                 return updateResult;
             }
@@ -449,7 +470,8 @@ public:
                     transitionOverall);
                 if (reflashed.converged)
                 {
-                    assignFlashResult(primary, phaseState, reflashed);
+                    assignReappearingFlashResult_(
+                        primary, phaseState, active, reflashed);
                     return updateResult;
                 }
 
@@ -692,6 +714,47 @@ private:
 
         assignFlashResult(primary, phaseState, canonical);
         return true;
+    }
+
+    /**
+     * @brief Assign a global flash while preserving a trace-phase appearance hold.
+     *
+     * A certified missing-phase instability may yield an equilibrium phase with
+     * a physically positive but extremely small saturation.  Such a phase must
+     * remain active long enough for the Newton equations to continue on that
+     * branch; deleting it again solely because S is still inside the active-set
+     * probe band creates deterministic O/W <-> O chatter.  The hold is carried
+     * in phaseSuppression until S grows above the probe band.  A zero/negative
+     * saturation is never protected and can still disappear normally.
+     */
+    void assignReappearingFlashResult_(
+        PrimaryArray &primary,
+        PhaseStateData<Indices> &phaseState,
+        PhasePresence previousActive,
+        const FlashResult &flash) const
+    {
+        assignFlashResult(primary, phaseState, flash);
+        for (CompositionalPhase phase : phases_)
+        {
+            if (previousActive.contains(phase) ||
+                !flash.presence.contains(phase))
+            {
+                continue;
+            }
+
+            const int sIndex = three_phase_detail::saturationIndex(
+                phase,
+                Indices::Primary::liquidSaturation,
+                Indices::Primary::vaporSaturation,
+                Indices::Primary::waterSaturation);
+            const double saturation =
+                primary[static_cast<std::size_t>(sIndex)];
+            if (saturation > 0.0 &&
+                saturation <= NaturalNumerics::phaseBoundaryProbeSaturation)
+            {
+                phaseState.phaseSuppression.add(phase);
+            }
+        }
     }
 
     /** @brief 缺失相只有明显越过稳定性边界时才重新生成，避免边界 active-set 抖动。 */

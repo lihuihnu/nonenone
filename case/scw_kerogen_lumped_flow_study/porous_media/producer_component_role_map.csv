@@ -1,0 +1,8 @@
+output_role,current_definition,source_components,output_level,status,rule
+H2O,DIRECT_COMPONENT,H2O,PRIMARY,AVAILABLE,"Use exact conserved-component producer mass rate."
+Gas,INDEPENDENT_GAS_PRODUCT_LUMP,TBD,PRIMARY,OPEN_COMPONENT_TOPOLOGY,"Current 5-component experiment-driven fluid has no independent gas-product lump. Do not substitute gas phase or OIL_GASOLINE."
+Gasoline,DIRECT_COMPONENT,OIL_GASOLINE,PRIMARY,AVAILABLE,"Current low-boiling oil lump; not an independent gas-product component."
+Diesel,DIRECT_COMPONENT,OIL_DIESEL,PRIMARY,AVAILABLE,"Current 180-350 C oil lump."
+Middle,DIRECT_COMPONENT,OIL_MIDDLE,PRIMARY,AVAILABLE,"Current 350-500 C oil lump."
+Heavy,DIRECT_COMPONENT,OIL_HEAVY,PRIMARY,AVAILABLE,"Current >500 C oil lump."
+Light,DERIVED_GROUP,"OIL_GASOLINE;OIL_DIESEL",DERIVED_FOR_SELECTIVITY,REGISTERED,"Used only for E_L/H; does not alter EOS component topology."

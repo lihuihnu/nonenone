@@ -46,6 +46,7 @@ public:
         if (rank_ == 0 && write_)
         {
             std::filesystem::create_directories(resultDirectory_);
+            initializeFullResidualFile_();
             initializeMassFile_();
             initializeFaceFile_();
             initializeWellFile_();
@@ -65,19 +66,242 @@ public:
         if (residual == nullptr)
             return;
 
+        const auto fullDiagnostic =
+            runtime.evaluateFullResidualFailureDiagnostic(solution, residual);
         const auto diagnostic =
             runtime.evaluateResidualFailureDiagnostic(solution, residual);
-        if (!diagnostic.valid)
+        if (!fullDiagnostic.valid && !diagnostic.valid)
             return;
 
         ++failureSerial_;
         if (rank_ == 0 && print_)
-            printDiagnostic_(runtime, diagnostic, startTime, timeStep, result);
+        {
+            if (fullDiagnostic.valid)
+                printFullResidualDiagnostic_(
+                    fullDiagnostic, startTime, timeStep, result);
+            if (diagnostic.valid)
+                printDiagnostic_(runtime, diagnostic, startTime, timeStep, result);
+        }
         if (rank_ == 0 && write_)
-            writeDiagnostic_(runtime, diagnostic, startTime, timeStep, result);
+        {
+            if (fullDiagnostic.valid)
+                writeFullResidualDiagnostic_(
+                    fullDiagnostic, startTime, timeStep, result);
+            if (diagnostic.valid)
+                writeDiagnostic_(runtime, diagnostic, startTime, timeStep, result);
+        }
     }
 
 private:
+    [[nodiscard]] static std::string equationName_(int equation)
+    {
+        for (int component = 0; component < Indices::numComponents; ++component)
+        {
+            const std::size_t c = static_cast<std::size_t>(component);
+            if (equation == Indices::Equation::massConservation[c])
+                return std::string("MASS_") + Config::Fluid::componentNames[c];
+        }
+
+        if constexpr (Indices::hasIndependentWaterConservation)
+        {
+            if (equation == Indices::Equation::waterConservation)
+                return "MASS_INDEPENDENT_WATER";
+        }
+
+        if (equation >= Indices::Equation::fugacityBegin &&
+            equation < Indices::Equation::fugacityBegin + Indices::numComponents)
+        {
+            const int component = equation - Indices::Equation::fugacityBegin;
+            return std::string("O_G_BLOCK_") +
+                Config::Fluid::componentNames[static_cast<std::size_t>(component)];
+        }
+
+        if constexpr (Indices::fullyCompositionalThreePhase)
+        {
+            if (equation >= Indices::Equation::waterFugacityBegin &&
+                equation < Indices::Equation::waterFugacityBegin + Indices::numComponents)
+            {
+                const int component =
+                    equation - Indices::Equation::waterFugacityBegin;
+                return std::string("O_W_BLOCK_") +
+                    Config::Fluid::componentNames[static_cast<std::size_t>(component)];
+            }
+        }
+
+        if (equation == Indices::Equation::volumeClosure)
+            return "VOLUME_CLOSURE";
+
+        if constexpr (Indices::hasWellUnknown)
+        {
+            if (equation == Indices::Equation::wellControl)
+                return "WELL_CONTROL";
+        }
+
+        if constexpr (Indices::hasAqueousCO2Dissolution)
+        {
+            if (equation == Indices::Equation::aqueousCO2Equilibrium)
+                return "AQUEOUS_CO2_EQUILIBRIUM";
+        }
+
+        return "UNKNOWN_EQUATION_" + std::to_string(equation);
+    }
+
+    template <class Diagnostic>
+    void printFullResidualDiagnostic_(
+        const Diagnostic &d,
+        double startTime,
+        double timeStep,
+        const MPMC::NonlinearSolveResult &result) const
+    {
+        constexpr double day = 86400.0;
+        constexpr double bar = MPMC::units::bar;
+        PetscPrintf(PETSC_COMM_SELF,
+                    "\n====================== FAILED FULL-RESIDUAL DIAGNOSTIC #%zu =====================\n",
+                    failureSerial_);
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  interval / dt                : %.12g -> %.12g day / %.12g day\n",
+                    startTime / day, (startTime + timeStep) / day, timeStep / day);
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  SNES reason                  : %s\n",
+                    result.reason.empty() ? "unknown" : result.reason.c_str());
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  scaled norms L2 / RMS / Linf : %.12e / %.12e / %.12e  N=%lld\n",
+                    d.residualNorm2, d.residualRms, d.residualNormInfinity,
+                    d.globalEquationCount);
+        {
+            std::ostringstream mass;
+            mass << "  global signed mass residual  :" << std::scientific << std::setprecision(6);
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                const std::size_t comp = static_cast<std::size_t>(component);
+                mass << ' ' << Config::Fluid::componentNames[comp]
+                     << '=' << d.globalSignedComponentMassResidual[comp];
+            }
+            if constexpr (Indices::hasIndependentWaterConservation)
+                mass << " INDEPENDENT_H2O="
+                     << d.globalSignedIndependentWaterResidual;
+            mass << " kg/s\n";
+            PetscPrintf(PETSC_COMM_SELF, "%s", mass.str().c_str());
+        }
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  max row                      : cell current/input=%lld/%lld  eq=%d (%s)\n",
+                    static_cast<long long>(d.currentCellId),
+                    static_cast<long long>(d.inputCellId),
+                    d.equationIndex,
+                    equationName_(d.equationIndex).c_str());
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  scaled / equation-scale / raw: % .12e / %.12e / % .12e\n",
+                    d.signedScaledResidual, d.equationScale, d.signedUnscaledResidual);
+        PetscPrintf(PETSC_COMM_SELF,
+                    "  P / phase bits / suppression : %.9g bar / %u / %u\n",
+                    d.pressure / bar,
+                    static_cast<unsigned>(d.phasePresenceBits),
+                    static_cast<unsigned>(d.phaseSuppressionBits));
+        for (int phase = 0; phase < Indices::numPhases; ++phase)
+        {
+            const std::size_t p = static_cast<std::size_t>(phase);
+            std::ostringstream row;
+            row << "    phase " << phaseName_(phase)
+                << ": S=" << std::setprecision(10) << d.saturation[p]
+                << " x=" << std::scientific << std::setprecision(6);
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                const std::size_t comp = static_cast<std::size_t>(component);
+                row << (component == 0 ? "" : " ")
+                    << Config::Fluid::componentNames[comp]
+                    << '=' << d.moleFraction[p][comp];
+            }
+            row << '\n';
+            PetscPrintf(PETSC_COMM_SELF, "%s", row.str().c_str());
+        }
+        PetscPrintf(PETSC_COMM_SELF,
+                    "==============================================================================\n");
+    }
+
+    void initializeFullResidualFile_() const
+    {
+        const auto path = resultDirectory_ / "failed_full_residual_diagnostics.csv";
+        std::ofstream stream(path, std::ios::out | std::ios::trunc);
+        if (!stream)
+            throw std::runtime_error(
+                "Failed to create full-residual diagnostic file: " + path.string());
+        stream
+            << "failure,start_day,end_day,dt_day,snes_reason,global_equation_count,"
+            << "norm_l2_scaled,norm_rms_scaled,norm_linf_scaled,cell_id,input_cell_id,"
+            << "equation_index,equation_name,signed_scaled_residual,equation_scale,"
+            << "signed_unscaled_residual,pressure_bar,phase_presence_bits,"
+            << "phase_suppression_bits";
+        for (int component = 0; component < Indices::numComponents; ++component)
+        {
+            stream << ",global_mass_residual_"
+                   << Config::Fluid::componentNames[
+                          static_cast<std::size_t>(component)]
+                   << "_kg_s";
+        }
+        if constexpr (Indices::hasIndependentWaterConservation)
+            stream << ",global_mass_residual_INDEPENDENT_H2O_kg_s";
+        for (int phase = 0; phase < Indices::numPhases; ++phase)
+        {
+            stream << ",S_" << phaseName_(phase);
+            for (int component = 0; component < Indices::numComponents; ++component)
+            {
+                stream << ",x_" << phaseName_(phase) << '_'
+                       << Config::Fluid::componentNames[
+                              static_cast<std::size_t>(component)];
+            }
+        }
+        stream << '\n';
+    }
+
+    template <class Diagnostic>
+    void writeFullResidualDiagnostic_(
+        const Diagnostic &d,
+        double startTime,
+        double timeStep,
+        const MPMC::NonlinearSolveResult &result) const
+    {
+        constexpr double day = 86400.0;
+        constexpr double bar = MPMC::units::bar;
+        const auto path = resultDirectory_ / "failed_full_residual_diagnostics.csv";
+        std::ofstream stream(path, std::ios::out | std::ios::app);
+        if (!stream)
+            throw std::runtime_error(
+                "Failed to append full-residual diagnostic file: " + path.string());
+        stream << std::setprecision(16)
+               << failureSerial_ << ','
+               << startTime / day << ','
+               << (startTime + timeStep) / day << ','
+               << timeStep / day << ','
+               << result.reason << ','
+               << d.globalEquationCount << ','
+               << d.residualNorm2 << ','
+               << d.residualRms << ','
+               << d.residualNormInfinity << ','
+               << d.currentCellId << ','
+               << d.inputCellId << ','
+               << d.equationIndex << ','
+               << equationName_(d.equationIndex) << ','
+               << d.signedScaledResidual << ','
+               << d.equationScale << ','
+               << d.signedUnscaledResidual << ','
+               << d.pressure / bar << ','
+               << static_cast<unsigned>(d.phasePresenceBits) << ','
+               << static_cast<unsigned>(d.phaseSuppressionBits);
+        for (int component = 0; component < Indices::numComponents; ++component)
+            stream << ',' << d.globalSignedComponentMassResidual[
+                static_cast<std::size_t>(component)];
+        if constexpr (Indices::hasIndependentWaterConservation)
+            stream << ',' << d.globalSignedIndependentWaterResidual;
+        for (int phase = 0; phase < Indices::numPhases; ++phase)
+        {
+            const std::size_t p = static_cast<std::size_t>(phase);
+            stream << ',' << d.saturation[p];
+            for (int component = 0; component < Indices::numComponents; ++component)
+                stream << ',' << d.moleFraction[p][static_cast<std::size_t>(component)];
+        }
+        stream << '\n';
+    }
+
     [[nodiscard]] static const char *phaseName_(int phase)
     {
         if (phase == Indices::Phase::liquid)

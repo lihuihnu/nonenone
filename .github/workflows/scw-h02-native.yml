@@ -1,0 +1,243 @@
+name: SCW H02 native 2D runner
+on:
+  pull_request:
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', 'test/src/unit/three_phase_flash_test.cpp', '.github/workflows/scw-h02-native.yml']
+  push:
+    branches: [docs/scw-kerogen-acs2023-data]
+    paths: ['case/scw_h02_2d/**', 'case/scw_h02_2d_a/**', 'models/include/natural/**', 'models/include/well/**', 'indices/include/indices/model_config.hpp', 'case/include/case/case_support.hpp', 'output/include/output/well/producer_composition_output.hpp', 'AdaptiveTimeStepper/**', 'test/src/unit/three_phase_flash_test.cpp', '.github/workflows/scw-h02-native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native solver dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential gfortran python3 openmpi-bin libopenmpi-dev libblas-dev liblapack-dev libmetis-dev libfmt-dev libpetsc-real-dev
+      - name: Configure dependency profile
+        run: |
+          set -euo pipefail
+          PETSC_ROOT=$(pkg-config --variable=prefix PETSc)
+          mkdir -p "$RUNNER_TEMP/metis/include" "$RUNNER_TEMP/metis/install/lib"
+          ln -sf /usr/include/metis.h "$RUNNER_TEMP/metis/include/metis.h"
+          ln -sf /usr/lib/x86_64-linux-gnu/libmetis.so "$RUNNER_TEMP/metis/install/lib/libmetis.so"
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_ROOT}
+          PETSC_ARCH :=
+          FMT_DIR := /usr
+          METIS_DIR := ${RUNNER_TEMP}/metis
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          EOF
+          mkdir -p h02-results
+          git rev-parse HEAD > h02-results/checkout.txt
+          pkg-config --modversion PETSc > h02-results/petsc_version.txt
+          # Distro PETSc defines clean: while the cluster PETSc uses clean::.
+          # Adapt only this CI working copy; retain an exact patch as provenance.
+          sed -i 's/^clean::/clean:/' case/Makefile
+          git diff -- case/Makefile > h02-results/distro_make_compatibility.patch
+      - name: Verify trace-phase active-set regression
+        run: |
+          set -euo pipefail
+          make -C test bin/three_phase_flash_test
+          test/bin/three_phase_flash_test
+      - name: Verify opt-in constitutive closure and build actual case
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -Iad/include -Icommon/include -Iindices/include -Imodels/include -Icase/include case/scw_h02_2d/test_closure.cpp -o /tmp/h02_test
+          /tmp/h02_test | tee h02-results/closure.log
+          make case CASE=scw_h02_2d -j2 2>&1 | tee h02-results/build_BC.log
+          test -x case/scw_h02_2d/bin/scw_h02_2d
+          grep -F -- '-snes_max_it 40' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d/run.sh
+          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d/run.sh
+          make case CASE=scw_h02_2d_a -j2 2>&1 | tee h02-results/build_A.log
+          test -x case/scw_h02_2d_a/bin/scw_h02_2d_a
+          grep -F -- '-snes_max_it 40' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d_a/run.sh
+      - name: Run B C two-step smoke on the full 60x20 mesh
+        if: ${{ false }}
+        run: |
+          set +e
+          rc=0
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/smoke_$mode"               RUN_ARGS="-h02_mode $mode -h02_nx 60 -h02_ny 20 -numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu"               > "h02-results/smoke_$mode.log" 2>&1
+            code=$?
+            echo "$mode $code" | tee -a h02-results/exit_codes.txt
+            tail -40 "h02-results/smoke_$mode.log"
+            if [ "$code" != 0 ]; then rc=1; fi
+          done
+          cat h02-results/exit_codes.txt
+          exit "$rc"
+      - name: Diagnose first 60 s mass closure before long runs
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/first60
+          BASE="-h02_nx 20 -h02_ny 8 -numSteps 1 -dt 0.0006944444444444445 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu -out_step 1"
+          run_diag () {
+            name=$1; mode=$2; extra=$3
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/first60/$name" RUN_ARGS="-h02_mode $mode $BASE $extra" > "h02-results/first60/$name.log" 2>&1
+          }
+          # Production-policy controls only. Historical loose-SNORM runs were
+          # diagnostic evidence for the old defect; after strict H02 defaults
+          # became persistent they are no longer a valid prerequisite.
+          run_diag B_guard B "-snes_stol 1e-100 -snes_atol 1e-6"
+          run_diag C_guard C "-snes_stol 1e-100 -snes_atol 1e-6"
+          run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
+          run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
+          python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
+      - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/mesh_norm_20x8
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 20 -h02_ny 8 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/mesh_norm_20x8/A" RUN_ARGS="$COMMON_ARGS" > h02-results/mesh_norm_20x8/A.log 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/mesh_norm_20x8/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "h02-results/mesh_norm_20x8/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/mesh_norm_20x8             --out h02-results/mesh_norm_20x8/analysis | tee h02-results/mesh_norm_20x8/analysis.log
+          for mode in A B C; do
+            echo "===== H02 composite 20x8 $mode ====="
+            grep -F '[SNES][MESH-NORM]' "h02-results/mesh_norm_20x8/$mode.log" | head -1
+            grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "h02-results/mesh_norm_20x8/$mode.log" | head -1
+            tail -20 "h02-results/mesh_norm_20x8/$mode.log"
+          done
+      - name: Confirm 20x8 mass gate and run49 run86 mechanism consistency
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          cat h02-results/mesh_norm_20x8/analysis/h02_numerical_gates.csv
+          cat h02-results/mesh_norm_20x8/analysis/h02_mechanism_at_1_2_pvi.csv
+          python3 case/scw_h02_2d/compare_20x8_baselines.py             --current h02-results/mesh_norm_20x8/analysis/h02_mechanism_at_1_2_pvi.csv             --run49 case/scw_h02_2d/reference/run49_20x8/h02_mechanism_at_1_2_pvi.csv             --run86 case/scw_h02_2d/reference/run86_20x8/h02_mechanism_at_1_2_pvi.csv             --out h02-results/mesh_norm_20x8/baseline_comparison             | tee h02-results/mesh_norm_20x8/baseline_comparison.log
+          cat h02-results/mesh_norm_20x8/baseline_comparison/baseline_gates.csv
+          cat h02-results/mesh_norm_20x8/baseline_comparison/mechanism_increment_comparison.csv
+      - name: Run full 60x20 B to 2 PVI with mesh-normalized gate
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
+          mkdir -p "$root"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/B" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/B.log" 2>&1
+          grep -F '[SNES][MESH-NORM]' "$root/B.log" | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/B.log" | head -1
+          tail -30 "$root/B.log"
+      - name: Run full 60x20 C and certify B C trajectory mass
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/C" RUN_ARGS="-h02_mode C $COMMON_ARGS" > "$root/C.log" 2>&1
+          python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis" --modes BC | tee "$root/analysis.log"
+          grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/C.log" | head -1
+          tail -30 "$root/C.log"
+      - name: Record 20x8 to 60x20 A B C grid gates without changing thresholds
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/grid_gate_20x8_to_60x20_A
+          mkdir -p h02-results/grid_gate_20x8_to_60x20_BC
+
+          set +e
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 case/scw_h02_2d/reference/run64_A_60x20             --modes A             --out h02-results/grid_gate_20x8_to_60x20_A             | tee h02-results/grid_gate_20x8_to_60x20_A.log
+          rc_a=$?
+
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/mesh_norm_20x8             --dt1 h02-results/mesh_norm_20x8             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_20x8_to_60x20_BC             | tee h02-results/grid_gate_20x8_to_60x20_BC.log
+          rc_bc=$?
+          set -e
+
+          echo "$rc_a" > h02-results/grid_gate_20x8_to_60x20_A/exit_code.txt
+          echo "$rc_bc" > h02-results/grid_gate_20x8_to_60x20_BC/exit_code.txt
+
+          echo "===== 20x8 -> 60x20 A ====="
+          cat h02-results/grid_gate_20x8_to_60x20_A/grid_convergence.csv
+          cat h02-results/grid_gate_20x8_to_60x20_A/convergence_gates.csv
+          echo "===== 20x8 -> 60x20 B/C ====="
+          cat h02-results/grid_gate_20x8_to_60x20_BC/grid_convergence.csv
+          cat h02-results/grid_gate_20x8_to_60x20_BC/convergence_gates.csv
+
+          # Preserve both preregistered results verbatim. A failure here is
+          # expected to trigger the already planned aligned 36x12 study, not
+          # threshold retuning or an early workflow abort.
+          printf 'A=%s\nBC=%s\n' "$rc_a" "$rc_bc"             > h02-results/grid_gate_20x8_to_60x20_status.txt
+
+      - name: Run aligned 36x12 A B C to 2 PVI with all convergence gates
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/h02-results/aligned_36x12"
+          mkdir -p "$root"
+          MESH_GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          COMMON_ARGS="-h02_nx 36 -h02_ny 12 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
+          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$root/A" RUN_ARGS="$COMMON_ARGS" > "$root/A.log" 2>&1
+          for mode in B C; do
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/$mode" RUN_ARGS="-h02_mode $mode $COMMON_ARGS" > "$root/$mode.log" 2>&1
+          done
+          python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis"             | tee "$root/analysis.log"
+          for mode in A B C; do
+            grep -F '[SNES][MESH-NORM]' "$root/$mode.log" | head -1
+            grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/$mode.log" | head -1
+            tail -20 "$root/$mode.log"
+          done
+
+      - name: Compare aligned 36x12 to certified 60x20 A and new 60x20 B C
+        if: ${{ false }}
+        run: |
+          set -euo pipefail
+          mkdir -p h02-results/grid_gate_36x12_to_60x20_A
+          mkdir -p h02-results/grid_gate_36x12_to_60x20_BC
+
+          set +e
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/aligned_36x12             --dt1 h02-results/aligned_36x12             --grid60 case/scw_h02_2d/reference/run64_A_60x20             --modes A             --out h02-results/grid_gate_36x12_to_60x20_A             | tee h02-results/grid_gate_36x12_to_60x20_A.log
+          rc_a=$?
+
+          python3 case/scw_h02_2d/compare_h02_convergence.py             --dt2 h02-results/aligned_36x12             --dt1 h02-results/aligned_36x12             --grid60 h02-results/mesh_norm_60x20             --modes BC             --out h02-results/grid_gate_36x12_to_60x20_BC             | tee h02-results/grid_gate_36x12_to_60x20_BC.log
+          rc_bc=$?
+          set -e
+
+          echo "$rc_a" > h02-results/grid_gate_36x12_to_60x20_A/exit_code.txt
+          echo "$rc_bc" > h02-results/grid_gate_36x12_to_60x20_BC/exit_code.txt
+
+          echo "===== 36x12 -> 60x20 A ====="
+          cat h02-results/grid_gate_36x12_to_60x20_A/grid_convergence.csv
+          cat h02-results/grid_gate_36x12_to_60x20_A/convergence_gates.csv
+          echo "===== 36x12 -> 60x20 B/C ====="
+          cat h02-results/grid_gate_36x12_to_60x20_BC/grid_convergence.csv
+          cat h02-results/grid_gate_36x12_to_60x20_BC/convergence_gates.csv
+          cat h02-results/grid_gate_36x12_to_60x20_BC/mechanism_increment_stability.csv
+
+          if [ "$rc_a" -ne 0 ] || [ "$rc_bc" -ne 0 ]; then
+            echo "H02_ALIGNED_GRID_CERTIFICATION=FAIL"
+            exit 2
+          fi
+          echo "H02_ALIGNED_GRID_CERTIFICATION=PASS"
+
+      - name: Upload exact native outputs even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-h02-native-2d
+          path: h02-results/
+          if-no-files-found: warn

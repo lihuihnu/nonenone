@@ -42,7 +42,8 @@ public:
         Vec solution,
         bool printNewtonIterations = false,
         MPI_Comm communicator = PETSC_COMM_WORLD,
-        NonlinearStagnationConfig stagnationConfig = {})
+        NonlinearStagnationConfig stagnationConfig = {},
+        bool installStagnationConvergenceTest = true)
         : snes_(snes),
           solution_(solution),
           printNewtonIterations_(printNewtonIterations),
@@ -56,10 +57,12 @@ public:
             SNESMonitorSet(snes_, &PetscSnesDriver::monitor_, this, nullptr),
             "SNESMonitorSet(MPMC Newton monitor)");
 
-        if (stagnationDetector_.config().enabled)
+        if (stagnationDetector_.config().enabled &&
+            installStagnationConvergenceTest)
         {
-            // 回调内部先保留 PETSc 标准 atol/rtol/stol/max-it 判据，再附加
-            // 一个保守的 residual-plateau divergence 判据。
+            // Standalone driver compatibility path. NaturalAdaptiveBackend
+            // installs one composite convergence callback of its own so the
+            // stagnation guard cannot overwrite mesh/mass acceptance gates.
             throwOnPetscError(
                 SNESSetConvergenceTest(
                     snes_, &PetscSnesDriver::convergenceTest_, this, nullptr),

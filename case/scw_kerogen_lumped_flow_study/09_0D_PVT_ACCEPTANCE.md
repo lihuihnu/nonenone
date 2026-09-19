@@ -1,0 +1,214 @@
+# 09 — Complete zero-dimensional PVT acceptance before flow
+
+## Hard rule
+
+No reservoir flow comparison is allowed to decide which EOS is physically reasonable.
+
+PR and CPA must first be exercised **independently** on the same zero-dimensional PVT state space. Only after both models return physically self-consistent initial states, and the pre-existing phase/density/viscosity gates are satisfied, may a flow comparison be called fair.
+
+The executable is:
+
+`tools/example/scw_kerogen_0d_pvt_acceptance/main.cpp`
+
+It reuses the production EOS, production three-phase flash, public stability test, and phase-diagram utilities. No second flash or second EOS is implemented.
+
+## Registered target temperatures and pressures
+
+The exact acceptance temperatures are:
+
+- 360 °C = 633.15 K;
+- 374 °C = 647.15 K;
+- 380 °C = 653.15 K.
+
+The target pressure grid is:
+
+- 25, 26, 27, 28, 29, 30 MPa.
+
+A denser envelope diagnostic uses 628.15–658.15 K and 20–35 MPa so that all three target temperatures and the 25–30 MPa region lie inside the map.
+
+## Overall-composition scan
+
+The central oil composition is the four-lump recovered-oil mole distribution from the current characterization:
+
+- Gasoline = 0.036330;
+- Diesel = 0.406770;
+- Middle = 0.325421;
+- Heavy = 0.231479.
+
+For each oil-composition family, the H2O overall mole fraction is scanned over:
+
+`0.01, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 0.97, 0.995`.
+
+Three deterministic oil families are registered:
+
+1. `BASE` — measured characterized oil mole ratio;
+2. `LIGHT_ENRICHED` — deterministic light-side sensitivity;
+3. `HEAVY_ENRICHED` — deterministic heavy-side sensitivity.
+
+The latter two are **not uncertainty bounds and not experimental compositions**. They are pre-registered stress tests intended to reveal phase-role switching, heavy-root problems and composition-local flash pathologies.
+
+The machine-readable grid is `pvt_acceptance/composition_scan.csv`.
+
+A fourth family, `H2O_HEAVY_BINARY`, is registered as a **screening-only lower-dimensional slice** of the same five-component production kernel. Gasoline, Diesel and Middle are set to exactly zero, Heavy is `1-z_H2O`, and the same eleven water fractions are scanned. This family is intended to answer only whether the provisional Heavy characterization and frozen diagnostic PR/CPA interaction baselines are numerically self-consistent in the target window. It does **not** promote the Heavy BIP, CPA association model, density model or viscosity model to validated status.
+
+Because this is a lower-dimensional composition manifold, fugacity-equality closure is evaluated only for components with non-zero overall inventory. Components with `z_i=0` are still subject to non-negative normalized phase compositions and total material closure, but are not required to satisfy an equality chemical-potential residual that is not active for an absent component.
+
+## Initial-state anchor
+
+The fairness anchor is the `BASE` oil distribution at
+
+`z_H2O = 0.20`
+
+and
+
+`p = 25 MPa`.
+
+It is evaluated independently at all three target temperatures. The corresponding overall oil composition is kept identical between PR and CPA. Each EOS is allowed to predict its own equilibrium phase count and phase fractions.
+
+**The two EOS are not required to predict the same phase count.** A phase-count difference is a scientific model result, not an automatic failure. What is required is that each predicted equilibrium is internally physical.
+
+## Formal SCW temperature-control anchors
+
+In addition to the historical 25 MPa cross-EOS anchors, the formal laboratory temperature-control experiment registers a second named anchor set at:
+
+`BASE, z_H2O=0.20, p=28 MPa`.
+
+The formal pair is:
+
+- 360 °C / 28 MPa — subcritical compressed-water control;
+- 380 °C / 28 MPa — supercritical-water test.
+
+374 °C / 28 MPa is retained as a near-critical diagnostic only.
+
+PR and CPA must each independently pass the same state-level physical-consistency checks at both formal-pair temperatures. The machine-readable output is:
+
+`scw_temperature_control_0d.csv`
+
+It contains phase count, phase fractions, phase densities, LBC viscosities and phase H2O fractions for PR and CPA at 360/374/380 °C and 28 MPa.
+
+The hard zero-dimensional acceptance now explicitly includes:
+
+`SCW_360_380_CONTROL_PAIR_28MPA = PASS`.
+
+## State-level physical consistency
+
+For every registered T–P–z state the acceptance harness requires:
+
+1. production flash converges;
+2. at least one phase is active;
+3. the final active set passes a fresh production `stabilityTest()`;
+4. component material reconstruction error is <= `1e-8`;
+5. for every component present in the overall feed (`z_i > 1e-14`), maximum active-phase log-fugacity spread is <= `1e-6`; zero-total-inventory components are excluded from this equality residual and remain constrained by material closure/complementarity;
+6. every active phase composition is finite, non-negative and normalized;
+7. every active phase has positive finite Z, molar density, mass density and LBC viscosity;
+8. if a Water-role phase exists, it is the most water-rich active phase.
+
+The role convention is the production canonical `Oil / Gas / Water` convention.
+
+## Stability output
+
+`state_scan.csv` stores:
+
+- final phase code and phase count;
+- stability-valid / stability-stable flags;
+- missing-phase unstable flags;
+- TPD-style trial sums for Oil/Gas/Water candidates;
+- mass closure;
+- fugacity closure;
+- role and property checks;
+- final per-state pass/fail.
+
+This means a flash result is not accepted merely because Newton converged.
+
+## Phase composition, density, viscosity and phase role
+
+`phase_properties.csv` writes one row for each canonical role at every state:
+
+- active/inactive flag;
+- phase mole fraction;
+- saturation;
+- compressibility;
+- molar density;
+- mass density;
+- LBC viscosity;
+- IAPWS-2008 water viscosity when the Water-role composition remains inside the explicit <=2 mol% solute domain;
+- all five phase mole fractions.
+
+The IAPWS value is an auxiliary water-rich reference. It does not replace the common transport closure or silently extrapolate into hydrocarbon-rich water-role states.
+
+## Phase-envelope products
+
+For PR and CPA separately, and for BASE/LIGHT_ENRICHED/HEAVY_ENRICHED at `z_H2O=0.20`, the harness writes:
+
+- unrestricted O/G/W P–T maps;
+- refined oil/gas/water phase-onset boundaries;
+- a clearly labelled restricted O/G bubble/dew **projection**.
+
+The O/G projection is not substituted for the full aqueous phase envelope.
+
+The harness also writes dense pressure-composition maps from oil-rich to water-rich composition at 360, 374 and 380 °C over 25–30 MPa.
+
+## Acceptance levels
+
+There are two distinct runtime gates.
+
+### Model-domain scan gate
+
+Every registered target T–P–z state for a backend must pass the state-level physical-consistency checks.
+
+This is intentionally stronger than testing only the initial point because a compositional flow trajectory can enter enriched/depleted states.
+
+### Cross-EOS initial-state gate
+
+At 360/374/380 °C and 25 MPa, the `BASE, z_H2O=0.20` state must pass independently for both PR and CPA.
+
+The output `cross_eos_initial_state.csv` reports phase-count agreement only as a diagnostic.
+
+The runtime zero-dimensional gate is PASS only if:
+
+`PR registered scan PASS && CPA registered scan PASS && PR/CPA target-window P-T map health PASS && PR/CPA dense pressure-composition path PASS && both-EOS 25 MPa initial-state PASS && formal 360/380 C 28 MPa control-pair PASS`.
+
+## Reservoir-entry dependency
+
+A zero-dimensional structural PVT pass is necessary but not sufficient for reservoir flow.
+
+The final flow-comparison readiness also depends on:
+
+- accepted H2O–lump PR binary calibration;
+- accepted CPA binary/association calibration;
+- density validation;
+- viscosity validation.
+
+The committed dependency table is `pvt_acceptance/flow_entry_gate.csv`.
+
+Thus a numerically clean 0D scan cannot override missing experimental calibration, and a good flow result cannot override a failed 0D state.
+
+## Current runtime result
+
+The strict production-kernel 0D acceptance has now passed after the frozen-parameter CPA phase-onset active-set fix documented in `10_CPA_PHASE_ONSET_AUDIT.md`.
+
+| gate | PR | CPA |
+|---|---:|---:|
+| registered stability/PVT states | 594 / 594 PASS | 594 / 594 PASS |
+| target-window P-T envelope-map flash states | 5673 / 5673 converged | 5673 / 5673 converged |
+| dense pressure-composition states | 5103 / 5103 converged | 5103 / 5103 converged |
+| BASE initial anchors at 25 MPa | 3 / 3 PASS | 3 / 3 PASS |
+
+All three BASE initial anchors (360/374/380 °C, `z_H2O=0.20`, 25 MPa) remain internally self-consistent in both EOS.
+
+The two former CPA dense-path failures at 380 °C, `z_H2O≈0.7610625`, 26.00 and 26.25 MPa are now recovered as stable O+W states without changing any CPA parameter. The failure mechanism was a coincident Oil/Gas TPD direction in a Water-only CPA one-root state: the active-set logic interpreted one nonaqueous bifurcation as two independent missing phases and attempted an artificial direct W -> O+G+W transition.
+
+The production active-set fix now stages O+W only when the Oil/Gas instability directions are numerically coincident and preserves the original simultaneous release when no O+W basin exists. This retains genuine three-phase regions.
+
+Therefore the structural zero-dimensional result is now:
+
+- `PR_REGISTERED_SCAN = PASS`;
+- `CPA_REGISTERED_SCAN = PASS`;
+- `PR_ENVELOPE_MAP_HEALTH = PASS`;
+- `CPA_ENVELOPE_MAP_HEALTH = PASS`;
+- `PR_DENSE_COMPOSITION_PATH = PASS`;
+- `CPA_DENSE_COMPOSITION_PATH = PASS`;
+- `CROSS_EOS_INITIAL_STATE = PASS`;
+- `ZERO_D_PVT_ACCEPTANCE = PASS`.
+
+This removes the numerical 0D blocker only. Reservoir flow remains frozen because the independent PR binary-calibration, CPA calibration, density-validation and viscosity-validation gates have not yet all passed.

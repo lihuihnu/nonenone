@@ -38,6 +38,11 @@ struct ThreePhaseFlashOptions
     double compositionFloor{1.0e-30};
     double logKStepLimit{2.0};
     double numericalJacobianStep{1.0e-6};
+    // Opt-in CPA candidate-root comparison for missing-phase stability only.
+    // Active phases ALWAYS retain role-specific density roots: liquid for
+    // Oil/Water, vapor for Gas. This flag must never switch an active liquid
+    // to a vapor root while solving/continuing its equilibrium branch.
+    bool cpaSelectGibbsMinimumRoot{false};
 };
 
 template <class Indices>

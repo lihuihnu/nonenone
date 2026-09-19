@@ -1,0 +1,11 @@
+dependency,current_status,required_status,hard_block,notes
+PR_BINARY_CALIBRATION,RESERVOIR_GATE_BLOCKED,RESERVOIR_GATE_PASS,yes,"All four H2O-lump PR binaries must pass physical validation."
+CPA_CALIBRATION,CPA_GATE_BLOCKED,CPA_GATE_PASS,yes,"CPA physical/BIP/association validation must pass independently."
+DENSITY_VALIDATION,DENSITY_GATE_BLOCKED,DENSITY_GATE_PASS,yes,"Density validation must pass without fitting on validation rows."
+VISCOSITY_VALIDATION,VISCOSITY_GATE_BLOCKED,VISCOSITY_GATE_PASS,yes,"Intrinsic and coupled transport validation must pass."
+FLOW_CONTROL_SCALE,FLOW_CONTROL_GATE_BLOCKED,FLOW_CONTROL_GATE_PASS,yes,"Injector rate+max-BHP and producer fixed-BHP modes are defined, but Q/DeltaP/BHP targets require measured PV/k/geometry/viscosity and apparatus limits."
+POROUS_MEDIA_VALIDATION,POROUS_MEDIA_GATE_BLOCKED,POROUS_MEDIA_GATE_PASS,yes,"Actual lab specimen/cell geometry, phi, k, effective PV, wettability and capillary/relperm treatment must be accepted. Corey is sensitivity-only until target-T/P data exist."
+PRODUCER_COMPOSITION_OUTPUT,PRODUCER_COMPOSITION_GATE_BLOCKED,PRODUCER_COMPOSITION_GATE_PASS,yes,"Formal runs must emit component-resolved producer mass fractions, cumulative production, RF_i and registered light/heavy enrichment at matched PVI."
+SCW_TEMPERATURE_CONTROL_PAIR,SCW_CONTROL_PAIR_GATE_BLOCKED,SCW_CONTROL_PAIR_GATE_PASS,yes,"Formal 360 C / 28 MPa control and 380 C / 28 MPa SCW pair must share all registered inputs except temperature and pass paired 0D/property/flow-output checks."
+ZERO_D_PVT_RUNTIME,ZERO_D_PVT_GATE_PASS,ZERO_D_PVT_GATE_PASS,no,"Strict PR/CPA registered scans, P-T map health, dense composition paths and cross-EOS initial-state anchors all pass. The former CPA onset failures were fixed without parameter changes."
+FAIR_FLOW_COMPARISON,FLOW_GATE_BLOCKED,FLOW_GATE_PASS,yes,"0D PVT passes; formal flow still requires PR/CPA calibration, property/porous-media/flow-control gates, the 360/380 control pair and first-class producer composition/selectivity output."

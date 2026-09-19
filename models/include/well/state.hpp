@@ -27,6 +27,8 @@ struct WellState final
     std::array<double, Indices::numPhases> surfacePhaseRate{};
     std::array<double, Indices::numPhases> reservoirPhaseRate{};
     std::array<double, Indices::numPhases> phaseMassRate{};
+    std::array<std::array<double, Indices::numComponents>, Indices::numPhases>
+        phaseComponentMassRate{};
     std::array<double, Indices::numPhases> flowWeightedDensity{};
     /**
      * Signed conserved-component mass rates [kg/s].
@@ -44,6 +46,8 @@ struct WellState final
         surfacePhaseRate.fill(0.0);
         reservoirPhaseRate.fill(0.0);
         phaseMassRate.fill(0.0);
+        for (auto &phaseRate : phaseComponentMassRate)
+            phaseRate.fill(0.0);
         flowWeightedDensity.fill(0.0);
         componentMassRate.fill(0.0);
     }

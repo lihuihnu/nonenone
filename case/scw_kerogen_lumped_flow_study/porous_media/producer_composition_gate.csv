@@ -1,0 +1,12 @@
+item,status,blocking_for_formal_flow,acceptance_rule
+producer_component_mass_rates,PASS_IMPLEMENTATION,no,"First-class output uses exact WellState componentMassRate."
+producer_instantaneous_mass_fractions,PASS_IMPLEMENTATION,no,"producer_composition.csv contains Y_i for every conserved component."
+producer_cumulative_component_mass,PASS_IMPLEMENTATION,no,"Accepted-step producer ledger integrates cumulative kg per component."
+producer_recovery_fraction,PASS_IMPLEMENTATION,no,"RF_i uses initial global in-place component mass."
+total_hydrocarbon_recovery,PASS_IMPLEMENTATION,no,"RF_total_hydrocarbon is written separately from E_L/H so displacement efficiency and selectivity cannot be conflated."
+producer_light_heavy_enrichment,PASS_IMPLEMENTATION,no,"Mass-basis instantaneous and cumulative E_L/H are implemented with explicit light/heavy groups."
+producer_pvi_column,PASS_IMPLEMENTATION,no,"Output integrates actual injector reservoir volume; formal PVI becomes numeric when measured PV_eff is supplied."
+producer_runtime_smoke,PASS_RUNTIME,no,"A real scw_kerogen_lmh_1d accepted-step run compiled and generated producer_composition.csv with normalized Y_i, cumulative kg, RF_i, RF_total_hydrocarbon and finite E_L/H."
+formal_component_role_mapping,PARTIAL_CURRENT_TOPOLOGY,yes,"Current experiment-driven fluid has H2O/Gasoline/Diesel/Middle/Heavy; independent Gas product lump remains absent and must not be fabricated."
+paired_producer_output_360_380,OPEN_RUNTIME,yes,"Both formal runs must emit producer_composition.csv at matched PVI and pass closure checks."
+ALL_PRODUCER_COMPOSITION,PRODUCER_COMPOSITION_GATE_BLOCKED,yes,"Output infrastructure exists; formal Gas topology and paired runtime evidence remain incomplete."

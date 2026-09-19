@@ -15,5 +15,6 @@
 #include <output/core/types.hpp>
 #include <output/metrics/component_totals.hpp>
 #include <output/metrics/component_mass_balance.hpp>
+#include <output/metrics/producer_composition.hpp>
 #include <output/well/well_history.hpp>
 

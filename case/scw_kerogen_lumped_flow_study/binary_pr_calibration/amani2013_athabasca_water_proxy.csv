@@ -1,0 +1,9 @@
+T_K,P_MPa,xH2O_bitumen_rich_experiment,xH2O_Jia2018_CPA,evidence_role,fit_permission,source_locator
+548.2,6.910,0.5412,0.5431,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+573.1,9.520,0.6321,0.6412,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+583.2,11.550,0.6699,0.6785,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+593.1,13.480,0.7192,0.7168,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5; Jia calibration point"
+603.5,15.320,0.7477,0.7642,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+613.4,18.450,0.7964,0.7887,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+623.2,20.930,0.8274,0.8250,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5"
+633.8,23.720,0.8462,0.8572,HIGH_PRESSURE_SOLUBILITY_PROXY,NO_GENERATED_HEAVY_FIT,"Amani et al. 2013 experiment reproduced in Jia & Okuno 2018 Table 5; closest row to 360 C / 25 MPa target"

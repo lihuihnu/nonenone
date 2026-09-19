@@ -1,0 +1,35 @@
+name: SCW Athabasca high-T onset recovery
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_athabasca_highT_onset_probe/**'
+      - 'tools/example/cpa_athabasca_bitumen_water/main.cpp'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-athabasca-highT-onset.yml'
+  workflow_dispatch:
+
+jobs:
+  highT-onset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile high-T onset probe
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_athabasca_highT_onset_probe/main.cpp \
+            -o /tmp/highT_onset_probe
+      - name: Audit 593 and 603 K incipient-gas recovery
+        run: /tmp/highT_onset_probe /tmp/highT_onset_results
+      - name: Show onset map
+        if: always()
+        run: cat /tmp/highT_onset_results/highT_onset_recovery.csv || true
+      - name: Upload onset map
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-athabasca-highT-onset
+          path: /tmp/highT_onset_results/
+          if-no-files-found: error

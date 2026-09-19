@@ -129,6 +129,15 @@ public:
                 viscosity = mcBrideWrightAqueousViscosity_->viscosity(
                     pressure, fluidTemperature, moleFraction);
         }
+        if (flowViscosityOverride)
+        {
+            Composition values{};
+            for (int i=0; i<numComponents; ++i)
+                values[i] = ValueType(mass[i]);
+            const auto v = flowViscosityOverride(ValueType(pressure), values);
+            if constexpr (std::is_same_v<Scalar, double>) viscosity = scalarValue(v);
+            else viscosity = Scalar(v);
+        }
         return {mass, density, viscosity};
     }
 
@@ -266,6 +275,9 @@ public:
 
     // 外部算例接口：这里注入岩石–流体本构；饱和度为体积分数，
     // Natural 内核统一按 `lambda_alpha = k_r,alpha / mu_alpha` 组装相流度。
+    // Explicit case-owned constitutive override. Input is phase MASS fraction.
+    // Empty by default; existing LBC/IAPWS/McBride-Wright behavior is unchanged.
+    std::function<ValueType(ValueType, const Composition &)> flowViscosityOverride;
     UnaryProperty gasRelativePermeability;   ///< `k_rg(S_g)`.
     UnaryProperty oilRelativePermeability;   ///< Two-phase/fallback `k_ro(S_o)`.
     UnaryProperty waterRelativePermeability; ///< `k_rw(S_w)`.

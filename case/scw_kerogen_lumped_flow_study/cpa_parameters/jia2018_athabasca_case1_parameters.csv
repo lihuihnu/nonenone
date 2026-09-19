@@ -1,0 +1,5 @@
+component,z_bitumen,MW_g_mol,Tc_K,Pc_kPa,omega,beta_AB_table4,a0_kPa_m6_mol2,b_m3_mol,kappa,epsilon_AB_kPa_m3_mol,Kw_HC,volume_shift_m3_mol,parameter_role,transfer_policy
+PC1,0.2664,352.43,612.8,2287.1,0.9673,0.07,,,,,-0.0293,-0.000013,"non-self-associating pseudo-component; SRK physical mapping; beta_AB represents water-hydrocarbon solvation parameter","LITERATURE_BENCHMARK_ONLY"
+PC2,0.4925,539.03,745.2,1588.5,1.1751,0.07,,,,,-0.0378,-0.000120,"non-self-associating pseudo-component; SRK physical mapping; beta_AB represents water-hydrocarbon solvation parameter","LITERATURE_BENCHMARK_ONLY"
+PC3,0.1360,706.84,858.9,1332.7,1.2018,0.07,,,,,-0.0380,-0.000260,"non-self-associating pseudo-component; SRK physical mapping; beta_AB represents water-hydrocarbon solvation parameter","LITERATURE_BENCHMARK_ONLY"
+ASPHALTENE,0.1041,916.19,1340.0,941.89,1.5567,0.05,0.05202,0.000914,2.50,26.0,-0.0380,-0.000440,"4C self-associating asphaltene; water-asphaltene cross-association required by Jia & Okuno Case 1","LITERATURE_BENCHMARK_ONLY"

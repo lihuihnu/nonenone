@@ -1,0 +1,6 @@
+component,association_scheme,donor_sites,acceptor_sites,association_energy_J_mol,association_volume,cross_association_policy,association_status,notes
+H2O,4C,2,2,16655,0.0692,CR1_or_explicit_when_partner_requires,LOCKED_BASELINE,"Repository-validated Folas 4C water. Use simplified radial distribution to match current benchmark convention."
+OIL_GASOLINE,NONE,0,0,0,0,NONE,BASELINE_NONASSOCIATING,"Recovered oil cut treated as non-self-associating petroleum fraction; no invented sites."
+OIL_DIESEL,NONE,0,0,0,0,NONE,BASELINE_NONASSOCIATING,"No direct evidence supports lump-level self association."
+OIL_MIDDLE,NONE,0,0,0,0,AROMATIC_SOLVATION_DISABLED_PENDING_PNA,BASELINE_NONASSOCIATING_WITH_OPEN_SOLVATION_QUESTION,"Real cut contains aromatic character; Oliveira shows aromatics may require water cross-association, but mixed-lump beta/epsilon cannot be guessed."
+OIL_HEAVY,NONE,0,0,0,0,POLAR_ASSOCIATION_DISABLED_PENDING_HEAVY_CHARACTERIZATION,HEAVY_ASSOCIATION_UNRESOLVED,"Resin/asphaltene evidence motivates a future polar treatment, but no donor/acceptor count, epsilon or beta is assigned without heavy-cut structural/phase data."

@@ -1,0 +1,4 @@
+stage,porosity_field,permeability_field,anisotropy,correlation_structure,status,scientific_purpose
+STAGE1_HOMOGENEOUS,"single measured phi","single measured kx/ky; thickness-averaged kz if needed","only measured constant anisotropy or explicit isotropic sensitivity","none",REQUIRED_FIRST_FLOW,"Isolate EOS, phase behavior, viscosity, capillarity and relative-permeability effects."
+STAGE2_DETERMINISTIC_ANISOTROPY,"single measured phi","constant measured tensor","measured kx/ky ratio","none",OPTIONAL_AFTER_STAGE1,"Separate directional permeability from stochastic heterogeneity."
+STAGE3_STOCHASTIC_HETEROGENEITY,"field with preserved measured mean","random/lognormal or measured image-derived field","defined from experiment","must specify variance and correlation lengths",DEFERRED,"Study heterogeneity only after homogeneous experimental baseline is validated."

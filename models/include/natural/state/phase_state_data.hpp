@@ -31,9 +31,13 @@ struct PhaseStateData
 
     // 全组分 O/G/W formulation 字段。
     PhasePresence phasePresence = PhasePresence::all();
-    // 记录哪些缺失相是因为进入微量饱和度 active-set deadband 而被主动删除。
-    // 该状态跨 Newton、accepted step 与 adaptive rollback 持久化，用于只对这些
-    // 相施加较宽的再出现滞回，而不改变普通 missing-phase appearance 物理。
+    // Active-set hysteresis memory. For a missing phase this records that it
+    // was removed in the trace-saturation probe band and therefore needs the
+    // wider reappearance margin. If stability legitimately reintroduces that
+    // phase while its equilibrium saturation is still inside the same band,
+    // the bit temporarily becomes an appearance hold: the positive trace phase
+    // remains active until it grows above the probe band, while S<=0 can still
+    // remove it. The state persists across Newton, accepted steps and rollback.
     PhasePresence phaseSuppression{std::uint8_t{0}};
     std::array<double, Indices::numComponents> vaporOilEquilibriumRatio{};
     std::array<double, Indices::numComponents> waterOilEquilibriumRatio{};

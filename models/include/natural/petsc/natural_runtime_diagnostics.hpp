@@ -6,7 +6,9 @@
 
 #include <petscsys.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -130,6 +132,70 @@ struct NaturalGlobalDiagnostics final
     double aqueousCO2MassFractionMaximum{0.0};
     double trappedGasSaturationAverage{0.0};
     double trappedGasSaturationMaximum{0.0};
+};
+
+
+/**
+ * @brief 失败 Newton 的完整 scaled residual 最大行诊断。
+ *
+ * residualNorm2 / residualNormInfinity / maximumAbsoluteScaledResidual 都是
+ * PETSc 实际收敛判据看到的“缩放后”残差。residualRms 用全局方程数归一化，
+ * 用于判断固定 L2 absolute tolerance 是否存在网格尺寸效应。
+ *
+ * winning row 同时保存 equationScale 和反缩放后的 residual，便于区分
+ * mass/fugacity/closure/well-control 各方程自身量纲。该结构只做诊断。
+ */
+template <class Indices>
+struct NaturalFullResidualFailureDiagnostic final
+{
+    bool valid{false};
+    long long globalEquationCount{0};
+    double residualNorm2{0.0};
+    double residualRms{0.0};
+    double residualNormInfinity{0.0};
+
+    double maximumAbsoluteScaledResidual{0.0};
+    double signedScaledResidual{0.0};
+    double equationScale{1.0};
+    double signedUnscaledResidual{0.0};
+
+    std::array<double, Indices::numComponents>
+        globalSignedComponentMassResidual{};
+    double globalSignedIndependentWaterResidual{0.0};
+
+    PetscInt currentCellId{-1};
+    PetscInt inputCellId{-1};
+    int equationIndex{-1};
+    double pressure{0.0};
+    std::array<double, Indices::numPhases> saturation{};
+    std::array<std::array<double, Indices::numComponents>, Indices::numPhases>
+        moleFraction{};
+    std::uint8_t phasePresenceBits{0};
+    std::uint8_t phaseSuppressionBits{0};
+};
+
+
+/**
+ * @brief MPI 全局有符号守恒残差 [kg/s]。
+ *
+ * component[] 对应 EOS/全组分质量方程。legacy independent-water 模型额外
+ * 使用 independentWater；全组分 O/G/W 中 H2O 已经包含在 component[]。
+ */
+template <class Indices>
+struct NaturalGlobalSignedMassResidual final
+{
+    std::array<double, Indices::numComponents> component{};
+    double independentWater{0.0};
+
+    [[nodiscard]] double maximumAbsolute() const noexcept
+    {
+        double maximum = 0.0;
+        for (double value : component)
+            maximum = std::max(maximum, std::abs(value));
+        if constexpr (Indices::hasIndependentWaterConservation)
+            maximum = std::max(maximum, std::abs(independentWater));
+        return maximum;
+    }
 };
 
 

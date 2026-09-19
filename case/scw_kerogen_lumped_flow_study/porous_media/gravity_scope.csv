@@ -1,0 +1,6 @@
+gravity_case,geometry_orientation,gravity_vector_definition,allowed_with_nz1,scientific_claim,status
+GRAVITY_OFF,any,"g=(0,0,0)",yes,"Reference case isolating pressure/composition transport from buoyancy.",STAGE1_ALLOWED
+IN_PLANE_Y_VERTICAL,vertical_slab,"gravity lies in slab plane and is mapped to model y direction",yes,"Can study 2D in-plane buoyancy segregation across ny=20 cells; this is not full 3D vertical segregation.",STAGE1_SENSITIVITY
+IN_PLANE_X_VERTICAL,rotated_vertical_slab,"gravity lies in slab plane and is mapped to model x direction",yes,"Can study 2D in-plane buoyancy along the long axis if apparatus is oriented accordingly.",OPTIONAL
+OUT_OF_PLANE_THICKNESS_VERTICAL,horizontal_or_thickness_vertical,"gravity normal to slab plane / model z direction",no,"nz=1 cannot resolve vertical saturation/composition stratification through thickness.",PROHIBITED_FOR_SEGREGATION_CLAIMS
+TRUE_3D_VERTICAL_SEGREGATION,3D_cell,"requires nz>1 with resolved physical height/thickness",no,"Requires a separate multi-layer model and experiment; cannot be inferred from the pseudo-3D slab.",DEFERRED_STAGE2

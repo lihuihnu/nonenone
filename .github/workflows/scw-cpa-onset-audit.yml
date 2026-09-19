@@ -1,0 +1,56 @@
+name: SCW CPA onset audit
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/**'
+      - 'tools/example/scw_cpa_onset_audit/**'
+      - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-cpa-onset-audit.yml'
+  pull_request:
+    paths:
+      - 'case/scw_kerogen_lumped_flow_study/**'
+      - 'tools/example/scw_cpa_onset_audit/**'
+      - 'models/include/natural/thermo/**'
+      - 'test/src/unit/thermodynamic_failure_modes_test.cpp'
+      - 'tools/Makefile'
+      - '.github/workflows/scw-cpa-onset-audit.yml'
+
+jobs:
+  cpa-onset-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile CPA onset audit
+        run: make -C tools bin/scw_cpa_onset_audit CXX=g++
+
+      - name: Run frozen-parameter audit
+        run: make -C tools run-scw-cpa-onset-audit CXX=g++
+
+      - name: Run focused thermodynamic failure-mode regression
+        shell: bash
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror             -Iad/include -Icommon/include -Iindices/include -Imodels/include             -Icase/include -Itest/include -Itools/include             test/src/unit/thermodynamic_failure_modes_test.cpp             -o /tmp/thermodynamic_failure_modes_test
+          /tmp/thermodynamic_failure_modes_test
+
+      - name: Run public CPA VLLE regression
+        run: make -C tools run-cpa-dme-vlle CXX=g++
+
+      - name: Show classification
+        if: always()
+        run: |
+          cat tools/example/scw_cpa_onset_audit/results/classification.csv || true
+          grep -E '26(\.00|\.25),' tools/example/scw_cpa_onset_audit/results/failure_state_diagnostics.csv || true
+
+      - name: Upload CPA onset audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-cpa-onset-audit
+          path: tools/example/scw_cpa_onset_audit/results/
+          if-no-files-found: error

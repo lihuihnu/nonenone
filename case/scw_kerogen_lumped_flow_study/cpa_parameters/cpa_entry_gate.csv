@@ -1,0 +1,13 @@
+item,status,blocking_for_cpa_zero_flow,blocking_for_reservoir,acceptance_rule
+water_4C_parameter_set,PASS,no,no,"Use locked Folas 4C water parameters and current CPA radial-distribution convention."
+gasoline_physical_parameters,PROVISIONAL,no,yes,"Validate SRK-derived pseudo physical parameters against density/phase data; replace with fitted/narrow-cut CPA characterization if justified."
+diesel_physical_parameters,PROVISIONAL,no,yes,"Validate against dodecane/petroleum-cut data; recover Yan narrow-cut method before final acceptance."
+middle_physical_parameters,PROVISIONAL_HIGH_UNCERTAINTY,no,yes,"Require phase/density validation and chemistry-bracket sensitivity."
+heavy_physical_parameters,BLOCKED_FINAL,no,yes,"Heavy a0/b/c1 are screening values only; must be checked against heavy-cut/residue data."
+gasoline_water_kij,PENDING_RAW_ROWS,yes,yes,"Start from n-hexane CPA 0.044 and re-fit only to admitted high-T/P raw rows."
+diesel_water_kij,PENDING_RAW_ROWS,yes,yes,"Start from n-decane CPA anchor -0.054; do not call it dodecane calibration."
+middle_water_kij,OPEN,yes,yes,"No long-chain extrapolation from C1-C10 correlation; fit to admissible proxy data only."
+heavy_water_kij,BLOCKED_NO_TUNING,yes,yes,"No tuning for phase appearance or convergence."
+middle_cross_association,UNRESOLVED,no,yes,"Enable only after PNA/aromatic fraction and water-solubility evidence support a mixed-lump solvation representation."
+heavy_association,UNRESOLVED,no,yes,"Do not invent association sites/epsilon/beta; consider future polar/nonpolar heavy split."
+ALL_CPA,CPA_GATE_BLOCKED,yes,yes,"CPA baseline exists, but binary calibration and Heavy association/physical validation are incomplete."

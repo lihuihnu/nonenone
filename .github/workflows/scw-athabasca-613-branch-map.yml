@@ -1,0 +1,36 @@
+name: SCW Athabasca 613K branch map
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_athabasca_613_branch_probe/**'
+      - 'tools/example/cpa_athabasca_bitumen_water/main.cpp'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-athabasca-613-branch-map.yml'
+  workflow_dispatch:
+
+jobs:
+  branch-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile 613 K branch map
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_athabasca_613_branch_probe/main.cpp \
+            -o /tmp/athabasca_613_branch_probe
+      - name: Map cold and continued O+W branches
+        run: |
+          /tmp/athabasca_613_branch_probe /tmp/branch613
+      - name: Show branch map
+        if: always()
+        run: cat /tmp/branch613/branch613_map.csv || true
+      - name: Upload branch map
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-athabasca-613-branch-map
+          path: /tmp/branch613/
+          if-no-files-found: error

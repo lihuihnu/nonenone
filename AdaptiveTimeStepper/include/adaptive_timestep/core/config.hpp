@@ -21,6 +21,9 @@ namespace MPMC
 struct AdaptiveTimeStepConfig final
 {
     double fixedOutputDt{1.0};          ///< Mandatory output-time spacing.
+    // Optional internal-step ceiling. Zero means "same as fixedOutputDt".
+    // This separates reporting cadence from the nonlinear stability limit.
+    double maximumDt{0.0};
     double minimumDt{1.0 / 1024.0};    ///< Smallest retry step accepted by the policy.
     double cutFactor{0.5};              ///< `dt_new = cutFactor * dt` after rejection.
     double growthFactor{2.0};           ///< Growth after an easy accepted solve.
@@ -34,6 +37,14 @@ struct AdaptiveTimeStepConfig final
     bool adaptive{true};
     double timeTolerance{0.0};  ///< Zero selects a scale-aware default tolerance.
     double outputTimeOrigin{0.0}; ///< Reference origin of the output-time lattice.
+
+    /** @brief 返回实际内部时间步上限；0 表示沿用固定输出间隔。 */
+    [[nodiscard]] double effectiveMaximumDt() const noexcept
+    {
+        return maximumDt > 0.0
+            ? std::min(maximumDt, fixedOutputDt)
+            : fixedOutputDt;
+    }
 
     /** @brief 比较物理时间和输出时间时使用的数值容差。 */
     [[nodiscard]] double effectiveTimeTolerance() const noexcept
@@ -53,8 +64,11 @@ struct AdaptiveTimeStepConfig final
         if (!finitePositive(fixedOutputDt))
             throw std::invalid_argument("fixedOutputDt must be finite and positive.");
 
-        if (!finitePositive(minimumDt) || minimumDt > fixedOutputDt)
-            throw std::invalid_argument("minimumDt must be finite, positive, and no larger than fixedOutputDt.");
+        if (maximumDt < 0.0 || !std::isfinite(maximumDt))
+            throw std::invalid_argument("maximumDt must be finite and non-negative.");
+
+        if (!finitePositive(minimumDt) || minimumDt > effectiveMaximumDt())
+            throw std::invalid_argument("minimumDt must be finite, positive, and no larger than the effective maximumDt.");
 
         if (!std::isfinite(cutFactor) || cutFactor <= 0.0 || cutFactor >= 1.0)
             throw std::invalid_argument("cutFactor must lie in (0,1).");

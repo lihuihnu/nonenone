@@ -682,8 +682,26 @@
             const StabilityResult stability = stabilityTest(
                 pressure, temperature, z,
                 candidate.presence, candidate.composition);
-            if (!stability.valid || !stability.stable)
+            if (!stability.valid)
                 continue;
+            if (!stability.stable)
+            {
+                // A converged liquid branch is a seed, not an equilibrium
+                // certificate. Release its unstable missing phase and solve
+                // again with fixed active-root identities before comparing G.
+                if (!eos_.usesCubicPlusAssociation() ||
+                    !options_.cpaSelectGibbsMinimumRoot)
+                    continue;
+                candidate = equilibrateActiveSet_(
+                    pressure, temperature, z, candidate.presence, candidate);
+                if (!candidate.converged ||
+                    !validatePhysicalFlashResult_(pressure, temperature, z, candidate))
+                    continue;
+                const auto expandedStability = stabilityTest(
+                    pressure, temperature, z, candidate.presence, candidate.composition);
+                if (!expandedStability.valid || !expandedStability.stable)
+                    continue;
+            }
             const double g = dimensionlessGibbs_(
                 pressure, temperature, candidate);
             if (std::isfinite(g) && g < bestG)

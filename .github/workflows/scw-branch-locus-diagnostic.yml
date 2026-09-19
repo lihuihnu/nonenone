@@ -1,0 +1,40 @@
+name: SCW branch locus diagnostic
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_branch_locus_audit/**'
+      - 'tools/example/cpa_athabasca_bitumen_water/main.cpp'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-branch-locus-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile frozen-EOS diagnostic correctors
+        run: |
+          flags='-std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -Iad/include -Icommon/include -Iindices/include -Imodels/include -Icase/include -Itest/include -Itools/include'
+          g++ $flags tools/example/cpa_branch_locus_audit/main.cpp -o /tmp/locus
+          g++ $flags tools/example/cpa_branch_locus_audit/refine.cpp -o /tmp/refine
+      - name: Run independent loci and half-step verification
+        run: |
+          mkdir -p /tmp/locus_evidence
+          git rev-parse HEAD > /tmp/locus_evidence/source_commit.txt
+          /tmp/locus /tmp/locus_evidence/step_0p5 0.5 > /tmp/locus_evidence/coarse.log
+          /tmp/locus /tmp/locus_evidence/step_0p25 0.25 > /tmp/locus_evidence/half.log
+          /tmp/refine /tmp/locus_evidence/step_0p5/vapor_onset.csv /tmp/locus_evidence/refined > /tmp/locus_evidence/refine.log
+          printf 'DIAGNOSTIC_COMPLETED\nFIGURE7_REPRODUCTION=BLOCKED\nFORMAL_FLOW=BLOCKED\n' > /tmp/locus_evidence/scope.txt
+          cat /tmp/locus_evidence/refined/intersection.csv
+          cat /tmp/locus_evidence/refined/spinodal_crosscheck.csv
+          cat /tmp/locus_evidence/refined/side_global.csv
+      - name: Preserve all diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpa-branch-locus-diagnostic
+          path: /tmp/locus_evidence/
+          if-no-files-found: error

@@ -1,0 +1,5 @@
+scenario,entry_pressure_kPa,lambda,Swr,implementation_status,evidence_status,source_id,use_rule
+PC_OFF,0,,,NOT_YET_IN_FLOW_KERNEL,SCREENING_CONTROL,,"Zero-capillary control only. It is not a claim that laboratory capillarity is negligible."
+BEREA_KREVOR_PROXY,2.5,0.67,0.11,NOT_YET_IN_FLOW_KERNEL,LOW_T_CO2_BRINE_PROXY,KREVOR2012_BEREA,"Use only as sensitivity; do not transfer directly to 380 C SCW-hydrocarbon."
+BEREA_NIU_PROXY,5.5,0.6,0.1699,NOT_YET_IN_FLOW_KERNEL,LOW_T_CO2_BRINE_PROXY,NIU2015_BEREA,"Young-Laplace-scaled Berea proxy used in the cited experimental-design simulation; not high-T SCW calibration."
+BEREA_MICP_STRUCTURE,53.5,,,NOT_YET_IN_FLOW_KERNEL,MICP_ROCK_STRUCTURE_ONLY,PINI2013_BEREA,"Mercury-air entry pressure is a pore-structure reference only. Never use directly as SCW-hydrocarbon Pc without IFT/contact-angle scaling."

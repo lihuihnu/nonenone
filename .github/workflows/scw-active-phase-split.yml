@@ -1,0 +1,42 @@
+name: SCW active-phase composition splitting
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_general_split_audit/**'
+      - 'tools/example/cpa_athabasca_bitumen_water/main.cpp'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-active-phase-split.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  active-phase-split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install numerical dependencies
+        run: python -m pip install 'numpy>=2,<3' 'scipy>=1.14,<2'
+      - name: Compile exact production EOS bridge
+        run: |
+          mkdir -p /tmp/active-split
+          git rev-parse HEAD > /tmp/active-split/checkout.txt
+          python -m pip freeze > /tmp/active-split/dependencies.txt
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -fPIC -shared \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_general_split_audit/eos_bridge.cpp -o /tmp/libsplit.so
+      - name: Require algorithm regression, not physical reproduction
+        run: |
+          python tools/example/cpa_general_split_audit/verify.py /tmp/libsplit.so /tmp/active-split
+          cat /tmp/active-split/summary.json
+      - name: Upload all certificates, including unresolved TPD searches
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-active-phase-splitting
+          path: /tmp/active-split/
+          if-no-files-found: error

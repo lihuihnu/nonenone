@@ -1,0 +1,190 @@
+name: SCW producer composition output
+
+on:
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'output/include/output/metrics/producer_composition.hpp'
+      - 'output/include/output/well/producer_composition_output.hpp'
+      - 'case/include/case/case_support.hpp'
+      - 'case/scw_kerogen_common/benchmark_common.hpp'
+      - 'case/scw_kerogen_lumped_flow_study/15_PRODUCER_COMPOSITION_AND_SELECTIVITY.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/producer_*.csv'
+      - 'test/src/unit/producer_composition_test.cpp'
+      - 'test/Makefile'
+      - '.github/workflows/scw-producer-composition.yml'
+  pull_request:
+    paths:
+      - 'output/include/output/metrics/producer_composition.hpp'
+      - 'output/include/output/well/producer_composition_output.hpp'
+      - 'case/include/case/case_support.hpp'
+      - 'case/scw_kerogen_common/benchmark_common.hpp'
+      - 'case/scw_kerogen_lumped_flow_study/15_PRODUCER_COMPOSITION_AND_SELECTIVITY.md'
+      - 'case/scw_kerogen_lumped_flow_study/porous_media/producer_*.csv'
+      - 'test/src/unit/producer_composition_test.cpp'
+      - 'test/Makefile'
+      - '.github/workflows/scw-producer-composition.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  producer-output:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run pure producer-composition ledger regression
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Ioutput/include \
+            test/src/unit/producer_composition_test.cpp \
+            -o /tmp/producer_composition_test
+          /tmp/producer_composition_test
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential gfortran python3 curl ca-certificates \
+            openmpi-bin libopenmpi-dev \
+            libblas-dev liblapack-dev libmetis-dev libfmt-dev
+
+      - name: Set PETSc environment
+        run: |
+          echo "PETSC_DIR=${RUNNER_TEMP}/petsc-3.22.2" >> "${GITHUB_ENV}"
+          echo "PETSC_ARCH=arch-ci" >> "${GITHUB_ENV}"
+
+      - name: Restore PETSc 3.22.2 cache
+        id: petsc-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/petsc-3.22.2
+          key: petsc-3.22.2-ubuntu24-openmpi4-gcc13-v1
+
+      - name: Build PETSc 3.22.2
+        if: steps.petsc-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          PETSC_VERSION=3.22.2
+          curl -fL --retry 3 \
+            "https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-${PETSC_VERSION}.tar.gz" \
+            -o "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/petsc-${PETSC_VERSION}.tar.gz" -C "${RUNNER_TEMP}"
+          cd "${PETSC_DIR}"
+          ./configure PETSC_ARCH="${PETSC_ARCH}" \
+            --with-debugging=0 \
+            --with-shared-libraries=1 \
+            --with-mpi=1 \
+            --with-fortran-bindings=0 \
+            --with-x=0
+          make PETSC_DIR="${PETSC_DIR}" PETSC_ARCH="${PETSC_ARCH}" all -j2
+
+      - name: Configure local dependency profile
+        run: |
+          set -euo pipefail
+          METIS_ROOT="${RUNNER_TEMP}/metis-shim"
+          mkdir -p "${METIS_ROOT}/include" "${METIS_ROOT}/install/lib"
+          ln -sf /usr/include/metis.h "${METIS_ROOT}/include/metis.h"
+          METIS_LIB="$(ldconfig -p | awk '/libmetis\.so/{print $NF; exit}')"
+          test -n "${METIS_LIB}"
+          ln -sf "${METIS_LIB}" "${METIS_ROOT}/install/lib/libmetis.so"
+
+          DQ_MESH_DIR="${RUNNER_TEMP}/DQ_data"
+          mkdir -p "${DQ_MESH_DIR}"
+
+          cat > config/hpc.local.mk <<EOF
+          MPMC_PLATFORM := local
+          PETSC_DIR := ${PETSC_DIR}
+          PETSC_ARCH := ${PETSC_ARCH}
+          FMT_DIR := /usr
+          METIS_DIR := ${METIS_ROOT}
+          VTK_INSTALL :=
+          X11_LIB_DIR := /usr/lib/x86_64-linux-gnu
+          LOCAL_LIB_DIR := /usr/local/lib
+          MPI_LAUNCHER := mpiexec
+          MPI_LAUNCHER_ARGS :=
+          MODULES_ENABLED := 0
+          PETSC_CUSTOM_HOOK_LINKAGE := both
+          MPI_MODULE :=
+          BLAS_MODULE :=
+          SBATCH :=
+          DQ_MESH_DIR := ${DQ_MESH_DIR}
+          EOF
+
+      - name: Compile SCW kerogen case with first-class producer output
+        run: |
+          make case CASE=scw_kerogen_lmh_1d -j2
+
+      - name: Run one accepted step
+        run: |
+          make run CASE=scw_kerogen_lmh_1d NP=1 \
+            RESULT_DIR="${GITHUB_WORKSPACE}/producer-output-results" \
+            RUN_ARGS='-numSteps 1 -dt 0.0001 -adaptive_dt false'
+
+      - name: Validate producer composition CSV
+        run: |
+          python3 - <<'PY'
+          import csv
+          from pathlib import Path
+
+          p = Path('producer-output-results/producer_composition.csv')
+          assert p.is_file(), p
+          rows = list(csv.DictReader(p.open(newline='', encoding='utf-8')))
+          producer = [r for r in rows if r['producer_name'] == 'PROD']
+          assert producer, 'missing producer rows'
+
+          required_prefixes = ['m_dot_', 'Y_', 'cum_', 'RF_']
+          fields = rows[0].keys()
+          for prefix in required_prefixes:
+              assert any(f.startswith(prefix) for f in fields), prefix
+          assert 'm_dot_Light_group_produced_kg_s' in fields
+          assert 'Y_Light_group_mass_fraction' in fields
+          assert 'cum_Light_group_produced_kg' in fields
+          assert 'RF_Light_group' in fields
+          assert 'm_dot_Heavy_group_produced_kg_s' in fields
+          assert 'Y_Heavy_group_mass_fraction' in fields
+          assert 'cum_Heavy_group_produced_kg' in fields
+          assert 'RF_Heavy_group' in fields
+          assert 'RF_total_hydrocarbon' in fields
+          assert 'E_L_over_H_instant_mass' in fields
+          assert 'E_L_over_H_cumulative_mass' in fields
+          assert 'cumulative_injected_reservoir_m3' in fields
+          assert 'pvi' in fields
+
+          accepted = producer[-1]
+          y_cols = [
+              f for f in fields
+              if f.startswith('Y_') and '_group_' not in f
+          ]
+          y = [float(accepted[f]) for f in y_cols]
+          assert all(v == v for v in y), y
+          assert abs(sum(y) - 1.0) < 1e-10, sum(y)
+
+          light_y = float(accepted['Y_Light_group_mass_fraction'])
+          heavy_y = float(accepted['Y_Heavy_group_mass_fraction'])
+          rf_light = float(accepted['RF_Light_group'])
+          rf_heavy = float(accepted['RF_Heavy_group'])
+          rf_total = float(accepted['RF_total_hydrocarbon'])
+          e_inst = float(accepted['E_L_over_H_instant_mass'])
+          e_cum = float(accepted['E_L_over_H_cumulative_mass'])
+          assert light_y == light_y and light_y >= 0.0, light_y
+          assert heavy_y == heavy_y and heavy_y >= 0.0, heavy_y
+          assert rf_light == rf_light and rf_light >= 0.0, rf_light
+          assert rf_heavy == rf_heavy and rf_heavy >= 0.0, rf_heavy
+          assert rf_total == rf_total and rf_total >= 0.0, rf_total
+          assert e_inst == e_inst and e_inst > 0.0, e_inst
+          assert e_cum == e_cum and e_cum > 0.0, e_cum
+
+          print('[PASS] producer_composition.csv first-class values are finite and normalized')
+          PY
+
+      - name: Upload producer output smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-producer-composition
+          path: producer-output-results/
+          if-no-files-found: error

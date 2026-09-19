@@ -1,0 +1,11 @@
+component_i,component_j,kref_at_65315K,b_inverse_temperature_K,fit_policy,parameter_status,rationale
+H2O,OIL_GASOLINE,0.500000,0,FIT_WHEN_RAW_ROWS_READY,SCREENING_PRIOR,"Soreide-Whitson C5+ non-aqueous initial value mapped to the current symmetric-PR harness; not calibrated."
+H2O,OIL_DIESEL,0.6662345314,-1274.8955878,FIT_WHEN_RAW_ROWS_READY,PROXY_PR_PRIOR,"Dodecane published PR temperature trend used only as an optimizer seed."
+H2O,OIL_MIDDLE,0.2398345519,-477.4146946,FIT_WITH_CURRENT_SQUALANE_DIAGNOSTIC,PROXY_PR_PRIOR_REJECTED_AS_FINAL,"Squalane EACN anchor; existing direct fit fails full physical gate."
+H2O,OIL_HEAVY,0.2398345519,-477.4146946,NO_FIT,HEAVY_BENCHMARK_ONLY,"Squalane benchmark numeric prior only; forbidden as production Heavy BIP."
+OIL_GASOLINE,OIL_DIESEL,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Adjacent fractions from the same recovered oil; no evidence presently requires nonzero HC-HC BIP."
+OIL_GASOLINE,OIL_MIDDLE,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Same-fluid petroleum-fraction baseline."
+OIL_GASOLINE,OIL_HEAVY,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Same-fluid petroleum-fraction baseline; Heavy chemistry uncertainty is handled through characterization/validation rather than arbitrary HC-HC BIP."
+OIL_DIESEL,OIL_MIDDLE,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Same-fluid petroleum-fraction baseline."
+OIL_DIESEL,OIL_HEAVY,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Same-fluid petroleum-fraction baseline."
+OIL_MIDDLE,OIL_HEAVY,0,0,LOCK_ZERO_UNTIL_MULTICOMPONENT_PVT,HC_HC_BASELINE,"Same-fluid petroleum-fraction baseline."

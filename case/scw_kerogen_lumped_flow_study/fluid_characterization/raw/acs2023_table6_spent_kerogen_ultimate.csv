@@ -1,0 +1,10 @@
+source_id,sample_state,temperature_degC,C_wt_percent,H_wt_percent,N_wt_percent,S_wt_percent,H_C_atomic_ratio,data_status,evidence_level,source_doi,source_location,notes
+ACS_ZHAO_2023,initial_kerogen,,69.46,6.01,5.58,2.39,1.04,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Initial acid-pickled kerogen before SCW reaction."
+ACS_ZHAO_2023,spent_kerogen,380,79.58,5.47,5.06,2.41,0.82,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,400,78.93,4.86,5.10,2.62,0.74,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,450,79.98,4.01,5.07,2.91,0.60,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,500,81.78,3.25,4.92,2.41,0.48,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,550,82.84,2.98,4.50,2.34,0.43,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,600,82.73,2.78,3.90,2.99,0.40,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,650,81.79,2.65,3.30,3.16,0.39,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."
+ACS_ZHAO_2023,spent_kerogen,700,79.94,2.89,2.77,3.13,0.43,DIRECT_TABLE,B,10.1021/acs.iecr.3c02759,Table 6,"Spent kerogen after 2 h at 25 MPa."

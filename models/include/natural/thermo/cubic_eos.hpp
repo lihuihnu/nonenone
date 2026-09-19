@@ -235,6 +235,32 @@ public:
             !std::isfinite(options.associationDamping))
             throw std::invalid_argument("CPA association damping must be in (0,1].");
 
+        // Validate all explicit cross-association entries before deciding
+        // whether a site-bearing component is self-associating or
+        // cross-association-only (solvating).  CPA formulations for aromatic
+        // hydrocarbons commonly use the latter: the inert component has
+        // epsilon_AiBi = 0 but carries a site that associates explicitly with
+        // a donor/acceptor on water.
+        for (int i = 0; i < numComponents; ++i)
+        {
+            for (int j = 0; j < numComponents; ++j)
+            {
+                const auto ii = static_cast<std::size_t>(i);
+                const auto jj = static_cast<std::size_t>(j);
+                const double epsilon =
+                    options.crossAssociationEnergy[ii][jj];
+                const double beta =
+                    options.crossAssociationVolume[ii][jj];
+                if (!std::isfinite(epsilon) || !std::isfinite(beta) ||
+                    epsilon < 0.0 || beta < 0.0)
+                    throw std::invalid_argument(
+                        "CPA explicit cross-association parameters must be finite and non-negative.");
+                if ((epsilon > 0.0) != (beta > 0.0))
+                    throw std::invalid_argument(
+                        "CPA explicit cross-association requires epsilon and beta together.");
+            }
+        }
+
         for (int i = 0; i < numComponents; ++i)
         {
             const auto idx = static_cast<std::size_t>(i);
@@ -244,11 +270,52 @@ public:
                 throw std::invalid_argument("CPA cubic pure-component parameters must be finite and positive where required.");
             if (options.donorSites[idx] < 0 || options.acceptorSites[idx] < 0)
                 throw std::invalid_argument("CPA association site counts cannot be negative.");
-            const bool hasSites = options.donorSites[idx] + options.acceptorSites[idx] > 0;
-            if (hasSites &&
-                (!(options.associationEnergy[idx] > 0.0) ||
-                 !(options.associationVolume[idx] > 0.0)))
-                throw std::invalid_argument("CPA associating components require positive epsilon and beta.");
+            if (!std::isfinite(options.associationEnergy[idx]) ||
+                !std::isfinite(options.associationVolume[idx]) ||
+                options.associationEnergy[idx] < 0.0 ||
+                options.associationVolume[idx] < 0.0)
+                throw std::invalid_argument(
+                    "CPA pure association epsilon and beta must be finite and non-negative.");
+
+            const bool hasSites =
+                options.donorSites[idx] + options.acceptorSites[idx] > 0;
+            if (!hasSites)
+                continue;
+
+            const bool hasPureEnergy = options.associationEnergy[idx] > 0.0;
+            const bool hasPureVolume = options.associationVolume[idx] > 0.0;
+            if (hasPureEnergy && !hasPureVolume)
+                throw std::invalid_argument(
+                    "CPA self-association requires a positive pure beta when epsilon is positive.");
+            // epsilon=0 with beta>0 is intentionally allowed for a
+            // cross-association-only (solvating) component.  The pure beta is
+            // then provenance for the CR-1-style solvation parameterization;
+            // it cannot create self bonds because the pure epsilon is zero.
+            if (hasPureEnergy)
+                continue;
+
+            // Cross-association-only site carriers are valid only when every
+            // declared site direction has at least one explicit positive
+            // partner.  This prevents a zero pure epsilon from silently
+            // disabling a declared site while allowing faithful solvating
+            // mixtures such as water + aromatic pseudo-components.
+            bool donorCovered = options.donorSites[idx] == 0;
+            bool acceptorCovered = options.acceptorSites[idx] == 0;
+            for (int j = 0; j < numComponents; ++j)
+            {
+                const auto jj = static_cast<std::size_t>(j);
+                if (!donorCovered && options.acceptorSites[jj] > 0 &&
+                    options.crossAssociationEnergy[idx][jj] > 0.0 &&
+                    options.crossAssociationVolume[idx][jj] > 0.0)
+                    donorCovered = true;
+                if (!acceptorCovered && options.donorSites[jj] > 0 &&
+                    options.crossAssociationEnergy[jj][idx] > 0.0 &&
+                    options.crossAssociationVolume[jj][idx] > 0.0)
+                    acceptorCovered = true;
+            }
+            if (!donorCovered || !acceptorCovered)
+                throw std::invalid_argument(
+                    "CPA cross-association-only component has an uncovered declared site.");
         }
 
         thermodynamicModel_ = CubicThermodynamicModel::CubicPlusAssociation;

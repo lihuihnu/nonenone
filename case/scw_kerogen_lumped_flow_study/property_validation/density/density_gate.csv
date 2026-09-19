@@ -1,0 +1,8 @@
+item,status,validation_rows,fit_on_validation_allowed,acceptance_rule
+water_density_formulation,PASS_IMPLEMENTATION,3,no,"IAPWS IF97 verification states must reproduce tabulated density to numerical precision."
+gasoline_density_proxy,BLOCKED_POINTWISE_ROWS,0,no,"Ingest independent n-hexane density/EOS verification or experimental rows; do not fit volume translation on this validation set."
+diesel_density_proxy,SOURCE_LOCATED_ROWS_PENDING,0,no,"Ingest long-chain n-alkane density rows, preferably n-C16 and neighboring cuts, with source uncertainties."
+middle_density_proxy,PARTIAL_SQUALANE_BENCHMARK,12,no,"Squalane holdout can reject gross density behavior but cannot validate the real Middle pseudo-component."
+heavy_density_proxy,BLOCKED_TARGET_DATA,12,no,"Squalane is only a lower-complexity saturated benchmark; Heavy requires heavy-cut/residue density data."
+volume_translation_policy,VALIDATION_SEPARATED,n/a,no,"Any volume translation must be fitted on a separate calibration subset/source and evaluated here without retuning."
+ALL_DENSITY,DENSITY_GATE_BLOCKED,n/a,no,"Reservoir density validation remains blocked until each oil pseudo-component has an admissible independent validation envelope."

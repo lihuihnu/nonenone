@@ -1,0 +1,37 @@
+name: SCW root-policy verification
+on:
+  pull_request:
+    paths:
+      - 'models/include/natural/thermo/**'
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - '.github/workflows/scw-root-policy-verification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  root-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive exact tracked source revision
+        run: |
+          mkdir -p /tmp/root-policy-evidence
+          git rev-parse HEAD > /tmp/root-policy-evidence/source_commit.txt
+          git archive --format=tar HEAD > /tmp/root-policy-evidence/source.tar
+      - name: Compile root-policy branch regression
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_athabasca_bitumen_water/branch_consistency_probe.cpp \
+            -o /tmp/branch_probe
+      - name: Require certified branch consistency
+        run: /tmp/branch_probe /tmp/root-policy-evidence/branch_results
+      - name: Upload exact source and regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-root-policy-evidence
+          path: /tmp/root-policy-evidence/
+          if-no-files-found: error

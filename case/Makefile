@@ -191,6 +191,29 @@ SNES_STOL_scw_kerogen_lmh_2d ?= 1.e-100
 KSP_ATOL_scw_kerogen_lmh_2d ?= 1.e-12
 KSP_RTOL_scw_kerogen_lmh_2d ?= 1.e-8
 
+# SCW-H02 mechanism-isolation cases.  The fully compositional B/C path can
+# encounter trace Water-phase appearance states where PETSc's step-norm
+# convergence test accepts an O(1e-2) scaled residual.  H02 therefore disables
+# SNORM convergence and uses the validated 1e-6 scaled absolute residual gate.
+# A uses the same launcher tolerances so A/B/C remain numerically comparable.
+TASKS_scw_h02_2d ?= 1
+PARTITION_scw_h02_2d ?= mt_module
+SNES_MAX_IT_scw_h02_2d ?= 40
+SNES_ATOL_scw_h02_2d ?= 1.e-6
+SNES_RTOL_scw_h02_2d ?= 1.e-8
+SNES_STOL_scw_h02_2d ?= 1.e-100
+KSP_ATOL_scw_h02_2d ?= 1.e-12
+KSP_RTOL_scw_h02_2d ?= 1.e-8
+
+TASKS_scw_h02_2d_a ?= 1
+PARTITION_scw_h02_2d_a ?= mt_module
+SNES_MAX_IT_scw_h02_2d_a ?= 40
+SNES_ATOL_scw_h02_2d_a ?= 1.e-6
+SNES_RTOL_scw_h02_2d_a ?= 1.e-8
+SNES_STOL_scw_h02_2d_a ?= 1.e-100
+KSP_ATOL_scw_h02_2d_a ?= 1.e-12
+KSP_RTOL_scw_h02_2d_a ?= 1.e-8
+
 # Sun et al. (2024) Exp. 12 derived 48-cell independent-SCW/PR sandpack.
 TASKS_sun2024_exp12_scw_co2_nc16_1d ?= 1
 PARTITION_sun2024_exp12_scw_co2_nc16_1d ?= mt_module

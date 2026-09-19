@@ -1,0 +1,36 @@
+name: SCW Athabasca branch consistency
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-athabasca-branch-consistency.yml'
+  workflow_dispatch:
+jobs:
+  branch-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile frozen-parameter branch probe
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_athabasca_bitumen_water/branch_consistency_probe.cpp \
+            -o /tmp/athabasca_branch_probe
+      - name: Require branch consistency where unrestricted OW is stable
+        run: /tmp/athabasca_branch_probe /tmp/athabasca_branch_results
+      - name: Show independent verification
+        if: always()
+        run: |
+          cat /tmp/athabasca_branch_results/path_gate.csv || true
+          cat /tmp/athabasca_branch_results/state_summary.csv || true
+          cat /tmp/athabasca_branch_results/phase_probe.csv || true
+      - name: Upload branch certificates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-athabasca-branch-certificates
+          path: /tmp/athabasca_branch_results/
+          if-no-files-found: error

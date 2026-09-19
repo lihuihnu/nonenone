@@ -1,0 +1,52 @@
+name: SCW Figure7 pointwise boundary
+on:
+  pull_request:
+    paths:
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_figure7_wlv_wl_boundary.csv'
+      - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-athabasca-figure7-pointwise.yml'
+  push:
+    branches:
+      - docs/scw-kerogen-acs2023-data
+    paths:
+      - 'tools/example/cpa_athabasca_bitumen_water/**'
+      - 'case/scw_kerogen_lumped_flow_study/binary_pr_calibration/amani2013_figure7_wlv_wl_boundary.csv'
+      - 'case/scw_kerogen_lumped_flow_study/cpa_parameters/jia2018_athabasca_case1_parameters.csv'
+      - 'models/include/natural/thermo/**'
+      - '.github/workflows/scw-athabasca-figure7-pointwise.yml'
+  workflow_dispatch:
+
+jobs:
+  figure7-pointwise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile pointwise Figure-7 probe
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -Iad/include -Icommon/include -Iindices/include -Imodels/include \
+            -Icase/include -Itest/include -Itools/include \
+            tools/example/cpa_athabasca_bitumen_water/figure7_pointwise_probe.cpp \
+            -o /tmp/figure7_pointwise_probe
+
+      - name: Require pointwise boundary and incipient-gas certificates
+        run: |
+          /tmp/figure7_pointwise_probe /tmp/figure7_pointwise_results
+
+      - name: Show pointwise certificates
+        if: always()
+        run: |
+          cat /tmp/figure7_pointwise_results/figure7_pointwise_gate.csv || true
+          cat /tmp/figure7_pointwise_results/figure7_pointwise.csv || true
+
+      - name: Upload pointwise certificates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scw-athabasca-figure7-pointwise
+          path: /tmp/figure7_pointwise_results/
+          if-no-files-found: error

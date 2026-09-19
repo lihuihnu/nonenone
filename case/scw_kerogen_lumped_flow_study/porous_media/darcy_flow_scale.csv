@@ -1,0 +1,11 @@
+quantity,formula,input_status,design_use
+effective_flow_area,"A = Ly*Lz or measured open porous area","apparatus dimensions pending","Darcy velocity and pressure drop"
+target_injection_rate,"Q = r_PVI * PV_eff","PV_eff and r_PVI pending","Injector ReservoirTotalRate target"
+darcy_velocity,"u_D = Q/A","derived","Compare pump/flow regime"
+pore_velocity,"u_p = Q/(phi_eff*A)","phi_eff pending","Residence/tracer scale cross-check"
+nominal_residence_time,"t_res = PV_eff/Q = 1/r_PVI","derived","Set experimental run duration"
+single_phase_pressure_drop,"DeltaP_sp = mu_ref*L*Q/(k_abs*A)","mu_ref/k/L/A pending","First pressure-drop estimate"
+expected_producer_bhp,"p_prod = p_center - DeltaP_design/2","DeltaP_design pending","Fixed BHP target candidate"
+expected_injector_pressure,"p_inj_expected = p_center + DeltaP_design/2","DeltaP_design pending","Expected pressure under rate control"
+injector_maximum_bhp,"min(p_apparatus_safe, p_PVT_valid_max, p_design_cap)","apparatus/design pending","Automatic rate-to-BHP safety switch"
+actual_PVI,"PVI(t)=integral_0^t Q_inj,actual,res(tau) dtau / PV_eff","runtime","Primary horizontal axis"

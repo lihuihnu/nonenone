@@ -70,8 +70,12 @@ struct WellDefinition
     int injectedComponent{-1};
 };
 
-// H2O is component zero in both staged fluids.  Equal in-situ rates isolate
-// compositional displacement from bulk pressure depletion.
+// LEGACY NUMERICAL BENCHMARK ONLY:
+// H2O is component zero in both staged fluids.  Equal in-situ rates were used
+// here to isolate compositional displacement from bulk pressure depletion.
+// The laboratory-reproducible slab must NOT inherit this control policy:
+// injector = reservoir-rate + maximum-BHP constraint, producer = fixed BHP,
+// with Q and DeltaP derived from measured PV/k/geometry/viscosity.
 inline static constexpr std::array<WellDefinition, 2> wells{{
     {0, "SCW_INJ", Type::Injector, Control::ReservoirTotalRate,
      reservoirRate, initialPressure + 0.5 * bar,
@@ -125,6 +129,10 @@ struct Output
     static constexpr bool printWells = true;
     static constexpr bool printWellPhaseDetails = true;
     static constexpr bool writeWellHistory = true;
+    // First-class producer composition/recovery output.  Legacy cases do not
+    // define a measured experimental PV, so producer_composition.csv leaves
+    // PVI as NaN rather than inventing one.
+    static constexpr bool writeProducerComposition = true;
     static constexpr bool printInventory = true;
     static constexpr bool enableComponentMassBalance = true;
     static constexpr bool printComponentMassBalance = true;
