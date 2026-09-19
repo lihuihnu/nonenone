@@ -356,7 +356,6 @@ class NaturalSolver final
 {
 public:
     NaturalSolver(Runtime &runtime, DM dm)
-        : runtime_(runtime)
     {
         residual_ = runtime.createResidualVector();
         jacobian_ = runtime.createJacobian();
@@ -365,7 +364,7 @@ public:
         PetscCallAbort(PETSC_COMM_WORLD,
                        MPMC::installNaturalCallbacks(snes_, runtime, residual_, jacobian_));
         PetscCallAbort(PETSC_COMM_WORLD, SNESSetFromOptions(snes_));
-        installMeshNormalizedConvergenceIfRequested_();
+        configureMeshNormalizedL2ToleranceIfRequested_();
         // SNESSetFromOptions may replace the line-search implementation and
         // clear its user checks.  Bind Natural hooks to the final selected
         // line search before setup/solve.
@@ -387,93 +386,7 @@ public:
     [[nodiscard]] SNES snes() const noexcept { return snes_; }
 
 private:
-    struct MeshNormalizedConvergenceContext final
-    {
-        Runtime *runtime{nullptr};
-        PetscReal rmsAbsoluteTolerance{0.0};
-        PetscReal infinityAbsoluteTolerance{0.0};
-        PetscReal globalSignedMassAbsoluteTolerance{0.0};
-        PetscInt globalEquationCount{0};
-    };
-
-    static PetscErrorCode meshNormalizedConvergenceTest_(
-        SNES snes,
-        PetscInt iteration,
-        PetscReal xNorm,
-        PetscReal stepNorm,
-        PetscReal functionNorm,
-        SNESConvergedReason *reason,
-        void *context)
-    {
-        PetscFunctionBeginUser;
-        PetscCheck(
-            context != nullptr,
-            PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
-            PETSC_ERR_ARG_NULL,
-            "Mesh-normalized SNES convergence context is null.");
-
-        auto &cfg =
-            *static_cast<MeshNormalizedConvergenceContext *>(context);
-
-        SNESConvergedReason defaultReason = SNES_CONVERGED_ITERATING;
-        PetscCall(SNESConvergedDefault(
-            snes,
-            iteration,
-            xNorm,
-            stepNorm,
-            functionNorm,
-            &defaultReason,
-            nullptr));
-
-        *reason = defaultReason;
-        if (defaultReason > 0)
-        {
-            const PetscReal rms =
-                cfg.globalEquationCount > 0
-                    ? functionNorm /
-                        std::sqrt(static_cast<PetscReal>(cfg.globalEquationCount))
-                    : std::numeric_limits<PetscReal>::infinity();
-            if (rms > cfg.rmsAbsoluteTolerance)
-            {
-                *reason = SNES_CONVERGED_ITERATING;
-                PetscFunctionReturn(PETSC_SUCCESS);
-            }
-
-            Vec residual = nullptr;
-            PetscCall(SNESGetFunction(snes, &residual, nullptr, nullptr));
-            PetscCheck(
-                residual != nullptr,
-                PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
-                PETSC_ERR_ARG_NULL,
-                "SNES residual is unavailable for mesh-normalized convergence gates.");
-            PetscCheck(
-                cfg.runtime != nullptr,
-                PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
-                PETSC_ERR_ARG_NULL,
-                "Natural runtime is unavailable for global mass-residual convergence gate.");
-
-            PetscReal infinityNorm = 0.0;
-            PetscCall(VecNorm(residual, NORM_INFINITY, &infinityNorm));
-            if (infinityNorm > cfg.infinityAbsoluteTolerance)
-            {
-                *reason = SNES_CONVERGED_ITERATING;
-                PetscFunctionReturn(PETSC_SUCCESS);
-            }
-
-            const auto massResidual =
-                cfg.runtime->evaluateGlobalSignedMassResidual(residual);
-            if (massResidual.maximumAbsolute() >
-                cfg.globalSignedMassAbsoluteTolerance)
-            {
-                *reason = SNES_CONVERGED_ITERATING;
-                PetscFunctionReturn(PETSC_SUCCESS);
-            }
-        }
-
-        PetscFunctionReturn(PETSC_SUCCESS);
-    }
-
-    void installMeshNormalizedConvergenceIfRequested_()
+    void configureMeshNormalizedL2ToleranceIfRequested_()
     {
         PetscReal rmsTolerance = 0.0;
         PetscReal infinityTolerance = 0.0;
@@ -554,21 +467,10 @@ private:
                 maxIterations,
                 maxFunctions));
 
-        meshNormalizedContext_.runtime = &runtime_;
-        meshNormalizedContext_.rmsAbsoluteTolerance = rmsTolerance;
-        meshNormalizedContext_.infinityAbsoluteTolerance =
-            infinityTolerance;
-        meshNormalizedContext_.globalSignedMassAbsoluteTolerance =
-            massSumTolerance;
-        meshNormalizedContext_.globalEquationCount = globalRows;
-
-        PetscCallAbort(
-            PETSC_COMM_WORLD,
-            SNESSetConvergenceTest(
-                snes_,
-                meshNormalizedConvergenceTest_,
-                &meshNormalizedContext_,
-                nullptr));
+        // Only preconfigure PETSc's global L2 absolute tolerance so the
+        // standard criterion represents the registered RMS threshold.
+        // NaturalAdaptiveBackend owns the single final convergence callback
+        // that composes standard/RMS/Linf/global-mass/stagnation checks.
 
         PetscPrintf(
             PETSC_COMM_WORLD,
@@ -581,11 +483,9 @@ private:
             static_cast<double>(massSumTolerance));
     }
 
-    Runtime &runtime_;
     SNES snes_{nullptr};
     Vec residual_{nullptr};
     Mat jacobian_{nullptr};
-    MeshNormalizedConvergenceContext meshNormalizedContext_{};
 };
 
 /**
