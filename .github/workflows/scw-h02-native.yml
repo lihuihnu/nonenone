@@ -106,64 +106,24 @@ jobs:
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
-      - name: Diagnose 60x20 B accepted-step internal face conservation to 1.2 PVI
+      - name: Diagnose accepted residual consistency on 60x20 B to 1.2 PVI
         run: |
           set -euo pipefail
-          root="$GITHUB_WORKSPACE/h02-results/face_audit_60x20_B"
+          root="$GITHUB_WORKSPACE/h02-results/accepted_residual_audit_60x20_B"
           mkdir -p "$root"
           GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
-          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 1.2 -numSteps 70 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $GATE -audit_internal_face_conservation true -ksp_type preonly -pc_type lu"
+          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 1.2 -numSteps 70 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $GATE -audit_accepted_residual_consistency true -ksp_type preonly -pc_type lu"
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/run.log" 2>&1
-          python3 - <<'PY'
-          import csv, json, math
-          from pathlib import Path
-          root=Path("h02-results/face_audit_60x20_B")
-          rows=list(csv.DictReader((root/"component_mass_balance.csv").open()))
-          out=[]
-          for r in rows:
-              if r["component"] not in ("H2O","OIL_HEAVY"):
-                  continue
-              ini=float(r["initial_inventory_kg"])
-              inj=float(r["cumulative_injected_kg"])
-              prod=float(r["cumulative_produced_kg"])
-              cur=float(r["current_inventory_kg"])
-              err=cur-ini-inj+prod
-              face=float(r["cumulative_internal_face_imbalance_kg"])
-              out.append({
-                  "step":int(r["step"]),
-                  "component":r["component"],
-                  "balance_error_kg":err,
-                  "cumulative_face_imbalance_kg":face,
-                  "error_plus_face_kg":err+face,
-                  "instantaneous_face_imbalance_kg_s":
-                      float(r["internal_face_flux_imbalance_kg_s"]),
-              })
-          with (root/"face_balance_identity.csv").open("w",newline="") as f:
-              w=csv.DictWriter(f,fieldnames=list(out[0]))
-              w.writeheader(); w.writerows(out)
-          summary={}
-          for comp in ("H2O","OIL_HEAVY"):
-              rr=[x for x in out if x["component"]==comp]
-              last=rr[-1]
-              summary[comp]={
-                  "final_balance_error_kg":last["balance_error_kg"],
-                  "final_cumulative_face_imbalance_kg":
-                      last["cumulative_face_imbalance_kg"],
-                  "final_error_plus_face_kg":last["error_plus_face_kg"],
-                  "max_abs_instantaneous_face_imbalance_kg_s":
-                      max(abs(x["instantaneous_face_imbalance_kg_s"]) for x in rr),
-                  "max_abs_error_plus_face_kg":
-                      max(abs(x["error_plus_face_kg"]) for x in rr),
-              }
-          (root/"face_balance_identity.json").write_text(
-              json.dumps(summary,indent=2)+"\n")
-          print(json.dumps(summary,indent=2))
-          PY
-          grep -F '[SNES][MESH-NORM]' "$root/run.log" | head -1
+          audit_count=$(grep -c '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root/run.log" || true)
+          violation_count=$(grep -c 'violation=1' "$root/run.log" || true)
+          printf 'audit_lines=%s\nviolations=%s\n' "$audit_count" "$violation_count"             | tee "$root/audit_summary.txt"
+          if [ "$audit_count" -gt 0 ]; then
+            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root/run.log"               | tail -80 > "$root/audit_tail.txt"
+            cat "$root/audit_tail.txt"
+          fi
           tail -30 "$root/run.log"
-          cat "$root/face_balance_identity.json"
-          # Intentional diagnostic stop: do not spend CI time on downstream
-          # convergence runs until this conservation identity is interpreted.
+          # Intentional diagnostic stop. Do not run grid convergence until the
+          # accepted-state residual/cache consistency question is resolved.
           exit 3
 
       - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
