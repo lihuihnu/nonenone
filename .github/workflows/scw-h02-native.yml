@@ -106,24 +106,41 @@ jobs:
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
-      - name: Diagnose accepted residual consistency on 60x20 B to 1.2 PVI
+      - name: Verify composed convergence callback on short H02 runs
         run: |
           set -euo pipefail
-          root="$GITHUB_WORKSPACE/h02-results/accepted_residual_audit_60x20_B"
-          mkdir -p "$root"
-          GATE="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
-          COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 1.2 -numSteps 70 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $GATE -audit_accepted_residual_consistency true -ksp_type preonly -pc_type lu"
-          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/run.log" 2>&1
-          audit_count=$(grep -c '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root/run.log" || true)
-          violation_count=$(grep -c 'violation=1' "$root/run.log" || true)
-          printf 'audit_lines=%s\nviolations=%s\n' "$audit_count" "$violation_count"             | tee "$root/audit_summary.txt"
-          if [ "$audit_count" -gt 0 ]; then
-            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root/run.log"               | tail -80 > "$root/audit_tail.txt"
-            cat "$root/audit_tail.txt"
+          gate="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
+          common="-adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $gate -audit_accepted_residual_consistency true -ksp_type preonly -pc_type lu"
+
+          root20="$GITHUB_WORKSPACE/h02-results/composite_callback_20x8_B_60s"
+          mkdir -p "$root20"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root20"             RUN_ARGS="-h02_mode B -h02_nx 20 -h02_ny 8 -numSteps 1 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 $common"             > "$root20/run.log" 2>&1
+
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root20/run.log"
+          if grep -q 'violation=1' "$root20/run.log"; then
+            echo "20x8 accepted state bypassed composite convergence gate"
+            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root20/run.log" | tail -40
+            exit 2
           fi
-          tail -30 "$root/run.log"
-          # Intentional diagnostic stop. Do not run grid convergence until the
-          # accepted-state residual/cache consistency question is resolved.
+
+          root60="$GITHUB_WORKSPACE/h02-results/composite_callback_60x20_B_240s"
+          mkdir -p "$root60"
+          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root60"             RUN_ARGS="-h02_mode B -h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 $common"             > "$root60/run.log" 2>&1
+
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root60/run.log"
+          if grep -q 'violation=1' "$root60/run.log"; then
+            echo "60x20 accepted state bypassed composite convergence gate"
+            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root60/run.log" | tail -80
+            exit 2
+          fi
+
+          printf '20x8_violation_count=%s\n' "$(grep -c 'violation=1' "$root20/run.log" || true)"             | tee h02-results/composite_callback_gate_summary.txt
+          printf '60x20_violation_count=%s\n' "$(grep -c 'violation=1' "$root60/run.log" || true)"             | tee -a h02-results/composite_callback_gate_summary.txt
+          tail -20 "$root20/run.log"
+          tail -30 "$root60/run.log"
+
+          # Intentional short-validation stop. Full 2-PVI reruns resume only
+          # after this callback-composition gate is independently accepted.
           exit 3
 
       - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
