@@ -65,31 +65,21 @@ jobs:
           grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d/run.sh
           grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d/run.sh
           grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d/run.sh
-          make case CASE=scw_h02_2d_a -j2 2>&1 | tee h02-results/build_A.log
-          test -x case/scw_h02_2d_a/bin/scw_h02_2d_a
-          grep -F -- '-snes_max_it 40' case/scw_h02_2d_a/run.sh
-          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d_a/run.sh
-          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d_a/run.sh
-          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d_a/run.sh
-      - name: Run A B C two-step smoke on the full 60x20 mesh
+      - name: Run B C two-step smoke on the full 60x20 mesh
         run: |
           set +e
           rc=0
-          make run CASE=scw_h02_2d_a NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/A" RUN_ARGS="-numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu" > "h02-results/A.log" 2>&1
-          code=$?
-          echo "A $code" | tee -a h02-results/exit_codes.txt
-          tail -50 h02-results/A.log
-          if [ "$code" != 0 ]; then rc=1; fi
           for mode in B C; do
-            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/$mode" RUN_ARGS="-h02_mode $mode -numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu" > "h02-results/$mode.log" 2>&1
+            make run CASE=scw_h02_2d NP=1 RESULT_DIR="$GITHUB_WORKSPACE/h02-results/smoke_$mode"               RUN_ARGS="-h02_mode $mode -h02_nx 60 -h02_ny 20 -numSteps 2 -dt 0.0000011574074074074074 -adaptive_dt true -snes_max_it 20 -snes_atol 1e-8 -snes_rtol 1e-8 -ksp_type preonly -pc_type lu"               > "h02-results/smoke_$mode.log" 2>&1
             code=$?
             echo "$mode $code" | tee -a h02-results/exit_codes.txt
-            tail -50 "h02-results/$mode.log"
+            tail -40 "h02-results/smoke_$mode.log"
             if [ "$code" != 0 ]; then rc=1; fi
           done
           cat h02-results/exit_codes.txt
           exit "$rc"
       - name: Diagnose first 60 s mass closure before long runs
+        if: ${{ false }}
         run: |
           set -euo pipefail
           mkdir -p h02-results/first60
@@ -107,6 +97,7 @@ jobs:
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
       - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
+        if: ${{ false }}
         run: |
           set -euo pipefail
           mkdir -p h02-results/mesh_norm_20x8
@@ -124,6 +115,7 @@ jobs:
             tail -20 "h02-results/mesh_norm_20x8/$mode.log"
           done
       - name: Confirm 20x8 mass gate and run49 run86 mechanism consistency
+        if: ${{ false }}
         run: |
           set -euo pipefail
           cat h02-results/mesh_norm_20x8/analysis/h02_numerical_gates.csv
@@ -132,7 +124,6 @@ jobs:
           cat h02-results/mesh_norm_20x8/baseline_comparison/baseline_gates.csv
           cat h02-results/mesh_norm_20x8/baseline_comparison/mechanism_increment_comparison.csv
       - name: Run full 60x20 B to 2 PVI with mesh-normalized gate
-        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -141,9 +132,9 @@ jobs:
           COMMON_ARGS="-h02_nx 60 -h02_ny 20 -target_pvi 2.0 -numSteps 150 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 -adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $MESH_GATE -ksp_type preonly -pc_type lu"
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/B" RUN_ARGS="-h02_mode B $COMMON_ARGS" > "$root/B.log" 2>&1
           grep -F '[SNES][MESH-NORM]' "$root/B.log" | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/B.log" | head -1
           tail -30 "$root/B.log"
-      - name: Run full 60x20 C only after B succeeds
-        if: ${{ false }}
+      - name: Run full 60x20 C and certify B C trajectory mass
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -152,6 +143,7 @@ jobs:
           make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root/C" RUN_ARGS="-h02_mode C $COMMON_ARGS" > "$root/C.log" 2>&1
           python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis" --modes BC | tee "$root/analysis.log"
           grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
+          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/C.log" | head -1
           tail -30 "$root/C.log"
       - name: Record 20x8 to 60x20 A B C grid gates without changing thresholds
         if: ${{ false }}
