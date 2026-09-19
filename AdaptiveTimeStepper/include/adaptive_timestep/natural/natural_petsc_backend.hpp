@@ -74,13 +74,15 @@ public:
         NonlinearStagnationConfig stagnationConfig = {})
         : runtime_(runtime),
           solver_(snes, solution, printNewtonIterations, PETSC_COMM_WORLD,
-                  stagnationConfig),
+                  stagnationConfig, false),
           solution_(solution),
           currentTime_(currentTime),
           wellControlCycle_(std::move(wellControlCycle)),
           acceptedStepHook_(std::move(acceptedStepHook)),
-          failedSolveHook_(std::move(failedSolveHook))
+          failedSolveHook_(std::move(failedSolveHook)),
+          stagnationDetector_(stagnationConfig)
     {
+        installCompositeConvergenceTest_(snes);
         PetscBool auditAcceptedResidual = PETSC_FALSE;
         PetscCallAbort(
             PETSC_COMM_WORLD,
@@ -124,6 +126,7 @@ public:
 
     [[nodiscard]] NonlinearSolveResult solve()
     {
+        stagnationDetector_.reset();
         auto result = solver_.solve();
 
         if (result.converged && auditAcceptedResidualConsistencyEnabled_)
@@ -172,6 +175,247 @@ public:
     }
 
 private:
+    static PetscErrorCode compositeConvergenceTest_(
+        SNES snes,
+        PetscInt iteration,
+        PetscReal xNorm,
+        PetscReal stepNorm,
+        PetscReal functionNorm,
+        SNESConvergedReason *reason,
+        void *context)
+    {
+        PetscFunctionBeginUser;
+        PetscCheck(
+            context != nullptr,
+            PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
+            PETSC_ERR_ARG_NULL,
+            "Natural composite SNES convergence context is null.");
+
+        auto &self =
+            *static_cast<NaturalAdaptiveBackend *>(context);
+
+        SNESConvergedReason defaultReason = SNES_CONVERGED_ITERATING;
+        PetscCall(SNESConvergedDefault(
+            snes,
+            iteration,
+            xNorm,
+            stepNorm,
+            functionNorm,
+            &defaultReason,
+            nullptr));
+
+        // Preserve PETSc hard divergence reasons (NaN, max function count,
+        // divergence tolerance, etc.) exactly as reported.
+        if (defaultReason < 0)
+        {
+            *reason = defaultReason;
+            PetscFunctionReturn(PETSC_SUCCESS);
+        }
+
+        bool acceptedByStandard = defaultReason > 0;
+
+        // Any positive PETSc convergence reason is only provisional when the
+        // mesh-independent Natural gates are enabled. Relative convergence is
+        // therefore unable to bypass the RMS/Linf/component-mass conditions.
+        if (acceptedByStandard && self.meshGateEnabled_)
+        {
+            const PetscReal rms =
+                self.globalEquationCount_ > 0
+                    ? functionNorm /
+                        std::sqrt(static_cast<PetscReal>(
+                            self.globalEquationCount_))
+                    : std::numeric_limits<PetscReal>::infinity();
+
+            if (rms > self.rmsAbsoluteTolerance_)
+            {
+                acceptedByStandard = false;
+            }
+            else
+            {
+                Vec residual = nullptr;
+                PetscCall(SNESGetFunction(
+                    snes, &residual, nullptr, nullptr));
+                PetscCheck(
+                    residual != nullptr,
+                    PetscObjectComm(reinterpret_cast<PetscObject>(snes)),
+                    PETSC_ERR_ARG_NULL,
+                    "Natural composite convergence requires the SNES residual vector.");
+
+                PetscReal infinityNorm = 0.0;
+                PetscCall(VecNorm(
+                    residual, NORM_INFINITY, &infinityNorm));
+
+                if (infinityNorm >
+                    self.infinityAbsoluteTolerance_)
+                {
+                    acceptedByStandard = false;
+                }
+                else
+                {
+                    const auto massResidual =
+                        self.runtime_.evaluateGlobalSignedMassResidual(
+                            residual);
+                    if (massResidual.maximumAbsolute() >
+                        self.globalSignedMassAbsoluteTolerance_)
+                    {
+                        acceptedByStandard = false;
+                    }
+                }
+            }
+        }
+
+        if (acceptedByStandard)
+        {
+            *reason = defaultReason;
+            PetscFunctionReturn(PETSC_SUCCESS);
+        }
+
+        // PETSc has not produced an acceptable converged state (either it was
+        // still iterating or one of the Natural acceptance gates vetoed it).
+        // Only now may the plateau detector request an early retry with a
+        // smaller timestep.
+        *reason = SNES_CONVERGED_ITERATING;
+        if (self.stagnationDetector_.update(
+                static_cast<int>(iteration),
+                static_cast<double>(functionNorm)))
+        {
+            *reason = SNES_DIVERGED_LOCAL_MIN;
+        }
+
+        PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+    void installCompositeConvergenceTest_(SNES snes)
+    {
+        PetscReal rmsTolerance = 0.0;
+        PetscReal infinityTolerance = 0.0;
+        PetscReal massTolerance = 0.0;
+        PetscBool rmsSet = PETSC_FALSE;
+        PetscBool infinitySet = PETSC_FALSE;
+        PetscBool massSet = PETSC_FALSE;
+
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_rms_atol",
+                &rmsTolerance, &rmsSet));
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_linf_atol",
+                &infinityTolerance, &infinitySet));
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            PetscOptionsGetReal(
+                nullptr, nullptr, "-snes_global_mass_atol",
+                &massTolerance, &massSet));
+
+        const int requestedCount =
+            (rmsSet == PETSC_TRUE ? 1 : 0) +
+            (infinitySet == PETSC_TRUE ? 1 : 0) +
+            (massSet == PETSC_TRUE ? 1 : 0);
+
+        if (requestedCount != 0 && requestedCount != 3)
+        {
+            throw std::invalid_argument(
+                "-snes_rms_atol, -snes_linf_atol and "
+                "-snes_global_mass_atol must be supplied together.");
+        }
+
+        meshGateEnabled_ = requestedCount == 3;
+        if (meshGateEnabled_)
+        {
+            if (!(rmsTolerance > 0.0) ||
+                !std::isfinite(rmsTolerance) ||
+                !(infinityTolerance > 0.0) ||
+                !std::isfinite(infinityTolerance) ||
+                !(massTolerance > 0.0) ||
+                !std::isfinite(massTolerance))
+            {
+                throw std::invalid_argument(
+                    "Natural RMS/Linf/global-mass convergence tolerances "
+                    "must be finite and positive.");
+            }
+
+            Vec residual = nullptr;
+            PetscCallAbort(
+                PETSC_COMM_WORLD,
+                SNESGetFunction(
+                    snes, &residual, nullptr, nullptr));
+            if (residual == nullptr)
+                throw std::logic_error(
+                    "Natural composite convergence requires a residual vector.");
+
+            PetscCallAbort(
+                PETSC_COMM_WORLD,
+                VecGetSize(
+                    residual, &globalEquationCount_));
+            if (globalEquationCount_ <= 0)
+                throw std::logic_error(
+                    "Natural composite convergence requires nonzero equations.");
+
+            rmsAbsoluteTolerance_ =
+                static_cast<double>(rmsTolerance);
+            infinityAbsoluteTolerance_ =
+                static_cast<double>(infinityTolerance);
+            globalSignedMassAbsoluteTolerance_ =
+                static_cast<double>(massTolerance);
+
+            PetscReal oldAtol = 0.0;
+            PetscReal rtol = 0.0;
+            PetscReal stol = 0.0;
+            PetscInt maxIterations = 0;
+            PetscInt maxFunctions = 0;
+            PetscCallAbort(
+                PETSC_COMM_WORLD,
+                SNESGetTolerances(
+                    snes,
+                    &oldAtol,
+                    &rtol,
+                    &stol,
+                    &maxIterations,
+                    &maxFunctions));
+
+            const PetscReal l2Tolerance =
+                rmsTolerance *
+                std::sqrt(static_cast<PetscReal>(
+                    globalEquationCount_));
+
+            PetscCallAbort(
+                PETSC_COMM_WORLD,
+                SNESSetTolerances(
+                    snes,
+                    l2Tolerance,
+                    rtol,
+                    stol,
+                    maxIterations,
+                    maxFunctions));
+        }
+
+        // Final ownership point: after this call there is exactly one Natural
+        // convergence callback. PetscSnesDriver was explicitly constructed
+        // with its standalone stagnation callback disabled.
+        PetscCallAbort(
+            PETSC_COMM_WORLD,
+            SNESSetConvergenceTest(
+                snes,
+                &NaturalAdaptiveBackend::compositeConvergenceTest_,
+                this,
+                nullptr));
+
+        PetscPrintf(
+            PETSC_COMM_WORLD,
+            "[SNES][COMPOSITE-CONV] mesh_gates=%s stagnation=%s "
+            "RMS_ATOL=%.12e LINF_ATOL=%.12e "
+            "GLOBAL_MASS_ATOL=%.12e kg/s N=%lld\n",
+            meshGateEnabled_ ? "ON" : "OFF",
+            stagnationDetector_.config().enabled ? "ON" : "OFF",
+            rmsAbsoluteTolerance_,
+            infinityAbsoluteTolerance_,
+            globalSignedMassAbsoluteTolerance_,
+            static_cast<long long>(globalEquationCount_));
+    }
+
     void auditAcceptedResidualConsistency_(
         const NonlinearSolveResult &result)
     {
@@ -267,6 +511,12 @@ private:
     WellControlCycleType wellControlCycle_;
     AcceptedStepHook acceptedStepHook_;
     FailedSolveHook failedSolveHook_;
+    NonlinearStagnationDetector stagnationDetector_{};
+    bool meshGateEnabled_{false};
+    double rmsAbsoluteTolerance_{0.0};
+    double infinityAbsoluteTolerance_{0.0};
+    double globalSignedMassAbsoluteTolerance_{0.0};
+    PetscInt globalEquationCount_{0};
     bool auditAcceptedResidualConsistencyEnabled_{false};
     double auditedGlobalMassTolerance_{0.0};
     std::size_t acceptedResidualAuditCount_{0};
