@@ -13,6 +13,11 @@
 #include <petscsys.h>
 #include <petscvec.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
 #include <utility>
 
 namespace MPMC
@@ -83,7 +88,7 @@ public:
                 nullptr, nullptr,
                 "-audit_accepted_residual_consistency",
                 &auditAcceptedResidual, nullptr));
-        auditAcceptedResidualConsistency_ =
+        auditAcceptedResidualConsistencyEnabled_ =
             auditAcceptedResidual == PETSC_TRUE;
 
         PetscReal massTolerance = 0.0;
@@ -121,7 +126,7 @@ public:
     {
         auto result = solver_.solve();
 
-        if (result.converged && auditAcceptedResidualConsistency_)
+        if (result.converged && auditAcceptedResidualConsistencyEnabled_)
             auditAcceptedResidualConsistency_(result);
 
         if (!result.converged)
@@ -262,7 +267,7 @@ private:
     WellControlCycleType wellControlCycle_;
     AcceptedStepHook acceptedStepHook_;
     FailedSolveHook failedSolveHook_;
-    bool auditAcceptedResidualConsistency_{false};
+    bool auditAcceptedResidualConsistencyEnabled_{false};
     double auditedGlobalMassTolerance_{0.0};
     std::size_t acceptedResidualAuditCount_{0};
     double maximumFreshAcceptedMassResidual_{0.0};
