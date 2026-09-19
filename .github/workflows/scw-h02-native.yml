@@ -65,7 +65,14 @@ jobs:
           grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d/run.sh
           grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d/run.sh
           grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d/run.sh
+          make case CASE=scw_h02_2d_a -j2 2>&1 | tee h02-results/build_A.log
+          test -x case/scw_h02_2d_a/bin/scw_h02_2d_a
+          grep -F -- '-snes_max_it 40' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_atol 1.e-6' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_rtol 1.e-8' case/scw_h02_2d_a/run.sh
+          grep -F -- '-snes_stol "1.e-100"' case/scw_h02_2d_a/run.sh
       - name: Run B C two-step smoke on the full 60x20 mesh
+        if: ${{ false }}
         run: |
           set +e
           rc=0
@@ -124,6 +131,7 @@ jobs:
           cat h02-results/mesh_norm_20x8/baseline_comparison/baseline_gates.csv
           cat h02-results/mesh_norm_20x8/baseline_comparison/mechanism_increment_comparison.csv
       - name: Run full 60x20 B to 2 PVI with mesh-normalized gate
+        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -135,6 +143,7 @@ jobs:
           grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/B.log" | head -1
           tail -30 "$root/B.log"
       - name: Run full 60x20 C and certify B C trajectory mass
+        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -176,7 +185,6 @@ jobs:
           printf 'A=%s\nBC=%s\n' "$rc_a" "$rc_bc"             > h02-results/grid_gate_20x8_to_60x20_status.txt
 
       - name: Run aligned 36x12 A B C to 2 PVI with all convergence gates
-        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/aligned_36x12"
@@ -190,6 +198,7 @@ jobs:
           python3 case/scw_h02_2d/analyze_h02.py             --root "$root" --out "$root/analysis"             | tee "$root/analysis.log"
           for mode in A B C; do
             grep -F '[SNES][MESH-NORM]' "$root/$mode.log" | head -1
+            grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root/$mode.log" | head -1
             tail -20 "$root/$mode.log"
           done
 
