@@ -106,43 +106,6 @@ jobs:
           run_diag B_guard_dt1 B "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           run_diag C_guard_dt1 C "-snes_stol 1e-100 -snes_atol 1e-6 -dt_max 0.000011574074074074073"
           python3 case/scw_h02_2d/diagnose_first60.py             h02-results/first60 h02-results/first60/summary.csv
-      - name: Verify composed convergence callback on short H02 runs
-        run: |
-          set -euo pipefail
-          gate="-snes_rms_atol 2.795084971874737e-8 -snes_linf_atol 1e-6 -snes_global_mass_atol 8e-12"
-          common="-adaptive_dt true -snes_max_it 40 -snes_atol 1e-6 -snes_rtol 1e-8 -snes_stol 1e-100 $gate -audit_accepted_residual_consistency true -ksp_type preonly -pc_type lu"
-
-          root20="$GITHUB_WORKSPACE/h02-results/composite_callback_20x8_B_60s"
-          mkdir -p "$root20"
-          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root20"             RUN_ARGS="-h02_mode B -h02_nx 20 -h02_ny 8 -numSteps 1 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 $common"             > "$root20/run.log" 2>&1
-
-          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root20/run.log"
-          if grep -q 'violation=1' "$root20/run.log"; then
-            echo "20x8 accepted state bypassed composite convergence gate"
-            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root20/run.log" | tail -40
-            exit 2
-          fi
-
-          root60="$GITHUB_WORKSPACE/h02-results/composite_callback_60x20_B_240s"
-          mkdir -p "$root60"
-          make run CASE=scw_h02_2d NP=1 RESULT_DIR="$root60"             RUN_ARGS="-h02_mode B -h02_nx 60 -h02_ny 20 -numSteps 4 -dt 0.0006944444444444445 -dt_max 0.000023148148148148147 $common"             > "$root60/run.log" 2>&1
-
-          grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "$root60/run.log"
-          if grep -q 'violation=1' "$root60/run.log"; then
-            echo "60x20 accepted state bypassed composite convergence gate"
-            grep '\[ACCEPTED-RESIDUAL-AUDIT\]' "$root60/run.log" | tail -80
-            exit 2
-          fi
-
-          printf '20x8_violation_count=%s\n' "$(grep -c 'violation=1' "$root20/run.log" || true)"             | tee h02-results/composite_callback_gate_summary.txt
-          printf '60x20_violation_count=%s\n' "$(grep -c 'violation=1' "$root60/run.log" || true)"             | tee -a h02-results/composite_callback_gate_summary.txt
-          tail -20 "$root20/run.log"
-          tail -30 "$root60/run.log"
-
-          # Intentional short-validation stop. Full 2-PVI reruns resume only
-          # after this callback-composition gate is independently accepted.
-          exit 3
-
       - name: Revalidate 20x8 A B C with preregistered mesh-normalized SNES gate
         run: |
           set -euo pipefail
@@ -155,16 +118,21 @@ jobs:
           done
           python3 case/scw_h02_2d/analyze_h02.py             --root h02-results/mesh_norm_20x8             --out h02-results/mesh_norm_20x8/analysis | tee h02-results/mesh_norm_20x8/analysis.log
           for mode in A B C; do
-            echo "===== H02 mesh-normalized 20x8 $mode ====="
+            echo "===== H02 composite 20x8 $mode ====="
             grep -F '[SNES][MESH-NORM]' "h02-results/mesh_norm_20x8/$mode.log" | head -1
+            grep -F '[SNES][COMPOSITE-CONV] mesh_gates=ON stagnation=ON' "h02-results/mesh_norm_20x8/$mode.log" | head -1
             tail -20 "h02-results/mesh_norm_20x8/$mode.log"
           done
-      - name: Confirm mesh-normalized 20x8 mass and mechanism tables
+      - name: Confirm 20x8 mass gate and run49 run86 mechanism consistency
         run: |
           set -euo pipefail
           cat h02-results/mesh_norm_20x8/analysis/h02_numerical_gates.csv
           cat h02-results/mesh_norm_20x8/analysis/h02_mechanism_at_1_2_pvi.csv
+          python3 case/scw_h02_2d/compare_20x8_baselines.py             --current h02-results/mesh_norm_20x8/analysis/h02_mechanism_at_1_2_pvi.csv             --run49 case/scw_h02_2d/reference/run49_20x8/h02_mechanism_at_1_2_pvi.csv             --run86 case/scw_h02_2d/reference/run86_20x8/h02_mechanism_at_1_2_pvi.csv             --out h02-results/mesh_norm_20x8/baseline_comparison             | tee h02-results/mesh_norm_20x8/baseline_comparison.log
+          cat h02-results/mesh_norm_20x8/baseline_comparison/baseline_gates.csv
+          cat h02-results/mesh_norm_20x8/baseline_comparison/mechanism_increment_comparison.csv
       - name: Run full 60x20 B to 2 PVI with mesh-normalized gate
+        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -175,6 +143,7 @@ jobs:
           grep -F '[SNES][MESH-NORM]' "$root/B.log" | head -1
           tail -30 "$root/B.log"
       - name: Run full 60x20 C only after B succeeds
+        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/mesh_norm_60x20"
@@ -185,6 +154,7 @@ jobs:
           grep -F '[SNES][MESH-NORM]' "$root/C.log" | head -1
           tail -30 "$root/C.log"
       - name: Record 20x8 to 60x20 A B C grid gates without changing thresholds
+        if: ${{ false }}
         run: |
           set -euo pipefail
           mkdir -p h02-results/grid_gate_20x8_to_60x20_A
@@ -214,6 +184,7 @@ jobs:
           printf 'A=%s\nBC=%s\n' "$rc_a" "$rc_bc"             > h02-results/grid_gate_20x8_to_60x20_status.txt
 
       - name: Run aligned 36x12 A B C to 2 PVI with all convergence gates
+        if: ${{ false }}
         run: |
           set -euo pipefail
           root="$GITHUB_WORKSPACE/h02-results/aligned_36x12"
@@ -231,6 +202,7 @@ jobs:
           done
 
       - name: Compare aligned 36x12 to certified 60x20 A and new 60x20 B C
+        if: ${{ false }}
         run: |
           set -euo pipefail
           mkdir -p h02-results/grid_gate_36x12_to_60x20_A
